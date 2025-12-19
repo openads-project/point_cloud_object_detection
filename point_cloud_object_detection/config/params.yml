@@ -1,0 +1,69 @@
+/**:
+  ros__parameters:
+
+    point_cloud_transport: raw
+
+    model_name: "PBOD"
+    model_version: "1"
+    model_config: models/pbod_triton.yml
+    point_type: "PointXYZI"  # Set to "PointXYZRV" for reflectivity + velocity input
+    num_point_features: 1
+    server_url: "134.130.20.221:8001"
+    use_shm: False
+
+    sensor_id: -1 # Use -1 for a random id or a non-negative integer for a fixed sensor id
+
+    # inference_frame: ego_vehicle/lidar        # frame for inference
+                                                # (here: sensor frame)
+    # output_frame: object_list_frame   # frame for object list
+    # inference_frame is the prediction frame used for model inference and for the no-detection zone below.
+
+    # variances (values must be >=0.0 or -1.0 to mark CONTINUOUS_STATE_COVARIANCE_UNKNOWN)
+    # x, y, z, vel_x, vel_y, acc_x, acc_y, yaw_angle, yaw_rate, width, length, height
+    variances: [0.2, 0.2, 0.1, -1.0, -1.0, -1.0, -1.0, 0.5, -1.0, 0.3, 0.3, 0.3]
+    class_score_threshold: 0.0  # Range [0.0, 1.0]
+
+    # Legacy compatibility parameters
+    mask_is_bool: True
+    zero_intensity: True
+
+    # Point cloud class publishing feature
+    publish_class_point_clouds: False  # Set to True to publish points for each detected class
+    publish_unclassified_points: False  # Set to True to publish points that are not inside any bounding box
+    # publish unclassified points that are outside the detection area (but not in the no-detection zone)
+    # publish_unclassified_points_outside_detection_area: False
+
+    # nms_score_threshold: [0.5, 0.3, 0.3] # [vehicle, pedestrian, cyclist]
+    #   can only be set in model config.yml
+    #   or via dynamic reconfigure
+    #     ros2 param set /perception/point_cloud_object_detection nms_score_threshold:="[0.5, 0.3, 0.3]"
+
+    # Optional: forbid detections intersecting a rectangle in the inference_frame
+    # no_detection_zone:
+    #   enabled: False
+    #   remove_points: False         # If True, raw points inside the no-detection zone are removed
+    #                                # from model input and from the published unclassified point cloud
+    #   publish_polygon: False       # If True, publish the rectangle bounds as geometry_msgs/PolygonStamped on
+    #                                # topic "~/no_detection_zone" (inference_frame)
+    #   publish_points: False        # If True, publish raw points in the no-detection zone on "~/no_detection_zone_points"
+    #   x_min: -1.0              # Requires x_min < x_max when enabled/remove_points true
+    #   x_max:  1.0
+    #   y_min: -1.0              # Requires y_min < y_max when enabled/remove_points true
+    #   y_max:  1.0
+
+    # Optional: allow detections only within a circular sector in the inference_frame
+    # detection_area:
+    #   enabled: False                # Enable sector filtering/publishing
+    #   center_x: 0.0                 # Sector center x [m]
+    #   center_y: 0.0                 # Sector center y [m]
+    #   radius: 50.0                  # Sector radius [m] (>=0, must be >0 when enabled)
+    #   bearing_deg: 0.0              # Center azimuth [deg], 0 along +x, CCW positive, within [-360, 360]
+    #   fov_deg: 120.0                # Angular width [deg], must be in (0, 360]
+    #   num_segments: 36              # Arc approximation segments (>=3)
+    #   publish_polygon: False        # Publish geometry_msgs/PolygonStamped on "~/detection_area"
+    #   filter_detections: False      # Remove detections outside the sector
+    #   filter_mode: center           # center|complete only (bbox center vs. full bbox inside)
+
+    # Optional: publish the model XY bounds (x_min/x_max/y_min/y_max) as a polygon
+    # model_bounds:
+    #   publish_polygon: False        # Publish geometry_msgs/PolygonStamped on "~/model_bounds"

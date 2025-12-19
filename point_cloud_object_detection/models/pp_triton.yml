@@ -1,0 +1,39 @@
+
+with_velocity: false
+
+intensity_threshold: 10000
+
+max_pillars: 10000
+max_points_per_pillar: 100
+n_features: 9
+downscaling: 2
+
+anchors:
+ - 3.9, 1.6, 1.56, -1.0, 0.0
+ - 3.9, 1.6, 1.56, -1.0, 1.5708
+ - 0.8, 0.6, 1.73, -0.6, 0.0
+ - 0.8, 0.6, 1.73, -0.6, 1.5708
+
+nms_iou_threshold: 0.2
+nms_max_num_objects: 50
+nms_score_threshold:
+- 0.2
+- 0.15
+- 0.1
+- 0.1
+predicted_class_names:
+- car
+- pedestrian
+- bicycle
+- truck
+
+
+x_grid_size: 512
+y_grid_size: 352
+
+x_min: -40.96
+x_max: 40.96
+y_min: -28.16
+y_max: 28.16
+z_min: -3.0
+z_max: 1.0

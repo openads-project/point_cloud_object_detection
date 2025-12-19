@@ -1,0 +1,3 @@
+point_cloud_object_detection/models/
+!point_cloud_object_detection/models/pbod_triton.yml
+!point_cloud_object_detection/models/pp_triton.yml

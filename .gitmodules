@@ -1,0 +1,6 @@
+[submodule ".vscode"]
+	path = .vscode
+	url = ../../../../fb-fi/dev-environment/vscode.git
+[submodule ".devcontainer"]
+	path = .devcontainer
+	url = ../../../../fb-fi/dev-environment/devcontainer.git

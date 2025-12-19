@@ -1,0 +1,13 @@
+repositories:
+  cloudini:
+    type: git
+    url: https://github.com/facontidavide/cloudini.git
+    version: 0.11.1
+  perception_interfaces:
+    type: git
+    url: https://github.com/ika-rwth-aachen/perception_interfaces.git
+    version: main
+  triton_cpp:
+    type: git
+    url: https://gitlab.ika.rwth-aachen.de/fb-fi/ml/triton_cpp.git
+    version: main
