@@ -1,0 +1,4 @@
+point_cloud_object_detection/models/*
+!point_cloud_object_detection/models/rosbag2_2025_02_18-10_17_00
+*.bag
+.env

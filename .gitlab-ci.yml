@@ -1,0 +1,11 @@
+include:
+  - remote: https://raw.githubusercontent.com/ika-rwth-aachen/docker-ros/main/.gitlab-ci/docker-ros.yml
+
+variables:
+  BASE_IMAGE: rwthika/ros2-triton:jazzy
+  PLATFORM: amd64,arm64
+  RMW_IMPLEMENTATION: rmw_zenoh_cpp
+  COMMAND: bash -ic 'ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py'
+  ENABLE_INDUSTRIAL_CI: 'true'
+  TARGET: dev,run
+  TARGET_CMAKE_ARGS : '-DCMAKE_EXPORT_COMPILE_COMMANDS=1'
