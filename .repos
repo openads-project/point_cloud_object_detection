@@ -2,7 +2,7 @@ repositories:
   cloudini:
     type: git
     url: https://github.com/facontidavide/cloudini.git
-    version: 0.11.1
+    version: 0.6.1
   perception_interfaces:
     type: git
     url: https://github.com/ika-rwth-aachen/perception_interfaces.git

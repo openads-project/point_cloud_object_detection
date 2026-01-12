@@ -158,7 +158,6 @@ struct ModelConfig {
   int downscaling;
   float delta_x;
   float delta_y;
-  std::string anchors_string;
   std::vector<Anchor> anchor_boxes;
   std::vector<double> anchor_diagonals;
   float min_nms_score_threshold;
@@ -211,10 +210,6 @@ struct Params {
 
   std::vector<double> variance;
   double class_score_threshold;
-  bool publish_class_point_clouds;
-  bool publish_unclassified_points;
-  // Publish unclassified points outside detection area (but not in no-detection zone)
-  bool publish_unclassified_points_outside_detection_area = false;
 
   // Optional no-detection rectangle (in inference_frame) where detections are not allowed
   bool no_detection_zone_enabled = false;
