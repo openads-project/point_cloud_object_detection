@@ -100,12 +100,6 @@ class PointCloudObjectDetection : public rclcpp::Node {
   void initializeModel();
 
   /**
-   * @brief Setup of publishers
-   *
-   */
-  void setupPublishers();
-
-  /**
    * @brief Transformation of point cloud coordinates into specified inference frame and transformation into pcl data type
    *
    * @param msg               Point cloud data in ROS message type format
@@ -120,25 +114,6 @@ class PointCloudObjectDetection : public rclcpp::Node {
    */
   void boxesToObjectList(const std::vector<BoundingBox>& bboxes, perception_msgs::msg::ObjectList& object_list);
 
-  /**
-   * @brief Publishes class-specific point clouds containing only points within detected bounding boxes
-   *
-   * @param bboxes            Vector containing all bounding boxes with class information
-   * @param header            Header from original point cloud message
-   */
-  // Publish class/unclassified point clouds. Uses the model's filtered input points
-  // for class assignment, and the transformed input cloud for outside-area unclassified points.
-  void publishClassPointClouds(const std::vector<BoundingBox>& bboxes, const std_msgs::msg::Header& header,
-                               const PointCloud& transformed_input_cloud);
-
-  /**
-   * @brief Check if a point is inside a 3D bounding box
-   *
-   * @param point             Point to check
-   * @param bbox              Bounding box to check against
-   * @return true if point is inside the bounding box, false otherwise
-   */
-  bool isPointInsideBoundingBox(const Point& point, const BoundingBox& bbox);
 
   /**
    * @brief Callback executing the prediction every time a point cloud message is received by the ROS node
@@ -176,13 +151,7 @@ class PointCloudObjectDetection : public rclcpp::Node {
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr detection_area_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr model_bounds_pub_;
 
-  // class-specific point cloud publishers
-  std::map<std::string, std::shared_ptr<point_cloud_transport::Publisher>> class_publishers_;
 
-  // publisher for unclassified points (not inside any bounding box)
-  std::shared_ptr<point_cloud_transport::Publisher> unclassified_publisher_;
-  // publisher for unclassified points outside detection area
-  std::shared_ptr<point_cloud_transport::Publisher> unclassified_outside_area_publisher_;
   // publisher for raw points inside the no-detection zone
   std::shared_ptr<point_cloud_transport::Publisher> no_detection_zone_points_publisher_;
 
@@ -194,7 +163,6 @@ class PointCloudObjectDetection : public rclcpp::Node {
   ModelType model_type_;
   Params params_;
   ModelConfig model_config_;
-  bool model_runtime_overwrite_ = false;
 
   std::unique_ptr<Model> detection_model_;
   std::unique_ptr<NonMaxSuppression> non_max_suppression_;
