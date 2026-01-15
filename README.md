@@ -42,8 +42,10 @@ This node does not perform the inference itself, but needs a [Triton server](htt
 | Topic | Type | Description |
 | --- | --- | --- |
 | `~/object_list` | `perception_msgs/msg/ObjectList` | Object list of detected objects |
-| `~/class_point_cloud/<class_name>` | `sensor_msgs/msg/PointCloud2` | Per-class point clouds (if enabled). Each class predicted by the network gets its own topic. |
-| `~/class_point_cloud` | `sensor_msgs/msg/PointCloud2` | Points not assigned to any object (if enabled). |
+| `~/no_detection_zone` | `geometry_msgs/msg/PolygonStamped` | Polygon of the configured no-detection rectangle (inference_frame) |
+| `~/no_detection_zone_points` | `sensor_msgs/msg/PointCloud2` | Raw points inside the no-detection zone |
+| `~/detection_area` | `geometry_msgs/msg/PolygonStamped` | Polygon of the configured detection sector (inference_frame) |
+| `~/model_bounds` | `geometry_msgs/msg/PolygonStamped` | Polygon of the model xy bounds |
 
 All output topics are node-relative (start with `~`) and are always in the node's namespace.
 
@@ -68,13 +70,6 @@ Example usage:
 ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py \
     point_cloud_topic:=/my_lidar/points \
     object_list_topic:=/my_lidar/objects \
-    class_point_cloud_car_topic:=/my_lidar/car \
-    class_point_cloud_pedestrian_topic:=/my_lidar/pedestrian \
-    class_point_cloud_bicycle_topic:=/my_lidar/truck \
-    class_point_cloud_truck_topic:=/my_lidar/trailer \
-    class_point_cloud_bus_topic:=/my_lidar/bus \
-    class_point_cloud_two_wheeler_topic:=/my_lidar/two_wheeler \
-    unclassified_point_cloud_topic:=/my_lidar/unclassified
 ```
 
 ## Parameters
