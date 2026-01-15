@@ -100,6 +100,12 @@ class PointCloudObjectDetection : public rclcpp::Node {
   void initializeModel();
 
   /**
+   * @brief Setup of publishers
+   *
+   */
+  void setupPublishers();
+
+  /**
    * @brief Transformation of point cloud coordinates into specified inference frame and transformation into pcl data type
    *
    * @param msg               Point cloud data in ROS message type format
@@ -163,6 +169,7 @@ class PointCloudObjectDetection : public rclcpp::Node {
   ModelType model_type_;
   Params params_;
   ModelConfig model_config_;
+  bool model_runtime_overwrite_ = false;
 
   std::unique_ptr<Model> detection_model_;
   std::unique_ptr<NonMaxSuppression> non_max_suppression_;

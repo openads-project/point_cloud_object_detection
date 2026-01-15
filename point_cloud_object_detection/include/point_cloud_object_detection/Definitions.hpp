@@ -158,6 +158,7 @@ struct ModelConfig {
   int downscaling;
   float delta_x;
   float delta_y;
+  std::string anchors_string;
   std::vector<Anchor> anchor_boxes;
   std::vector<double> anchor_diagonals;
   float min_nms_score_threshold;
