@@ -120,7 +120,6 @@ class PointCloudObjectDetection : public rclcpp::Node {
    */
   void boxesToObjectList(const std::vector<BoundingBox>& bboxes, perception_msgs::msg::ObjectList& object_list);
 
-
   /**
    * @brief Callback executing the prediction every time a point cloud message is received by the ROS node
    *
@@ -156,7 +155,6 @@ class PointCloudObjectDetection : public rclcpp::Node {
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr no_detection_zone_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr detection_area_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr model_bounds_pub_;
-
 
   // publisher for raw points inside the no-detection zone
   std::shared_ptr<point_cloud_transport::Publisher> no_detection_zone_points_publisher_;
