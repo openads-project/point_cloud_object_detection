@@ -27,12 +27,6 @@
     mask_is_bool: True
     zero_intensity: True
 
-    # Point cloud class publishing feature
-    publish_class_point_clouds: False  # Set to True to publish points for each detected class
-    publish_unclassified_points: False  # Set to True to publish points that are not inside any bounding box
-    # publish unclassified points that are outside the detection area (but not in the no-detection zone)
-    # publish_unclassified_points_outside_detection_area: False
-
     # nms_score_threshold: [0.5, 0.3, 0.3] # [vehicle, pedestrian, cyclist]
     #   can only be set in model config.yml
     #   or via dynamic reconfigure
