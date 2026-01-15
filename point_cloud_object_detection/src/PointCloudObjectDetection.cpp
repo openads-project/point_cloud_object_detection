@@ -241,7 +241,7 @@ void PointCloudObjectDetection::loadParameters() {
 
   // class score threshold
   params_.class_score_threshold = get_parameter("class_score_threshold").as_double();
-  
+
   // no-detection zone parameters
   params_.no_detection_zone_enabled = get_parameter("no_detection_zone.enabled").as_bool();
   params_.no_detection_zone_x_min = get_parameter("no_detection_zone.x_min").as_double();
@@ -1328,7 +1328,7 @@ void PointCloudObjectDetection::boxesToObjectList(const std::vector<BoundingBox>
   }
 }
 
-void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::ConstSharedPtr &msg) {
+void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg) {
   // initialize timer
   std::vector<std::chrono::time_point<std::chrono::high_resolution_clock>> timestamps = {
       std::chrono::high_resolution_clock::now()};  // index: 0, start timer
@@ -1618,7 +1618,6 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
                   params_.detection_area_filter_mode.c_str());
     }
   }
-
 
   // boxesToObjectList
   pm::msg::ObjectList::UniquePtr object_list = std::make_unique<pm::msg::ObjectList>();
