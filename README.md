@@ -181,6 +181,7 @@ Any violation of the detection area constraints above causes the node to emit a 
 | `max_points_per_pillar` | `int` | Maximum number of points stored per pillar. | Must be > 0. |
 | `n_features` | `int` | Number of features per augmented point. | Must be > 0. |
 | `downscaling` | `int` | Spatial downscale factor. | Must be > 0. |
+| `anchors_string` | `string` | All anchors described in a single parameter (optional) | Format: "[[length, width, height, z_center, yaw], [...]]" |
 | `anchors.size` | `int` | Number of anchors. | Must be > 0. |
 | `anchors.anchor_<i>` | `double array` | Anchor definition `[length, width, height, z_center, yaw]`. | Must contain exactly five values; length, width, and height must be > 0 and all values must be finite. |
 
