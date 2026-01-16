@@ -14,6 +14,10 @@
 #include "Model.hpp"
 #include "PointTypes.hpp"
 
+#include "pcod_common/pbod_postprocess.hpp"
+#include "pcod_common/point_preprocess.hpp"
+#include "pcod_common/pillar_grid.hpp"
+
 namespace point_cloud_object_detection {
 
 class PBODModel : public Model {
@@ -41,11 +45,11 @@ class PBODModel : public Model {
 
  protected:
   virtual void setupModelInput(const PointCloud &point_cloud) override;
-  virtual std::vector<BoundingBox> modelOutputToBoxes() override;
+ virtual std::vector<BoundingBox> modelOutputToBoxes() override;
 
  private:
   ModelConfig &model_config_;
-  Eigen::MatrixXf pillar_map_xyz_;
+  pcod_common::PillarGrid pillar_grid_;
 
   const std::string input_name_xyz_;
   const std::string input_name_feature_;
@@ -85,39 +89,8 @@ class PBODModel : public Model {
   const float da_radius_;
   const float da_bearing_rad_;
   const float da_fov_rad_;
+  pcod_common::PointPreprocessor point_preprocessor_;
 
-  // Helper function to check if a point is within valid range and not NaN
-  inline bool isPointValid(const Point &point) const {
-    const bool in_range =
-        (point.x >= x_min_ && point.x < x_max_ && !std::isnan(point.x) && point.y >= y_min_ && point.y < y_max_ &&
-         !std::isnan(point.y) && point.z >= z_min_ && point.z < z_max_ && !std::isnan(point.z));
-    if (!in_range) return false;
-
-    if (det_area_remove_outside_) {
-      const float delta_x = point.x - da_cx_;
-      const float delta_y = point.y - da_cy_;
-      const float squared_distance_to_center = delta_x * delta_x + delta_y * delta_y;
-      if (squared_distance_to_center > da_radius_ * da_radius_) return false;
-      float angle_to_center = std::atan2(delta_y, delta_x);
-      float angle_offset = angle_to_center - da_bearing_rad_;
-      while (angle_offset > static_cast<float>(M_PI)) angle_offset -= static_cast<float>(2.0 * M_PI);
-      while (angle_offset < static_cast<float>(-M_PI)) angle_offset += static_cast<float>(2.0 * M_PI);
-      if (std::abs(angle_offset) > da_fov_rad_ * 0.5f + 1e-6f) return false;
-    }
-
-    if (remove_points_in_zone_) {
-      // Axis-aligned rectangle in inference frame
-      const bool in_nd_zone =
-          (point.x >= nd_x_min_ && point.x <= nd_x_max_ && point.y >= nd_y_min_ && point.y <= nd_y_max_);
-      if (in_nd_zone) return false;
-    }
-    return true;
-  }
-
-  // Helper function to normalize point intensity for model input
-  inline float normalizeIntensity(const Point &point) const {
-    return zero_intensity_ ? 0.0f : std::min(1.0f, point.intensity / intensity_threshold_);
-  }
 
   inline const float *getExtraFeatures(std::size_t point_index) const {
     if (external_point_features_ == nullptr || external_point_feature_stride_ == 0 ||
@@ -130,7 +103,7 @@ class PBODModel : public Model {
   template <typename FeatureMapType>
   inline void populateFeatureChannels(int tensor_idx, const Point &point, const float *extra_features,
                                       FeatureMapType &points_feature_map) const {
-    points_feature_map(tensor_idx, 0) = normalizeIntensity(point);
+    points_feature_map(tensor_idx, 0) = point_preprocessor_.NormalizeIntensity(point.intensity);
     if (num_point_features_ <= 1) {
       return;
     }
@@ -188,7 +161,7 @@ class PBODModel : public Model {
     for (int i = 0; i < n_cloud_points; ++i) {
       const auto &point = point_cloud[i];
 
-      if (!isPointValid(point)) {
+      if (!point_preprocessor_.IsPointValid(point.x, point.y, point.z)) {
         continue;
       }
 

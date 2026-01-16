@@ -22,10 +22,9 @@
 #include <vector>
 
 #include "point_cloud_object_detection/Definitions.hpp"
+#include "pcod_common/nms.hpp"
 #include "point_cloud_object_detection/Model.hpp"
-#include "point_cloud_object_detection/NonMaxSuppression.hpp"
 #include "point_cloud_object_detection/PBODModel.hpp"
-#include "point_cloud_object_detection/PPModel.hpp"
 #include "point_cloud_object_detection/PointTypes.hpp"
 
 #include <geometry_msgs/msg/polygon_stamped.hpp>
@@ -37,9 +36,6 @@ using namespace std::chrono_literals;
 namespace pm = perception_msgs;
 
 // type definitions
-// enum for model type
-enum ModelType { PP, PBOD, TPOD };
-
 enum class PointType { XYZI, XYZRV };
 
 class PointCloudObjectDetection : public rclcpp::Node {
@@ -164,13 +160,12 @@ class PointCloudObjectDetection : public rclcpp::Node {
   std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
 
  private:
-  ModelType model_type_;
   Params params_;
   ModelConfig model_config_;
   bool model_runtime_overwrite_ = false;
 
   std::unique_ptr<Model> detection_model_;
-  std::unique_ptr<NonMaxSuppression> non_max_suppression_;
+  pcod_common::NmsConfig nms_config_;
 
   std::vector<float> extra_feature_buffer_;
   PointType point_type_ = PointType::XYZI;

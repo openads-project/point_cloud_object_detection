@@ -16,7 +16,7 @@ This node does not perform the inference itself, but needs a [Triton server](htt
     . ./install/setup.bash
     ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py
     ```
-    This will per default start PBOD and connect to a triton server deployed on FTH's workstation for testing purposes. Also a PP model is running there, which can be tested by setting the `model_config` to `models/pp_triton.yml` in the [params.yml](point_cloud_object_detection/config/params.yml) file.
+    This will per default start PBOD and connect to a triton server deployed on FTH's workstation for testing purposes. Update `model_manifest_path` in [params.yml](point_cloud_object_detection/config/params.yml) to match the exported model bundle.
 1. Give the node sime input, e.g. by playing a rosbag
     ```bash
     cd /docker-ros/ws
@@ -83,7 +83,8 @@ Invalid parameter values result in a fatal log message and the node shuts down. 
 | `point_cloud_transport` | `string` | Transport hint for the `point_cloud_transport` subscriber. | - |
 | `model_name` | `string` | [**required**] Model name on the Triton server. | - |
 | `model_version` | `string` | [**required**] Model version on the Triton server. Although numeric, it must be provided as a string. | - |
-| `model_config` | `string` | Path (relative to the package) of the model configuration YAML. | - |
+| `model_manifest_path` | `string` | Path (relative to the package) of the exported `model_manifest.yml`. | - |
+| `point_type` | `string` | Point type expected by the model (`PointXYZI` or `PointXYZRV`). | Must be one of the supported point types. |
 | `server_url` | `string` | Triton server host:port combination. | - |
 | `use_shm` | `bool` | Enable Triton shared-memory transport. | - |
 | `inference_frame` | `string` | [**dynamic**] Frame used for preprocessing and filters. | - |
@@ -91,8 +92,6 @@ Invalid parameter values result in a fatal log message and the node shuts down. 
 | `sensor_id` | `int` | [**dynamic**] Sensor identifier stored on every object. | `-1` for a random id at start-up, otherwise a non-negative integer. |
 | `variances` | `double array` | [**dynamic**] Continuous-state covariance diagonal. | Exactly 12 entries; each entry must be ≥ 0.0 or `-1.0` (`CONTINUOUS_STATE_COVARIANCE_UNKNOWN`). |
 | `class_score_threshold` | `double` | [**dynamic**] Minimum class score kept in the output list. | Must be within `[0.0, 1.0]`. |
-| `mask_is_bool` | `bool` | PBOD compatibility switch for mask dtype. | - |
-| `zero_intensity` | `bool` | PBOD compatibility switch to zero the intensity channel. | - |
 | `publish_class_point_clouds` | `bool` | Publish per-class point clouds. | - |
 | `publish_unclassified_points` | `bool` | Publish points not covered by any bounding box. | - |
 
@@ -129,56 +128,21 @@ If `remove_points` or `enabled` is true and the bounds are invalid, the node log
 
 Any violation of the detection area constraints above causes the node to emit a fatal error and terminate.
 
-**Model Config Parameters**
+**Model Bounds Parameters**
 
 | Parameter | Type | Description | Constraints |
 | --- | --- | --- | --- |
-| `intensity_threshold` | `int` | Saturation value for point intensity normalisation. | Must be ≥ 0. |
-| `with_velocity` | `bool` | Whether the model predicts planar velocity. | - |
-| `x_min` | `double` | Lower x-bound of the preprocessing region. | Must be finite and satisfy `x_min < x_max`. |
-| `x_max` | `double` | Upper x-bound of the preprocessing region. | Must be finite and satisfy `x_min < x_max`. |
-| `y_min` | `double` | Lower y-bound of the preprocessing region. | Must be finite and satisfy `y_min < y_max`. |
-| `y_max` | `double` | Upper y-bound of the preprocessing region. | Must be finite and satisfy `y_min < y_max`. |
-| `z_min` | `double` | Lower z-bound of the preprocessing region. | Must be finite and satisfy `z_min < z_max`. |
-| `z_max` | `double` | Upper z-bound of the preprocessing region. | Must be finite and satisfy `z_min < z_max`. |
-| `x_grid_size` | `int` | Number of grid cells along the x-axis. | Must be > 0. |
-| `y_grid_size` | `int` | Number of grid cells along the y-axis. | Must be > 0. |
-| `predicted_class_names` | `string array` | [**dynamic**] Class labels in network output order. | Must not be empty; each entry must be non-empty. |
 | `model_bounds.publish_polygon` | `bool` | Publish the xy bounds as `geometry_msgs/msg/PolygonStamped` on `~/model_bounds`. | - |
 
-**NMS parameters for PBOD and PP**
+Model-specific parameters (grid size, class names, stride, etc.) are loaded from the exported `model_manifest.yml`.
+
+**NMS parameters (overrides manifest)**
 
 | Parameter | Type | Description | Constraints |
 | --- | --- | --- | --- |
 | `nms_max_num_objects` | `int` | [**dynamic**] Maximum number of objects considered during NMS. | Must be ≥ 0. |
 | `nms_iou_threshold` | `double` | [**dynamic**] IoU threshold for suppression. | Must be within `[0.0, 1.0]`. |
 | `nms_score_threshold` | `double array` | [**dynamic**] Minimum score(s) used during suppression. | Provide either one value or one per class; every entry must lie within `[0.0, 1.0]`. |
-
-**PBOD / TPOD Model Config Parameters**
-
-| Parameter | Type | Description | Constraints |
-| --- | --- | --- | --- |
-| `max_num_points` | `int` | Upper bound on points processed per cloud. | Must be > 0. |
-| `stride` | `int array` | Strides of the three pillar blocks. | Must not be empty; every entry must be > 0. |
-| `first_up_stride` | `int` | First upsample stride controlling output size. | Must be > 0. |
-
-**TPOD-specific Parameter**
-
-| Parameter | Type | Description | Constraints |
-| --- | --- | --- | --- |
-| `cls_threshold` | `float` | [**dynamic**] Minimum class probability required to keep a detection. | Must be within `[0.0, 1.0]`. |
-
-**PP-specific Model Config Parameters**
-
-| Parameter | Type | Description | Constraints |
-| --- | --- | --- | --- |
-| `max_pillars` | `int` | Maximum number of pillars. | Must be > 0. |
-| `max_points_per_pillar` | `int` | Maximum number of points stored per pillar. | Must be > 0. |
-| `n_features` | `int` | Number of features per augmented point. | Must be > 0. |
-| `downscaling` | `int` | Spatial downscale factor. | Must be > 0. |
-| `anchors_string` | `string` | All anchors described in a single parameter (optional) | Format: "[[length, width, height, z_center, yaw], [...]]" |
-| `anchors.size` | `int` | Number of anchors. | Must be > 0. |
-| `anchors.anchor_<i>` | `double array` | Anchor definition `[length, width, height, z_center, yaw]`. | Must contain exactly five values; length, width, and height must be > 0 and all values must be finite. |
 
 
 ## Usage of docker-ros Images
