@@ -11,6 +11,7 @@ find_package(ament_cmake REQUIRED)
 # manually. find_package(<dependency> REQUIRED)
 find_package(pcl_conversions REQUIRED)
 find_package(pcl_ros REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 find_package(point_cloud_transport REQUIRED)
 find_package(perception_msgs REQUIRED)
 find_package(perception_msgs_utils REQUIRED)
@@ -29,14 +30,14 @@ find_package(tf2_perception_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_sensor_msgs REQUIRED)
 
+add_subdirectory(pcod-common)
+
 add_library(
   ${PROJECT_NAME}_lib SHARED
-  src/NonMaxSuppression.cpp
   src/PointCloudObjectDetection.cpp
   src/Utils.cpp
   src/Model.cpp
   src/PBODModel.cpp
-  src/PPModel.cpp
   #src/TPODModel.cpp
 )
 
@@ -52,6 +53,7 @@ target_compile_features(
 
 ament_target_dependencies(
   ${PROJECT_NAME}_lib
+  ament_index_cpp
   pcl_conversions
   pcl_ros
   perception_msgs
@@ -68,6 +70,8 @@ ament_target_dependencies(
   tf2_ros
   tf2_sensor_msgs
 )
+
+target_link_libraries(${PROJECT_NAME}_lib PUBLIC pcod_common)
 
 rclcpp_components_register_node(${PROJECT_NAME}_lib
   PLUGIN "point_cloud_object_detection::PointCloudObjectDetection"

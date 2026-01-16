@@ -4,6 +4,7 @@
 #include <array>
 #include <chrono>
 #include <cmath>
+#include <filesystem>
 #include <iostream>
 #include <memory>
 #include <sstream>
@@ -11,12 +12,14 @@
 
 #include <boost/algorithm/string/case_conv.hpp>
 
+#include <ament_index_cpp/get_package_share_directory.hpp>
 #include <rclcpp/logging.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
 #include <sensor_msgs/msg/point_field.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <stdexcept>
 
+#include "pcod_common/model_manifest.hpp"
 #include "point_cloud_object_detection/Utils.hpp"
 
 namespace point_cloud_object_detection {
@@ -109,6 +112,8 @@ void PointCloudObjectDetection::declareParameters() {
   declare_parameter_if_not_exists("server_url", rclcpp::ParameterType::PARAMETER_STRING,
                                   "URL of the triton server, e.g. 134.130.20.221:8001");
   declare_parameter_if_not_exists("use_shm", false, "Whether or not to use shared memory for Triton");
+  declare_parameter_if_not_exists("model_manifest_path", rclcpp::ParameterType::PARAMETER_STRING,
+                                  "Path to model_manifest.yml exported by training");
   declare_parameter_if_not_exists("inference_frame", "", "Frame for inference");
   declare_parameter_if_not_exists("output_frame", "", "Frame for object list");
   declare_parameter_if_not_exists("sensor_id", -1, "Sensor ID for object list");
@@ -120,21 +125,6 @@ void PointCloudObjectDetection::declareParameters() {
   declare_parameter_if_not_exists("class_score_threshold", 0.0, "Model config: Class score threshold");
 
   declare_parameter_if_not_exists("intensity_threshold", 10000, "Model config: Intensity threshold");
-  declare_parameter_if_not_exists("with_velocity", false, "Model config: with velocity");
-
-  declare_parameter_if_not_exists("x_min", -40.96, "Model config: x_min for Grid");
-  declare_parameter_if_not_exists("x_max", 40.96, "Model config: x_max for Grid");
-  declare_parameter_if_not_exists("y_min", 0.0, "Model config: y_min for Grid");
-  declare_parameter_if_not_exists("y_max", 40.96, "Model config: y_max for Grid");
-  declare_parameter_if_not_exists("z_min", -1.0, "Model config: z_min for Grid");
-  declare_parameter_if_not_exists("z_max", 5.0, "Model config: z_max for Grid");
-  declare_parameter_if_not_exists("x_grid_size", 512, "Model config: x_grid_size for Grid");
-  declare_parameter_if_not_exists("y_grid_size", 256, "Model config: y_grid_size for Grid");
-
-  declare_parameter_if_not_exists(
-      "predicted_class_names", rclcpp::ParameterType::PARAMETER_STRING_ARRAY,
-      "Array with class names. Each class corresponds to an entry in the model class prediction "
-      "output, and should match case-insensitive one of the names in perception_interfaces.");
 
   declare_parameter_if_not_exists(
       "publish_unclassified_points_outside_detection_area", false,
@@ -182,30 +172,9 @@ void PointCloudObjectDetection::declareParameters() {
   declare_parameter_if_not_exists("nms_score_threshold", std::vector<double>{0.2},
                                   "Model config: Min cell score/occupancy for NMS");
 
-  // PBOD & TPOD specific params
-  declare_parameter_if_not_exists("max_num_points", 140000, "Model config: Max number of points");
-  declare_parameter_if_not_exists("num_point_features", 1, "Model config: number of point features per point");
+  // PBOD-specific params still set at runtime
   declare_parameter_if_not_exists("point_type", std::string("PointXYZI"),
                                   "Point struct to derive features from (PointXYZI or PointXYZRV)");
-  declare_parameter_if_not_exists("stride", rclcpp::ParameterType::PARAMETER_INTEGER_ARRAY, "Array with strides");
-  declare_parameter_if_not_exists("first_up_stride", 1, "Model config: first up stride");
-
-  // PBOD & TPOD specific params/Legacy compatibility
-  declare_parameter_if_not_exists("mask_is_bool", true, "Whether the mask is a boolean or a float mask");
-  declare_parameter_if_not_exists("zero_intensity", false, "Whether to set intensity to zero for all points");
-
-  // Only for TPOD
-  declare_parameter_if_not_exists("cls_threshold", 0.3, "Model config: Class score threshold for TPOD");
-
-  // PP specific params
-  declare_parameter_if_not_exists("max_pillars", 10000, "Model config: Max pillars");
-  declare_parameter_if_not_exists("max_points_per_pillar", 100, "Model config: Max points per pillar");
-  declare_parameter_if_not_exists("n_features", 9, "Model config: number of features");
-  declare_parameter_if_not_exists("downscaling", 2, "Model config: downscaling");
-  declare_parameter_if_not_exists("anchors.size", 8, "Model config: number of anchors");
-  declare_parameter_if_not_exists(
-      "anchors_string", std::string(""),
-      "Model config: all anchors as JSON string array [[l,w,h,z,yaw], ...] (alternative to numbered anchors)");
 }
 
 void PointCloudObjectDetection::loadParameters() {
@@ -214,8 +183,10 @@ void PointCloudObjectDetection::loadParameters() {
     params_.model_name = this->get_parameter("model_name").as_string();
     params_.model_version = this->get_parameter("model_version").as_string();
     params_.server_url = this->get_parameter("server_url").as_string();
+    params_.model_manifest_path = this->get_parameter("model_manifest_path").as_string();
   } catch (rclcpp::exceptions::ParameterUninitializedException&) {
-    RCLCPP_FATAL(this->get_logger(), "Parameters 'model_name', 'model_version', and 'server_url' are required");
+    RCLCPP_FATAL(this->get_logger(),
+                 "Parameters 'model_name', 'model_version', 'server_url', and 'model_manifest_path' are required");
     exit(EXIT_FAILURE);
   }
   params_.use_shm = this->get_parameter("use_shm").as_bool();
@@ -291,6 +262,18 @@ void PointCloudObjectDetection::validateParamsOrThrow() const {
   if (!isProbability(params_.class_score_threshold)) {
     fail("class_score_threshold", "must be within [0.0, 1.0]");
   }
+  if (params_.model_manifest_path.empty()) {
+    fail("model_manifest_path", "must be set to the exported model_manifest.yml");
+  } else {
+    std::string manifest_path = params_.model_manifest_path;
+    if (!std::filesystem::path(manifest_path).is_absolute()) {
+      const auto share_dir = ament_index_cpp::get_package_share_directory("point_cloud_object_detection");
+      manifest_path = (std::filesystem::path(share_dir) / manifest_path).string();
+    }
+    if (!std::filesystem::exists(manifest_path)) {
+      fail("model_manifest_path", "model_manifest.yml does not exist at the configured path");
+    }
+  }
 
   if (!isFinite(params_.no_detection_zone_x_min) || !isFinite(params_.no_detection_zone_x_max) ||
       !isFinite(params_.no_detection_zone_y_min) || !isFinite(params_.no_detection_zone_y_max)) {
@@ -347,279 +330,106 @@ bool PointCloudObjectDetection::updateNMSScoreThreshold(std::vector<double>& sco
     return false;
   }
   model_config_.nms_score_threshold = score_thresholds;
-  model_config_.min_nms_score_threshold =
-      *std::min_element(model_config_.nms_score_threshold.begin(), model_config_.nms_score_threshold.end());
   return true;
 }
 
 void PointCloudObjectDetection::loadModelConfig() {
-  // Only execute during initialization of the node and not for parameter changes during runtime
-  if (!model_runtime_overwrite_) {
-    // intensity threshold
-    model_config_.intensity_threshold = get_parameter("intensity_threshold").as_int();
-
-    // grid parameters
-    model_config_.x_min = get_parameter("x_min").as_double();
-    model_config_.x_max = get_parameter("x_max").as_double();
-    model_config_.y_min = get_parameter("y_min").as_double();
-    model_config_.y_max = get_parameter("y_max").as_double();
-    model_config_.z_min = get_parameter("z_min").as_double();
-    model_config_.z_max = get_parameter("z_max").as_double();
-    model_config_.x_grid_size = get_parameter("x_grid_size").as_int();
-    model_config_.y_grid_size = get_parameter("y_grid_size").as_int();
-
-    // with velocity or not
-    model_config_.with_velocity = get_parameter("with_velocity").as_bool();
-    get_parameter_or("predicted_class_names", model_config_.predicted_class_names,
-                     {
-                         "UNCLASSIFIED",
-                         "PEDESTRIAN",
-                         "BICYCLE",
-                         "MOTORBIKE",
-                         "CAR",
-                         "TRUCK",
-                         "VAN",
-                         "BUS",
-                         "ANIMAL",
-                         "ROAD_OBSTACLE",
-                         "TRAIN",
-                         "TRAILER",
-                     });
+  std::string manifest_path = params_.model_manifest_path;
+  if (!manifest_path.empty() && !std::filesystem::path(manifest_path).is_absolute()) {
+    const auto share_dir = ament_index_cpp::get_package_share_directory("point_cloud_object_detection");
+    manifest_path = (std::filesystem::path(share_dir) / manifest_path).string();
   }
+  pcod_common::ModelManifest manifest = pcod_common::LoadModelManifest(manifest_path);
+  pcod_common::ValidateModelManifest(manifest);
+
+  model_config_.intensity_threshold = get_parameter("intensity_threshold").as_int();
+  model_config_.predicted_class_names = manifest.postprocessing.class_names;
+  model_config_.class_mapping_.clear();
+
+  model_config_.x_min = manifest.preprocessing.x_range[0];
+  model_config_.x_max = manifest.preprocessing.x_range[1];
+  model_config_.y_min = manifest.preprocessing.y_range[0];
+  model_config_.y_max = manifest.preprocessing.y_range[1];
+  model_config_.z_min = manifest.preprocessing.z_range[0];
+  model_config_.z_max = manifest.preprocessing.z_range[1];
+  model_config_.x_grid_size = manifest.postprocessing.grid_x;
+  model_config_.y_grid_size = manifest.postprocessing.grid_y;
+
+  model_config_.nms_iou_threshold = manifest.postprocessing.nms_iou_threshold;
+  model_config_.nms_max_num_objects = manifest.postprocessing.max_detections;
+  if (!manifest.postprocessing.score_thresholds.empty()) {
+    model_config_.nms_score_threshold.assign(
+        manifest.postprocessing.score_thresholds.begin(), manifest.postprocessing.score_thresholds.end());
+  } else {
+    model_config_.nms_score_threshold = get_parameter("nms_score_threshold").as_double_array();
+  }
+
+  model_config_.max_num_points = manifest.preprocessing.max_num_points;
+  model_config_.num_point_features = manifest.preprocessing.num_point_features;
+  model_config_.point_type = get_parameter("point_type").as_string();
+  point_type_ = parsePointType(model_config_.point_type, this->get_logger());
+  model_config_.stride.clear();
+  for (int stride : manifest.model.stride) {
+    model_config_.stride.push_back(stride);
+  }
+  model_config_.first_up_stride = manifest.model.first_up_stride;
+
+  model_config_.pillar_map_size = {manifest.model.pillar_map_size[0], manifest.model.pillar_map_size[1]};
+  model_config_.pillar_map_range = {{manifest.model.pillar_map_range[0][0], manifest.model.pillar_map_range[0][1]},
+                                    {manifest.model.pillar_map_range[1][0], manifest.model.pillar_map_range[1][1]},
+                                    {manifest.model.pillar_map_range[2][0], manifest.model.pillar_map_range[2][1]}};
+
+  model_config_.mask_is_bool = manifest.model.mask_is_bool;
+  model_config_.zero_intensity = manifest.model.zero_intensity;
 
   for (auto& name : model_config_.predicted_class_names) {
     boost::algorithm::to_lower(name);
     uint8_t pm_type = pm::msg::ObjectClassification::UNCLASSIFIED;
     for (auto& [type, possible_names] : kPossibleClassNames) {
-      // If the name is in the possible names for any class in perception_msgs, assign it.
       if (std::find(possible_names.begin(), possible_names.end(), name) != possible_names.end()) {
         pm_type = type;
         break;
       }
     }
-    // Warn if class is unknown
     if (pm_type == pm::msg::ObjectClassification::UNCLASSIFIED) {
-      RCLCPP_WARN_STREAM(get_logger(), "The class \"" << name << "\" is not mapped to any class of"
+      RCLCPP_WARN_STREAM(get_logger(), "The class "" << name << "" is not mapped to any class of"
                                                       << " perception_msgs::msg::ObjectClassification");
     }
     model_config_.class_mapping_[name] = pm_type;
   }
 
-  if ((model_type_ == ModelType::PBOD || model_type_ == ModelType::PP) && !model_runtime_overwrite_) {
-    model_config_.nms_max_num_objects = get_parameter("nms_max_num_objects").as_int();
-    if (model_config_.nms_max_num_objects < 0) {
-      throwParameterError(this->get_logger(), "nms_max_num_objects", "cannot be negative");
-    }
-    model_config_.nms_iou_threshold = get_parameter("nms_iou_threshold").as_double();
-    std::vector<double> nms_score_threshold = get_parameter("nms_score_threshold").as_double_array();
-    if (!updateNMSScoreThreshold(nms_score_threshold)) {
-      throwParameterError(this->get_logger(), "nms_score_threshold",
-                          "must contain exactly one value or one per predicted class");
-    }
+  if (model_config_.nms_max_num_objects < 0) {
+    throwParameterError(this->get_logger(), "nms_max_num_objects", "cannot be negative");
+  }
+  if (!updateNMSScoreThreshold(model_config_.nms_score_threshold)) {
+    throwParameterError(this->get_logger(), "nms_score_threshold",
+                        "must contain exactly one value or one per predicted class");
   }
 
-  // PBOD & TPOD specific config loading
-  if ((model_type_ == ModelType::PBOD || model_type_ == ModelType::TPOD)) {
-    if (!updateNMSScoreThreshold(model_config_.nms_score_threshold)) {
-      throwParameterError(this->get_logger(), "nms_score_threshold",
-                          "must contain exactly one value or one per predicted class");
-    }
+  model_config_.no_detection_zone_remove_points = get_parameter("no_detection_zone.remove_points").as_bool();
+  model_config_.no_detection_zone_x_min = get_parameter("no_detection_zone.x_min").as_double();
+  model_config_.no_detection_zone_x_max = get_parameter("no_detection_zone.x_max").as_double();
+  model_config_.no_detection_zone_y_min = get_parameter("no_detection_zone.y_min").as_double();
+  model_config_.no_detection_zone_y_max = get_parameter("no_detection_zone.y_max").as_double();
 
-    // setup pillar map size
-    model_config_.pillar_map_size = {model_config_.x_grid_size, model_config_.y_grid_size};
+  model_config_.detection_area_remove_points_outside =
+      get_parameter("detection_area.enabled").as_bool() &&
+      get_parameter("detection_area.radius").as_double() > 0.0 &&
+      get_parameter("detection_area.fov_deg").as_double() > 0.0 &&
+      get_parameter("detection_area.num_segments").as_int() >= 3;
+  model_config_.detection_area_center_x = get_parameter("detection_area.center_x").as_double();
+  model_config_.detection_area_center_y = get_parameter("detection_area.center_y").as_double();
+  model_config_.detection_area_radius = get_parameter("detection_area.radius").as_double();
+  model_config_.detection_area_bearing_deg = get_parameter("detection_area.bearing_deg").as_double();
+  model_config_.detection_area_fov_deg = get_parameter("detection_area.fov_deg").as_double();
 
-    // setup pillar map range
-    model_config_.pillar_map_range = {{model_config_.x_min, model_config_.x_max},
-                                      {model_config_.y_min, model_config_.y_max},
-                                      {model_config_.z_min, model_config_.z_max}};
-
-    if (model_config_.no_detection_zone_remove_points) {
-      const bool valid_bounds = model_config_.no_detection_zone_x_min < model_config_.no_detection_zone_x_max &&
-                                model_config_.no_detection_zone_y_min < model_config_.no_detection_zone_y_max;
-      if (!valid_bounds) {
-        throwParameterError(this->get_logger(), "no_detection_zone.remove_points",
-                            "requires x_min < x_max and y_min < y_max");
-      }
-    }
-
-    if (!model_runtime_overwrite_) {
-      model_config_.max_num_points = get_parameter("max_num_points").as_int();
-      model_config_.num_point_features = get_parameter("num_point_features").as_int();
-      model_config_.point_type = get_parameter("point_type").as_string();
-      point_type_ = parsePointType(model_config_.point_type, this->get_logger());
-      get_parameter_or("stride", model_config_.stride, {2, 1, 2});
-      model_config_.first_up_stride = get_parameter("first_up_stride").as_int();
-
-      model_config_.mask_is_bool = get_parameter("mask_is_bool").as_bool();
-      model_config_.zero_intensity = get_parameter("zero_intensity").as_bool();
-
-      // Copy no-detection zone settings for point filtering into model_config
-      // Note: bounds are defined in the inference_frame
-      model_config_.no_detection_zone_remove_points = get_parameter("no_detection_zone.remove_points").as_bool();
-      model_config_.no_detection_zone_x_min = get_parameter("no_detection_zone.x_min").as_double();
-      model_config_.no_detection_zone_x_max = get_parameter("no_detection_zone.x_max").as_double();
-      model_config_.no_detection_zone_y_min = get_parameter("no_detection_zone.y_min").as_double();
-      model_config_.no_detection_zone_y_max = get_parameter("no_detection_zone.y_max").as_double();
-
-      // Detection area -> point filtering in model input
-      model_config_.detection_area_remove_points_outside =
-          get_parameter("detection_area.enabled").as_bool() &&
-          get_parameter("detection_area.radius").as_double() > 0.0 &&
-          get_parameter("detection_area.fov_deg").as_double() > 0.0 &&
-          get_parameter("detection_area.num_segments").as_int() >= 3;  // segments checked for validity as proxy
-      model_config_.detection_area_center_x = get_parameter("detection_area.center_x").as_double();
-      model_config_.detection_area_center_y = get_parameter("detection_area.center_y").as_double();
-      model_config_.detection_area_radius = get_parameter("detection_area.radius").as_double();
-      model_config_.detection_area_bearing_deg = get_parameter("detection_area.bearing_deg").as_double();
-      model_config_.detection_area_fov_deg = get_parameter("detection_area.fov_deg").as_double();
-
-      if (model_type_ == ModelType::TPOD) {
-        // Only needed for TPOD
-        model_config_.cls_threshold = get_parameter("cls_threshold").as_double();
-      }
-    }
-
+  nms_config_.iou_threshold = static_cast<float>(model_config_.nms_iou_threshold);
+  nms_config_.max_detections = model_config_.nms_max_num_objects;
+  nms_config_.score_thresholds.clear();
+  for (double thresh : model_config_.nms_score_threshold) {
+    nms_config_.score_thresholds.push_back(static_cast<float>(thresh));
   }
-  // PP specific config loading
-  else if (model_type_ == ModelType::PP) {
-    if (!model_runtime_overwrite_) {
-      model_config_.max_pillars = get_parameter("max_pillars").as_int();
-      model_config_.max_points_per_pillar = get_parameter("max_points_per_pillar").as_int();
-      model_config_.n_features = get_parameter("n_features").as_int();
-      model_config_.downscaling = get_parameter("downscaling").as_int();
-      // Load Anchors
-      const std::size_t n_anchors = get_parameter("anchors.size").as_int();
-      if (n_anchors == 0) {
-        throwParameterError(this->get_logger(), "anchors.size", "must be greater than zero");
-      }
-
-      model_config_.anchor_boxes.clear();
-      model_config_.anchor_diagonals.clear();
-
-      for (std::size_t i = 0; i < n_anchors; i++) {
-        Anchor anchor;
-        std::string description = "Model config: Anchor " + std::to_string(i);
-        std::string param_name = "anchors.anchor_" + std::to_string(i);
-        declare_parameter_if_not_exists(param_name, std::vector<double>{0.0, 0.0, 0.0, 0.0, 0.0}, description);
-        std::vector<double> anchor_double = get_parameter(param_name).as_double_array();
-        if (anchor_double.size() != 5) {
-          throwParameterError(this->get_logger(), param_name, "must contain [length, width, height, z_center, yaw]");
-        }
-        anchor.length = anchor_double[0];
-        anchor.width = anchor_double[1];
-        anchor.height = anchor_double[2];
-        anchor.z_center = anchor_double[3];
-        anchor.yaw = anchor_double[4];
-
-        model_config_.anchor_boxes.push_back(anchor);
-        model_config_.anchor_diagonals.emplace_back(std::sqrt(std::pow(anchor.length, 2) + std::pow(anchor.width, 2)));
-      }
-    }
-
-    model_config_.delta_x = (model_config_.x_max - model_config_.x_min) / model_config_.x_grid_size;
-    model_config_.delta_y = (model_config_.y_max - model_config_.y_min) / model_config_.y_grid_size;
-
-    if (!updateNMSScoreThreshold(model_config_.nms_score_threshold)) {
-      throwParameterError(this->get_logger(), "nms_score_threshold",
-                          "must contain exactly one value or one per predicted class");
-    }
-
-    if (!model_config_.anchors_string.empty()) {
-      RCLCPP_INFO(this->get_logger(),
-                  "Anchors String is not empty, trying to parse anchors from anchors_string parameter");
-      std::string anchors_string = model_config_.anchors_string;
-      model_config_.anchor_boxes.clear();
-      model_config_.anchor_diagonals.clear();
-      // Parse JSON array of arrays: "[[3.9, 1.6, 1.56, -1.0, 0.0], [3.9, 1.6, 1.56, -1.0, 1.5708], ...]"
-      try {
-        // Simple JSON parser for array of arrays
-        std::vector<std::vector<double>> parsed_anchors;
-
-        // Remove whitespace
-        anchors_string.erase(std::remove_if(anchors_string.begin(), anchors_string.end(), ::isspace),
-                             anchors_string.end());
-
-        // Check for outer brackets
-        if (anchors_string.front() == '[' && anchors_string.back() == ']') {
-          anchors_string = anchors_string.substr(1, anchors_string.length() - 2);
-
-          // Parse each inner array
-          size_t pos = 0;
-          while (pos < anchors_string.length()) {
-            if (anchors_string[pos] == '[') {
-              size_t end_bracket = anchors_string.find(']', pos);
-              if (end_bracket == std::string::npos) {
-                throw std::runtime_error("Malformed JSON: missing closing bracket");
-              }
-
-              std::string inner_array = anchors_string.substr(pos + 1, end_bracket - pos - 1);
-              std::vector<double> anchor_values;
-
-              // Parse comma-separated values
-              std::istringstream iss(inner_array);
-              std::string value_str;
-              while (std::getline(iss, value_str, ',')) {
-                if (!value_str.empty()) {
-                  anchor_values.push_back(std::stod(value_str));
-                }
-              }
-
-              if (anchor_values.size() == 5) {
-                parsed_anchors.push_back(anchor_values);
-              } else {
-                throw std::runtime_error(
-                    "Each anchor must have exactly 5 values [length, width, height, z_center, yaw]");
-              }
-
-              pos = end_bracket + 1;
-              // Skip comma if present
-              if (pos < anchors_string.length() && anchors_string[pos] == ',') {
-                pos++;
-              }
-            } else {
-              pos++;
-            }
-          }
-        } else {
-          throw std::runtime_error("anchors_string must be a JSON array of arrays");
-        }
-
-        // Convert parsed anchors to Anchor structs
-        if (!parsed_anchors.empty()) {
-          for (const auto& anchor_values : parsed_anchors) {
-            Anchor anchor;
-            anchor.length = anchor_values[0];
-            anchor.width = anchor_values[1];
-            anchor.height = anchor_values[2];
-            anchor.z_center = anchor_values[3];
-            anchor.yaw = anchor_values[4];
-
-            model_config_.anchor_boxes.push_back(anchor);
-            model_config_.anchor_diagonals.emplace_back(
-                std::sqrt(std::pow(anchor.length, 2) + std::pow(anchor.width, 2)));
-          }
-          RCLCPP_INFO(this->get_logger(), "Loaded %zu anchors from anchors_string parameter", parsed_anchors.size());
-        }
-      } catch (const std::exception& e) {
-        RCLCPP_WARN(this->get_logger(),
-                    "Failed to parse anchors_string parameter: %s. Falling back to numbered parameters.", e.what());
-      }
-    }
-
-    // Detection area -> point filtering in model input (also relevant for PP)
-    model_config_.detection_area_remove_points_outside = get_parameter("detection_area.enabled").as_bool() &&
-                                                         get_parameter("detection_area.radius").as_double() > 0.0 &&
-                                                         get_parameter("detection_area.fov_deg").as_double() > 0.0 &&
-                                                         get_parameter("detection_area.num_segments").as_int() >= 3;
-    model_config_.detection_area_center_x = get_parameter("detection_area.center_x").as_double();
-    model_config_.detection_area_center_y = get_parameter("detection_area.center_y").as_double();
-    model_config_.detection_area_radius = get_parameter("detection_area.radius").as_double();
-    model_config_.detection_area_bearing_deg = get_parameter("detection_area.bearing_deg").as_double();
-    model_config_.detection_area_fov_deg = get_parameter("detection_area.fov_deg").as_double();
-  }
-  validateModelConfigOrThrow();
 }
-
 void PointCloudObjectDetection::validateModelConfigOrThrow() const {
   auto fail = [this](const std::string& param, const std::string& message) {
     throwParameterError(this->get_logger(), param, message);
@@ -666,63 +476,53 @@ void PointCloudObjectDetection::validateModelConfigOrThrow() const {
     }
   }
 
-  if (model_type_ == ModelType::PBOD || model_type_ == ModelType::PP) {
-    if (!isProbability(model_config_.nms_iou_threshold)) {
-      fail("nms_iou_threshold", "must be within [0.0, 1.0]");
-    }
-    if (model_config_.nms_score_threshold.empty()) {
-      fail("nms_score_threshold", "must not be empty");
-    }
-    for (double threshold : model_config_.nms_score_threshold) {
-      if (!isProbability(threshold)) {
-        fail("nms_score_threshold", "each entry must be within [0.0, 1.0]");
-      }
-    }
-    if (model_config_.nms_max_num_objects < 0) {
-      fail("nms_max_num_objects", "must be zero or positive");
+  if (!isProbability(model_config_.nms_iou_threshold)) {
+    fail("nms_iou_threshold", "must be within [0.0, 1.0]");
+  }
+  if (model_config_.nms_score_threshold.empty()) {
+    fail("nms_score_threshold", "must not be empty");
+  }
+  for (double threshold : model_config_.nms_score_threshold) {
+    if (!isProbability(threshold)) {
+      fail("nms_score_threshold", "each entry must be within [0.0, 1.0]");
     }
   }
-
-  if (model_type_ == ModelType::PBOD || model_type_ == ModelType::TPOD) {
-    if (model_config_.max_num_points <= 0) {
-      fail("max_num_points", "must be greater than zero");
-    }
-    if (model_config_.num_point_features <= 0) {
-      fail("num_point_features", "must be greater than zero");
-    }
-    PointType config_point_type = parsePointType(model_config_.point_type, this->get_logger());
-    if (config_point_type == PointType::XYZI) {
-      if (model_config_.num_point_features != 1) {
-        fail("num_point_features", "must be 1 when point_type is PointXYZI");
-      }
-    } else if (config_point_type == PointType::XYZRV) {
-      if (model_config_.num_point_features != 2) {
-        fail("num_point_features", "must be 2 when point_type is PointXYZRV");
-      }
-    }
-    if (model_config_.stride.empty()) {
-      fail("stride", "must not be empty");
-    }
-    for (auto stride : model_config_.stride) {
-      if (stride <= 0) {
-        fail("stride", "entries must be positive integers");
-      }
-    }
-    if (model_config_.first_up_stride <= 0) {
-      fail("first_up_stride", "must be greater than zero");
-    }
-
-    if (model_config_.no_detection_zone_remove_points) {
-      if (!(model_config_.no_detection_zone_x_min < model_config_.no_detection_zone_x_max) ||
-          !(model_config_.no_detection_zone_y_min < model_config_.no_detection_zone_y_max)) {
-        fail("no_detection_zone.remove_points", "requires x_min < x_max and y_min < y_max");
-      }
-    }
+  if (model_config_.nms_max_num_objects < 0) {
+    fail("nms_max_num_objects", "must be zero or positive");
   }
 
-  if (model_type_ == ModelType::TPOD) {
-    if (!isProbability(model_config_.cls_threshold)) {
-      fail("cls_threshold", "must be within [0.0, 1.0]");
+  if (model_config_.max_num_points <= 0) {
+    fail("max_num_points", "must be greater than zero");
+  }
+  if (model_config_.num_point_features <= 0) {
+    fail("num_point_features", "must be greater than zero");
+  }
+  PointType config_point_type = parsePointType(model_config_.point_type, this->get_logger());
+  if (config_point_type == PointType::XYZI) {
+    if (model_config_.num_point_features != 1) {
+      fail("num_point_features", "must be 1 when point_type is PointXYZI");
+    }
+  } else if (config_point_type == PointType::XYZRV) {
+    if (model_config_.num_point_features != 2) {
+      fail("num_point_features", "must be 2 when point_type is PointXYZRV");
+    }
+  }
+  if (model_config_.stride.empty()) {
+    fail("stride", "must not be empty");
+  }
+  for (auto stride : model_config_.stride) {
+    if (stride <= 0) {
+      fail("stride", "entries must be positive integers");
+    }
+  }
+  if (model_config_.first_up_stride <= 0) {
+    fail("first_up_stride", "must be greater than zero");
+  }
+
+  if (model_config_.no_detection_zone_remove_points) {
+    if (!(model_config_.no_detection_zone_x_min < model_config_.no_detection_zone_x_max) ||
+        !(model_config_.no_detection_zone_y_min < model_config_.no_detection_zone_y_max)) {
+      fail("no_detection_zone.remove_points", "requires x_min < x_max and y_min < y_max");
     }
   }
 
@@ -735,50 +535,7 @@ void PointCloudObjectDetection::validateModelConfigOrThrow() const {
     }
   }
 
-  if (model_type_ == ModelType::PP) {
-    if (model_config_.max_pillars <= 0) {
-      fail("max_pillars", "must be greater than zero");
-    }
-    if (model_config_.max_points_per_pillar <= 0) {
-      fail("max_points_per_pillar", "must be greater than zero");
-    }
-    if (model_config_.n_features <= 0) {
-      fail("n_features", "must be greater than zero");
-    }
-    if (model_config_.downscaling <= 0) {
-      fail("downscaling", "must be greater than zero");
-    }
-    if (!isFinite(model_config_.delta_x) || model_config_.delta_x <= 0.0) {
-      fail("delta_x", "must be positive");
-    }
-    if (!isFinite(model_config_.delta_y) || model_config_.delta_y <= 0.0) {
-      fail("delta_y", "must be positive");
-    }
-    if (model_config_.anchor_boxes.empty()) {
-      fail("anchors", "at least one anchor must be configured");
-    }
-    if (model_config_.anchor_boxes.size() != model_config_.anchor_diagonals.size()) {
-      fail("anchors", "internal anchor configuration is inconsistent");
-    }
-    for (std::size_t i = 0; i < model_config_.anchor_boxes.size(); ++i) {
-      const auto& anchor = model_config_.anchor_boxes[i];
-      if (!isFinite(anchor.length) || anchor.length <= 0.0) {
-        fail("anchors.length", "must be positive");
-      }
-      if (!isFinite(anchor.width) || anchor.width <= 0.0) {
-        fail("anchors.width", "must be positive");
-      }
-      if (!isFinite(anchor.height) || anchor.height <= 0.0) {
-        fail("anchors.height", "must be positive");
-      }
-      if (!isFinite(anchor.z_center)) {
-        fail("anchors.z_center", "must be finite");
-      }
-      if (!isFinite(anchor.yaw)) {
-        fail("anchors.yaw", "must be finite");
-      }
-    }
-  }
+  // PP/TPOD validation removed; PBOD-only path.
 }
 
 rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCallback(
@@ -805,6 +562,13 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
         model_change_on_runtime = true;
         RCLCPP_INFO(this->get_logger(), "Model version changed to: %s", params_.model_version.c_str());
       }
+    } else if (param.get_name() == "model_manifest_path") {
+      std::string new_manifest_path = param.as_string();
+      if (new_manifest_path != params_.model_manifest_path) {
+        params_.model_manifest_path = new_manifest_path;
+        model_change_on_runtime = true;
+        RCLCPP_INFO(this->get_logger(), "Model manifest path changed to: %s", params_.model_manifest_path.c_str());
+      }
     } else if (param.get_name() == "inference_frame") {
       params_.inference_frame = param.as_string();
     } else if (param.get_name() == "output_frame") {
@@ -816,14 +580,8 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
       sanitizeVarianceVector(params_.variance, cscu);
     } else if (param.get_name() == "class_score_threshold") {
       params_.class_score_threshold = param.as_double();
-    } else if (param.get_name() == "predicted_class_names") {
-      model_config_.predicted_class_names = param.as_string_array();
-      model_change_on_runtime = true;
     } else if (param.get_name() == "intensity_threshold") {
       model_config_.intensity_threshold = param.as_int();
-      model_change_on_runtime = true;
-    } else if (param.get_name() == "with_velocity") {
-      model_config_.with_velocity = param.as_bool();
       model_change_on_runtime = true;
     } else if (param.get_name() == "sensor_id") {
       const int64_t sensor_id_value = param.as_int();
@@ -854,13 +612,22 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
     // NMS parameters
     else if (param.get_name() == "nms_max_num_objects") {
       model_config_.nms_max_num_objects = param.as_int();
-      model_change_on_runtime = true;
+      nms_config_.max_detections = model_config_.nms_max_num_objects;
     } else if (param.get_name() == "nms_iou_threshold") {
       model_config_.nms_iou_threshold = param.as_double();
-      model_change_on_runtime = true;
+      nms_config_.iou_threshold = static_cast<float>(model_config_.nms_iou_threshold);
     } else if (param.get_name() == "nms_score_threshold") {
-      model_config_.nms_score_threshold = param.as_double_array();
-      model_change_on_runtime = true;
+      auto thresholds = param.as_double_array();
+      if (!updateNMSScoreThreshold(thresholds)) {
+        result.successful = false;
+        result.reason = "nms_score_threshold must contain exactly one value or one per predicted class";
+        RCLCPP_ERROR(this->get_logger(), "%s", result.reason.c_str());
+        return result;
+      }
+      nms_config_.score_thresholds.clear();
+      for (double value : model_config_.nms_score_threshold) {
+        nms_config_.score_thresholds.push_back(static_cast<float>(value));
+      }
     }
 
     // No-detection zone parameters
@@ -909,78 +676,11 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
       publishers_changed = true;
     }
 
-    // Grid parameters
-    else if (param.get_name() == "x_min") {
-      model_config_.x_min = param.as_double();
-      model_change_on_runtime = true;
-    } else if (param.get_name() == "x_max") {
-      model_config_.x_max = param.as_double();
-      model_change_on_runtime = true;
-    } else if (param.get_name() == "y_min") {
-      model_config_.y_min = param.as_double();
-      model_change_on_runtime = true;
-    } else if (param.get_name() == "y_max") {
-      model_config_.y_max = param.as_double();
-      model_change_on_runtime = true;
-    } else if (param.get_name() == "z_min") {
-      model_config_.z_min = param.as_double();
-      model_change_on_runtime = true;
-    } else if (param.get_name() == "z_max") {
-      model_config_.z_max = param.as_double();
-      model_change_on_runtime = true;
-    } else if (param.get_name() == "x_grid_size") {
-      model_config_.x_grid_size = param.as_int();
-      model_change_on_runtime = true;
-    } else if (param.get_name() == "y_grid_size") {
-      model_config_.y_grid_size = param.as_int();
-      model_change_on_runtime = true;
-    }
-
-    // PBOD/TPOD-specific parameters
-    else if (param.get_name() == "max_num_points") {
-      model_config_.max_num_points = param.as_int();
-      model_change_on_runtime = true;
-    } else if (param.get_name() == "stride") {
-      model_config_.stride = param.as_integer_array();
-      model_change_on_runtime = true;
-    } else if (param.get_name() == "first_up_stride") {
-      model_config_.first_up_stride = param.as_int();
-      model_change_on_runtime = true;
-    } else if (param.get_name() == "mask_is_bool") {
-      model_config_.mask_is_bool = param.as_bool();
-      model_change_on_runtime = true;
-    } else if (param.get_name() == "zero_intensity") {
-      model_config_.zero_intensity = param.as_bool();
-      model_change_on_runtime = true;
-    } else if (param.get_name() == "no_detection_zone.remove_points") {
+    else if (param.get_name() == "no_detection_zone.remove_points") {
       model_config_.no_detection_zone_remove_points = param.as_bool();
-    } else if (param.get_name() == "cls_threshold") {
-      model_config_.cls_threshold = param.as_double();
-      model_change_on_runtime = true;
-    } else if (param.get_name() == "num_point_features") {
-      model_config_.num_point_features = param.as_int();
-      model_change_on_runtime = true;
     } else if (param.get_name() == "point_type") {
       model_config_.point_type = param.as_string();
       point_type_ = parsePointType(model_config_.point_type, this->get_logger());
-      model_change_on_runtime = true;
-    }
-
-    // PP-specific parameters
-    else if (param.get_name() == "max_pillars") {
-      model_config_.max_pillars = param.as_int();
-      model_change_on_runtime = true;
-    } else if (param.get_name() == "max_points_per_pillar") {
-      model_config_.max_points_per_pillar = param.as_int();
-      model_change_on_runtime = true;
-    } else if (param.get_name() == "n_features") {
-      model_config_.n_features = param.as_int();
-      model_change_on_runtime = true;
-    } else if (param.get_name() == "downscaling") {
-      model_config_.downscaling = param.as_int();
-      model_change_on_runtime = true;
-    } else if (param.get_name() == "anchors_string") {
-      model_config_.anchors_string = param.as_string();
       model_change_on_runtime = true;
     }
 
@@ -1024,40 +724,22 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
 
 void PointCloudObjectDetection::initializeModel() {
   // load model
-  using namespace std::string_literals;
   triton_interface_ = std::make_unique<triton_cpp::TritonInterface>(params_.model_name, params_.model_version,
                                                                     params_.server_url, params_.use_shm, false, true);
 
   // log model info
   std::cout << triton_interface_->getModelInfo() << std::endl;
 
-  // create model architecture
+  // create model architecture (PBOD only)
   if (triton_interface_->nInputs() == 3 && triton_interface_->nOutputs() == 4) {
-    model_type_ = ModelType::PBOD;
     loadModelConfig();
     detection_model_ = std::make_unique<PBODModel>(*triton_interface_.get(), model_config_);
-    std::map<std::string, std::vector<int64_t>> o{{"reg_logits"s, {65536l, 7l}}};
-  } else if (triton_interface_->nInputs() == 2 &&
-             (triton_interface_->nOutputs() == 6 || triton_interface_->nOutputs() == 7)) {
-    model_type_ = ModelType::PP;
-    loadModelConfig();
-    detection_model_ = std::make_unique<PPModel>(*triton_interface_.get(), model_config_, params_);
-    // } else if (triton_interface_->nInputs() == 3 && triton_interface_->nOutputs() == 2) {
-    //   model_type_ = ModelType::TPOD;
-    //   loadModelConfig();
-    //   detection_model_ = std::make_unique<TPODModel>(*triton_interface_.get(), model_config_);
   } else {
     RCLCPP_FATAL(this->get_logger(),
-                 "Model error: The number of model inputs or outputs does not correspond with model "
-                 "architecture of PP, PBOD, or TPOD.");
+                 "Model error: Expected PBOD interface with 3 inputs and 4 outputs from training export.");
     exit(EXIT_FAILURE);
   }
   triton_interface_->initInOutputs(detection_model_->getSpecialOutputShapes());
-
-  if (model_type_ != ModelType::TPOD) {
-    // intialize params for non maximum suppression and object list creator
-    non_max_suppression_ = std::make_unique<point_cloud_object_detection::NonMaxSuppression>(model_config_, params_);
-  }
 }
 
 void PointCloudObjectDetection::setupPublishers() {
@@ -1283,22 +965,15 @@ void PointCloudObjectDetection::boxesToObjectList(const std::vector<BoundingBox>
       if (auto it = std::find_if(object.state.classifications.begin(), object.state.classifications.end(),
                                  [&cls](const pm::msg::ObjectClassification& c) { return c.type == cls.type; });
           it != object.state.classifications.end()) {
-        // If this class already exists, add the probability to the existing one
-        if (model_type_ == ModelType::PBOD) {
-          // Note that PBOD at this point stores logits, so we have to add them with logaddexp
-          it->probability = logaddexp(it->probability, cls.probability);
-        } else {
-          it->probability += cls.probability;
-        }
-
+        // Note that PBOD stores logits, so accumulate with logaddexp.
+        it->probability = logaddexp(it->probability, cls.probability);
       } else {
         // Else, add this class
         object.state.classifications.push_back(cls);
       }
     }
     // normalize class probabilities and remove unlikely classes
-    sanitize_classifications(object.state.classifications, params_.class_score_threshold,
-                             model_type_ == ModelType::PBOD);
+    sanitize_classifications(object.state.classifications, params_.class_score_threshold, true);
     // add to object list
     object_list.objects.push_back(object);
   }
@@ -1541,10 +1216,8 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
   std::vector<BoundingBox> center_boxes = (*detection_model_)(point_cloud, timestamps);
   timestamps.push_back(std::chrono::high_resolution_clock::now());  // index: 4, after output tensor creation
 
-  // non-maxmimum suppresion
-  if (model_type_ != ModelType::TPOD) {
-    non_max_suppression_->nms(center_boxes);
-  }
+  // non-maximum suppression
+  pcod_common::ApplyRotatedNms(center_boxes, nms_config_);
   timestamps.push_back(std::chrono::high_resolution_clock::now());  // index: 5, after nms
 
   // filter detections intersecting no-detection zone (inference_frame)

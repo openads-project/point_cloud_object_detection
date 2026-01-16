@@ -19,6 +19,7 @@
   <depend>pcl_ros</depend>
   <depend>perception_msgs</depend>
   <depend>perception_msgs_utils</depend>
+  <depend>ament_index_cpp</depend>
   <depend>point_cloud_transport</depend>
   <depend>rclcpp</depend>
   <depend>rclcpp_components</depend>
@@ -29,6 +30,7 @@
   <depend>tf2_perception_msgs</depend>
   <depend>tf2_ros</depend>
   <depend>tf2_sensor_msgs</depend>
+  <depend>yaml-cpp</depend>
   
   <test_depend>ament_lint_auto</test_depend>
 
