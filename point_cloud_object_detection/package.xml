@@ -29,7 +29,7 @@
   <depend>tf2_perception_msgs</depend>
   <depend>tf2_ros</depend>
   <depend>tf2_sensor_msgs</depend>
-  
+
   <test_depend>ament_lint_auto</test_depend>
 
   <!-- add test dependencies on any linter, e.g. -->
@@ -38,6 +38,8 @@
   <!--test_depend>ament_cmake_mypy</test_depend-->
   <test_depend>ament_cmake_pep257</test_depend>
   <test_depend>ament_cmake_xmllint</test_depend>
+
+  <exec_depend>tracetools_launch</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
