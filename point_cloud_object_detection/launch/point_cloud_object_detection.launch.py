@@ -5,9 +5,11 @@ import os
 from ament_index_python import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, ExecuteProcess, GroupAction, RegisterEventHandler
+from launch.conditions import IfCondition
 from launch.event_handlers import OnExecutionComplete
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node, SetParameter
+from tracetools_launch.action import Trace
 
 
 def generate_launch_description():
@@ -58,6 +60,9 @@ def generate_launch_description():
         DeclareLaunchArgument('use_sim_time',
                               default_value='false',
                               description='use simulation clock'),
+        DeclareLaunchArgument('trace',
+                              default_value='false',
+                              description='enable tracing'),
         *remappable_topics,
     ]
 
@@ -100,4 +105,9 @@ def generate_launch_description():
         SetParameter('use_sim_time', LaunchConfiguration('use_sim_time')),
         join_params_event_handler,
         join_params_executor,
+        Trace(
+            session_name='trace',
+            dual_session=True,
+            condition=IfCondition(LaunchConfiguration('trace')),
+        ),
     ])
