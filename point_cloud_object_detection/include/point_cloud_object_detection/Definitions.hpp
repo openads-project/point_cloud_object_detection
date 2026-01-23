@@ -17,7 +17,11 @@ using pcod_common::ClassificationEntry;
 // model config
 struct ModelConfig {
   // Preprocessing
-  int intensity_threshold;
+  std::string point_feature_normalization_type = "none";
+  float point_feature_intensity_threshold = 0.0f;
+  float point_feature_min_intensity = 0.0f;
+  float point_feature_max_intensity = 0.0f;
+  float point_feature_norm_epsilon = 1e-6f;
 
   // Postprocessing
   std::vector<std::string> predicted_class_names;
@@ -32,6 +36,9 @@ struct ModelConfig {
   float z_max;
   int x_grid_size;
   int y_grid_size;
+  float voxel_x = 0.0f;
+  float voxel_y = 0.0f;
+  float voxel_z = 0.0f;
 
   // NMS
   int nms_max_num_objects;
@@ -41,7 +48,6 @@ struct ModelConfig {
   // PBOD specific config
   int max_num_points;
   int num_point_features = 1;
-  std::string point_type = "PointXYZI";
   std::vector<int64_t> stride;
   int first_up_stride;
 

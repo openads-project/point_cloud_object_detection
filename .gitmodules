@@ -1,3 +1,3 @@
-[submodule "pcod-common"]
-  path = pcod-common
-  url = ../pcod-common
+[submodule "point_cloud_object_detection/pcod-common"]
+	path = point_cloud_object_detection/pcod-common
+	url = ../../../ml/pcod-common
