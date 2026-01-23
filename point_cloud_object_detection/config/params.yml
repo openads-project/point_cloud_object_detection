@@ -3,10 +3,8 @@
 
     point_cloud_transport: raw
 
-    model_name: "PBOD"
-    model_version: "1"
-    model_manifest_path: "models/model_manifest.yml"
-    point_type: "PointXYZI"  # Set to "PointXYZRV" for reflectivity + velocity input
+    # model_manifest_path also provides triton.model_name and triton.model_version
+    model_manifest_path: "model_manifests/model_manifest.yml"
     server_url: "134.130.20.221:8001"
     use_shm: False
 
@@ -22,10 +20,7 @@
     variances: [0.2, 0.2, 0.1, -1.0, -1.0, -1.0, -1.0, 0.5, -1.0, 0.3, 0.3, 0.3]
     class_score_threshold: 0.0  # Range [0.0, 1.0]
 
-    # NMS overrides (optional): set to override manifest values at runtime
-    # nms_score_threshold: [0.5, 0.3, 0.3] # [vehicle, pedestrian, cyclist]
-    # nms_iou_threshold: 0.2
-    # nms_max_num_objects: 200
+    # Normalization + NMS settings are defined in the model manifest.
 
     # Optional: forbid detections intersecting a rectangle in the inference_frame
     # no_detection_zone:

@@ -35,9 +35,6 @@ using namespace std::chrono_literals;
 // namespace acronyms
 namespace pm = perception_msgs;
 
-// type definitions
-enum class PointType { XYZI, XYZRV };
-
 class PointCloudObjectDetection : public rclcpp::Node {
  public:
   /**
@@ -129,9 +126,6 @@ class PointCloudObjectDetection : public rclcpp::Node {
   // constants
   static const std::string kInputTopic;
   static const std::string kOutputTopic;
-  static const std::string kClassPointCloudsTopicBase;
-  static const std::string kUnclassifiedPointsTopic;
-  static const std::string kUnclassifiedOutsideAreaTopic;
   static const std::string kNoDetectionZoneTopic;
   static const std::string kNoDetectionZonePointsTopic;
   static const std::string kDetectionAreaTopic;
@@ -162,13 +156,11 @@ class PointCloudObjectDetection : public rclcpp::Node {
  private:
   Params params_;
   ModelConfig model_config_;
-  bool model_runtime_overwrite_ = false;
 
   std::unique_ptr<Model> detection_model_;
   pcod_common::NmsConfig nms_config_;
 
   std::vector<float> extra_feature_buffer_;
-  PointType point_type_ = PointType::XYZI;
 };
 
 }  // namespace point_cloud_object_detection

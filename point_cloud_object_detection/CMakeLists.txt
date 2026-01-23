@@ -30,7 +30,11 @@ find_package(tf2_perception_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_sensor_msgs REQUIRED)
 
+set(PCOD_COMMON_BUILD_TESTS OFF CACHE BOOL "Disable pcod-common tests in this workspace" FORCE)
 add_subdirectory(pcod-common)
+if(TARGET pcod_common)
+  set_target_properties(pcod_common PROPERTIES POSITION_INDEPENDENT_CODE ON)
+endif()
 
 add_library(
   ${PROJECT_NAME}_lib SHARED
@@ -71,7 +75,7 @@ ament_target_dependencies(
   tf2_sensor_msgs
 )
 
-target_link_libraries(${PROJECT_NAME}_lib PUBLIC pcod_common)
+target_link_libraries(${PROJECT_NAME}_lib pcod_common)
 
 rclcpp_components_register_node(${PROJECT_NAME}_lib
   PLUGIN "point_cloud_object_detection::PointCloudObjectDetection"

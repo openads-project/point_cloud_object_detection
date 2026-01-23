@@ -44,27 +44,11 @@ void sanitizeVarianceVector(std::vector<double>& variance, double sentinel) {
   }
 }
 
-PointType parsePointType(const std::string& value, const rclcpp::Logger& logger) {
-  std::string lowered = boost::algorithm::to_lower_copy(value);
-  if (lowered == "pointxyzi") {
-    return PointType::XYZI;
-  }
-  if (lowered == "pointxyzrv") {
-    return PointType::XYZRV;
-  }
-  throwParameterError(logger, "point_type", "must be 'PointXYZI' or 'PointXYZRV'");
-  return PointType::XYZI;
-}
-
 }  // namespace
 
 // constants
 const std::string PointCloudObjectDetection::kInputTopic = "~/point_cloud";
 const std::string PointCloudObjectDetection::kOutputTopic = "~/object_list";
-const std::string PointCloudObjectDetection::kClassPointCloudsTopicBase = "~/class_point_cloud/";
-const std::string PointCloudObjectDetection::kUnclassifiedPointsTopic = "~/unclassified_point_cloud";
-const std::string PointCloudObjectDetection::kUnclassifiedOutsideAreaTopic =
-    "~/unclassified_points_outside_detection_area";
 const std::string PointCloudObjectDetection::kNoDetectionZoneTopic = "~/no_detection_zone";
 const std::string PointCloudObjectDetection::kNoDetectionZonePointsTopic = "~/no_detection_zone_points";
 const std::string PointCloudObjectDetection::kDetectionAreaTopic = "~/detection_area";
@@ -106,9 +90,6 @@ void PointCloudObjectDetection::declare_parameter_if_not_exists(const std::strin
 }
 
 void PointCloudObjectDetection::declareParameters() {
-  declare_parameter_if_not_exists("model_name", rclcpp::ParameterType::PARAMETER_STRING, "Model name on Triton server");
-  declare_parameter_if_not_exists("model_version", rclcpp::ParameterType::PARAMETER_STRING,
-                                  "Model version on Triton server");
   declare_parameter_if_not_exists("server_url", rclcpp::ParameterType::PARAMETER_STRING,
                                   "URL of the triton server, e.g. 134.130.20.221:8001");
   declare_parameter_if_not_exists("use_shm", false, "Whether or not to use shared memory for Triton");
@@ -123,8 +104,6 @@ void PointCloudObjectDetection::declareParameters() {
       "Array with variances. Entries correspond to ISCACTR model defined in perception interfaces");
 
   declare_parameter_if_not_exists("class_score_threshold", 0.0, "Model config: Class score threshold");
-
-  declare_parameter_if_not_exists("intensity_threshold", 10000, "Model config: Intensity threshold");
 
   declare_parameter_if_not_exists(
       "publish_unclassified_points_outside_detection_area", false,
@@ -166,27 +145,16 @@ void PointCloudObjectDetection::declareParameters() {
   declare_parameter_if_not_exists("model_bounds.publish_polygon", false,
                                   "Publish the model x/y range rectangle as geometry_msgs/PolygonStamped");
 
-  // NMS parameters
-  declare_parameter_if_not_exists("nms_max_num_objects", 50, "Model config: Max number of detected objects for NMS");
-  declare_parameter_if_not_exists("nms_iou_threshold", 0.1, "Model config: IoU-threshold for NMS");
-  declare_parameter_if_not_exists("nms_score_threshold", std::vector<double>{0.2},
-                                  "Model config: Min cell score/occupancy for NMS");
-
-  // PBOD-specific params still set at runtime
-  declare_parameter_if_not_exists("point_type", std::string("PointXYZI"),
-                                  "Point struct to derive features from (PointXYZI or PointXYZRV)");
+  // NMS parameters are provided by the model manifest.
 }
 
 void PointCloudObjectDetection::loadParameters() {
-  // model path
+  // triton config + model manifest
   try {
-    params_.model_name = this->get_parameter("model_name").as_string();
-    params_.model_version = this->get_parameter("model_version").as_string();
     params_.server_url = this->get_parameter("server_url").as_string();
     params_.model_manifest_path = this->get_parameter("model_manifest_path").as_string();
   } catch (rclcpp::exceptions::ParameterUninitializedException&) {
-    RCLCPP_FATAL(this->get_logger(),
-                 "Parameters 'model_name', 'model_version', 'server_url', and 'model_manifest_path' are required");
+    RCLCPP_FATAL(this->get_logger(), "Parameters 'server_url' and 'model_manifest_path' are required");
     exit(EXIT_FAILURE);
   }
   params_.use_shm = this->get_parameter("use_shm").as_bool();
@@ -261,6 +229,9 @@ void PointCloudObjectDetection::validateParamsOrThrow() const {
 
   if (!isProbability(params_.class_score_threshold)) {
     fail("class_score_threshold", "must be within [0.0, 1.0]");
+  }
+  if (params_.server_url.empty()) {
+    fail("server_url", "must be set to the Triton server address");
   }
   if (params_.model_manifest_path.empty()) {
     fail("model_manifest_path", "must be set to the exported model_manifest.yml");
@@ -342,7 +313,27 @@ void PointCloudObjectDetection::loadModelConfig() {
   pcod_common::ModelManifest manifest = pcod_common::LoadModelManifest(manifest_path);
   pcod_common::ValidateModelManifest(manifest);
 
-  model_config_.intensity_threshold = get_parameter("intensity_threshold").as_int();
+  const std::string manifest_precision = boost::algorithm::to_lower_copy(manifest.precision);
+  if (manifest_precision != "fp32") {
+    throwParameterError(this->get_logger(), "model_manifest_path", "manifest precision must be 'fp32'");
+  }
+  const std::string manifest_device = boost::algorithm::to_lower_copy(manifest.device);
+  if (manifest_device.rfind("cuda", 0) != 0) {
+    throwParameterError(this->get_logger(), "model_manifest_path", "manifest device must start with 'cuda'");
+  }
+  if (manifest.triton.model_name.empty() || manifest.triton.model_version.empty()) {
+    throwParameterError(this->get_logger(), "model_manifest_path",
+                        "manifest must define triton.model_name and triton.model_version");
+  }
+  params_.model_name = manifest.triton.model_name;
+  params_.model_version = manifest.triton.model_version;
+
+  model_config_.point_feature_normalization_type = manifest.preprocessing.point_features_normalization.type;
+  model_config_.point_feature_intensity_threshold =
+      manifest.preprocessing.point_features_normalization.intensity_threshold;
+  model_config_.point_feature_min_intensity = manifest.preprocessing.point_features_normalization.min_intensity;
+  model_config_.point_feature_max_intensity = manifest.preprocessing.point_features_normalization.max_intensity;
+  model_config_.point_feature_norm_epsilon = manifest.preprocessing.point_features_normalization.epsilon;
   model_config_.predicted_class_names = manifest.postprocessing.class_names;
   model_config_.class_mapping_.clear();
 
@@ -354,20 +345,17 @@ void PointCloudObjectDetection::loadModelConfig() {
   model_config_.z_max = manifest.preprocessing.z_range[1];
   model_config_.x_grid_size = manifest.postprocessing.grid_x;
   model_config_.y_grid_size = manifest.postprocessing.grid_y;
+  model_config_.voxel_x = manifest.preprocessing.voxel_x;
+  model_config_.voxel_y = manifest.preprocessing.voxel_y;
+  model_config_.voxel_z = manifest.preprocessing.voxel_z;
 
   model_config_.nms_iou_threshold = manifest.postprocessing.nms_iou_threshold;
   model_config_.nms_max_num_objects = manifest.postprocessing.max_detections;
-  if (!manifest.postprocessing.score_thresholds.empty()) {
-    model_config_.nms_score_threshold.assign(
-        manifest.postprocessing.score_thresholds.begin(), manifest.postprocessing.score_thresholds.end());
-  } else {
-    model_config_.nms_score_threshold = get_parameter("nms_score_threshold").as_double_array();
-  }
+  model_config_.nms_score_threshold.assign(
+      manifest.postprocessing.score_thresholds.begin(), manifest.postprocessing.score_thresholds.end());
 
   model_config_.max_num_points = manifest.preprocessing.max_num_points;
   model_config_.num_point_features = manifest.preprocessing.num_point_features;
-  model_config_.point_type = get_parameter("point_type").as_string();
-  point_type_ = parsePointType(model_config_.point_type, this->get_logger());
   model_config_.stride.clear();
   for (int stride : manifest.model.stride) {
     model_config_.stride.push_back(stride);
@@ -435,10 +423,6 @@ void PointCloudObjectDetection::validateModelConfigOrThrow() const {
     throwParameterError(this->get_logger(), param, message);
   };
 
-  if (model_config_.intensity_threshold < 0) {
-    fail("intensity_threshold", "must be non-negative");
-  }
-
   if (!isFinite(model_config_.x_min) || !isFinite(model_config_.x_max)) {
     fail("x_min/x_max", "must be finite");
   }
@@ -497,15 +481,8 @@ void PointCloudObjectDetection::validateModelConfigOrThrow() const {
   if (model_config_.num_point_features <= 0) {
     fail("num_point_features", "must be greater than zero");
   }
-  PointType config_point_type = parsePointType(model_config_.point_type, this->get_logger());
-  if (config_point_type == PointType::XYZI) {
-    if (model_config_.num_point_features != 1) {
-      fail("num_point_features", "must be 1 when point_type is PointXYZI");
-    }
-  } else if (config_point_type == PointType::XYZRV) {
-    if (model_config_.num_point_features != 2) {
-      fail("num_point_features", "must be 2 when point_type is PointXYZRV");
-    }
+  if (model_config_.num_point_features != 1 && model_config_.num_point_features != 2) {
+    fail("num_point_features", "must be 1 (intensity) or 2 (reflectivity + velocity)");
   }
   if (model_config_.stride.empty()) {
     fail("stride", "must not be empty");
@@ -548,21 +525,7 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
 
   for (const auto& param : parameters) {
     // General parameters
-    if (param.get_name() == "model_name") {
-      std::string new_model_name = param.as_string();
-      if (new_model_name != params_.model_name) {
-        params_.model_name = new_model_name;
-        model_change_on_runtime = true;
-        RCLCPP_INFO(this->get_logger(), "Model name changed to: %s", params_.model_name.c_str());
-      }
-    } else if (param.get_name() == "model_version") {
-      std::string new_model_version = param.as_string();
-      if (new_model_version != params_.model_version) {
-        params_.model_version = new_model_version;
-        model_change_on_runtime = true;
-        RCLCPP_INFO(this->get_logger(), "Model version changed to: %s", params_.model_version.c_str());
-      }
-    } else if (param.get_name() == "model_manifest_path") {
+    if (param.get_name() == "model_manifest_path") {
       std::string new_manifest_path = param.as_string();
       if (new_manifest_path != params_.model_manifest_path) {
         params_.model_manifest_path = new_manifest_path;
@@ -580,9 +543,6 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
       sanitizeVarianceVector(params_.variance, cscu);
     } else if (param.get_name() == "class_score_threshold") {
       params_.class_score_threshold = param.as_double();
-    } else if (param.get_name() == "intensity_threshold") {
-      model_config_.intensity_threshold = param.as_int();
-      model_change_on_runtime = true;
     } else if (param.get_name() == "sensor_id") {
       const int64_t sensor_id_value = param.as_int();
       if (sensor_id_value < -1) {
@@ -606,27 +566,6 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
         params_.use_shm = new_use_shm;
         model_change_on_runtime = true;
         RCLCPP_INFO(this->get_logger(), "Use shared memory changed to: %s", params_.use_shm ? "true" : "false");
-      }
-    }
-
-    // NMS parameters
-    else if (param.get_name() == "nms_max_num_objects") {
-      model_config_.nms_max_num_objects = param.as_int();
-      nms_config_.max_detections = model_config_.nms_max_num_objects;
-    } else if (param.get_name() == "nms_iou_threshold") {
-      model_config_.nms_iou_threshold = param.as_double();
-      nms_config_.iou_threshold = static_cast<float>(model_config_.nms_iou_threshold);
-    } else if (param.get_name() == "nms_score_threshold") {
-      auto thresholds = param.as_double_array();
-      if (!updateNMSScoreThreshold(thresholds)) {
-        result.successful = false;
-        result.reason = "nms_score_threshold must contain exactly one value or one per predicted class";
-        RCLCPP_ERROR(this->get_logger(), "%s", result.reason.c_str());
-        return result;
-      }
-      nms_config_.score_thresholds.clear();
-      for (double value : model_config_.nms_score_threshold) {
-        nms_config_.score_thresholds.push_back(static_cast<float>(value));
       }
     }
 
@@ -678,10 +617,6 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
 
     else if (param.get_name() == "no_detection_zone.remove_points") {
       model_config_.no_detection_zone_remove_points = param.as_bool();
-    } else if (param.get_name() == "point_type") {
-      model_config_.point_type = param.as_string();
-      point_type_ = parsePointType(model_config_.point_type, this->get_logger());
-      model_change_on_runtime = true;
     }
 
     // Publishing control parameters
@@ -694,10 +629,9 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
     }
   }
 
-  // Reinitialize model if model name or version changed
+  // Reinitialize model if runtime-critical configuration changed
   if (model_change_on_runtime) {
     try {
-      model_runtime_overwrite_ = true;
       initializeModel();
       RCLCPP_INFO(this->get_logger(), "Successfully reinitialized model with name: %s, version: %s",
                   params_.model_name.c_str(), params_.model_version.c_str());
@@ -723,6 +657,8 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
 }
 
 void PointCloudObjectDetection::initializeModel() {
+  loadModelConfig();
+
   // load model
   triton_interface_ = std::make_unique<triton_cpp::TritonInterface>(params_.model_name, params_.model_version,
                                                                     params_.server_url, params_.use_shm, false, true);
@@ -731,12 +667,11 @@ void PointCloudObjectDetection::initializeModel() {
   std::cout << triton_interface_->getModelInfo() << std::endl;
 
   // create model architecture (PBOD only)
-  if (triton_interface_->nInputs() == 3 && triton_interface_->nOutputs() == 4) {
-    loadModelConfig();
+  if (triton_interface_->nInputs() == 5 && triton_interface_->nOutputs() == 4) {
     detection_model_ = std::make_unique<PBODModel>(*triton_interface_.get(), model_config_);
   } else {
     RCLCPP_FATAL(this->get_logger(),
-                 "Model error: Expected PBOD interface with 3 inputs and 4 outputs from training export.");
+                 "Model error: Expected PBOD interface with 5 inputs and 4 outputs from training export.");
     exit(EXIT_FAILURE);
   }
   triton_interface_->initInOutputs(detection_model_->getSpecialOutputShapes());
@@ -858,7 +793,7 @@ void PointCloudObjectDetection::processPointCloud(const sensor_msgs::msg::PointC
     return nullptr;
   };
 
-  const bool use_velocity_channel = (point_type_ == PointType::XYZRV);
+  const bool use_velocity_channel = (model_config_.num_point_features == 2);
   const std::size_t extra_channels = use_velocity_channel ? 1U : 0U;
   if (extra_channels == 0) {
     extra_feature_buffer_.clear();
@@ -868,27 +803,25 @@ void PointCloudObjectDetection::processPointCloud(const sensor_msgs::msg::PointC
 
   std::unique_ptr<sensor_msgs::PointCloud2ConstIterator<float>> reflectivity_iter;
   std::unique_ptr<sensor_msgs::PointCloud2ConstIterator<float>> velocity_iter;
-  static bool reflectivity_warned = false;
-  static bool velocity_warned = false;
 
   if (use_velocity_channel) {
     const auto* reflectivity_field = findField("reflectivity");
-    if (reflectivity_field && reflectivity_field->datatype == sensor_msgs::msg::PointField::FLOAT32) {
-      reflectivity_iter =
-          std::make_unique<sensor_msgs::PointCloud2ConstIterator<float>>(*transformed_point_cloud_msg, "reflectivity");
-    } else if (!reflectivity_warned) {
-      RCLCPP_WARN(this->get_logger(), "Point field 'reflectivity' missing or not FLOAT32; falling back to 'intensity'");
-      reflectivity_warned = true;
+    if (!reflectivity_field || reflectivity_field->datatype != sensor_msgs::msg::PointField::FLOAT32) {
+      RCLCPP_FATAL(this->get_logger(),
+                   "Point field 'reflectivity' is required and must be FLOAT32 when num_point_features=2");
+      throw std::runtime_error("Missing required PointCloud2 field: reflectivity");
     }
+    reflectivity_iter =
+        std::make_unique<sensor_msgs::PointCloud2ConstIterator<float>>(*transformed_point_cloud_msg, "reflectivity");
 
     const auto* velocity_field = findField("velocity");
-    if (velocity_field && velocity_field->datatype == sensor_msgs::msg::PointField::FLOAT32) {
-      velocity_iter =
-          std::make_unique<sensor_msgs::PointCloud2ConstIterator<float>>(*transformed_point_cloud_msg, "velocity");
-    } else if (!velocity_warned) {
-      RCLCPP_WARN(this->get_logger(), "Point field 'velocity' missing or not FLOAT32; velocity channel will be zero");
-      velocity_warned = true;
+    if (!velocity_field || velocity_field->datatype != sensor_msgs::msg::PointField::FLOAT32) {
+      RCLCPP_FATAL(this->get_logger(),
+                   "Point field 'velocity' is required and must be FLOAT32 when num_point_features=2");
+      throw std::runtime_error("Missing required PointCloud2 field: velocity");
     }
+    velocity_iter =
+        std::make_unique<sensor_msgs::PointCloud2ConstIterator<float>>(*transformed_point_cloud_msg, "velocity");
   }
 
   for (std::size_t idx = 0; idx < base_cloud.size(); ++idx) {
