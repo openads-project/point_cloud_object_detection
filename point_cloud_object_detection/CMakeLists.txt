@@ -101,6 +101,7 @@ if(BUILD_TESTING)
   set(ament_cmake_clang_format_CONFIG_FILE $ENV{WORKSPACE}/src/target/.vscode/format/.clang-format)
   set(ament_cmake_clang_tidy_CONFIG_FILE $ENV{WORKSPACE}/src/target/.vscode/lint/.clang-tidy)
   set(ament_cmake_flake8_CONFIG_FILE $ENV{WORKSPACE}/src/target/.vscode/lint/ament_flake8.ini)
+  set(ament_cmake_pep257_CONFIG_FILE $ENV{WORKSPACE}/src/target/.vscode/lint/ament_pep257.ini)
 
   ament_lint_auto_find_test_dependencies()
 endif()
