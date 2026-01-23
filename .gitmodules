@@ -1,3 +1,9 @@
+[submodule ".vscode"]
+	path = .vscode
+	url = ../../../../fb-fi/dev-environment/vscode.git
+[submodule ".devcontainer"]
+	path = .devcontainer
+	url = ../../../../fb-fi/dev-environment/devcontainer.git
 [submodule "point_cloud_object_detection/pcod-common"]
 	path = point_cloud_object_detection/pcod-common
 	url = ../../../ml/pcod-common
