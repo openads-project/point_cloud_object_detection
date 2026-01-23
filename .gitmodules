@@ -7,6 +7,3 @@
 [submodule "point_cloud_object_detection/pcod-common"]
 	path = point_cloud_object_detection/pcod-common
 	url = ../../../ml/pcod-common
-[submodule "point_cloud_object_detection/point_cloud_object_detection/pcod-common"]
-	path = point_cloud_object_detection/point_cloud_object_detection/pcod-common
-	url = https://gitlab.ika.rwth-aachen.de/fb-fi/ml/pcod-common
