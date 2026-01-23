@@ -91,7 +91,7 @@ install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})
 
 install(DIRECTORY config DESTINATION share/${PROJECT_NAME})
 
-install(DIRECTORY models DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY model_manifests DESTINATION share/${PROJECT_NAME})
 
 install(DIRECTORY scripts DESTINATION share/${PROJECT_NAME})
 
