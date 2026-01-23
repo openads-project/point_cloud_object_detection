@@ -351,8 +351,8 @@ void PointCloudObjectDetection::loadModelConfig() {
 
   model_config_.nms_iou_threshold = manifest.postprocessing.nms_iou_threshold;
   model_config_.nms_max_num_objects = manifest.postprocessing.max_detections;
-  model_config_.nms_score_threshold.assign(
-      manifest.postprocessing.score_thresholds.begin(), manifest.postprocessing.score_thresholds.end());
+  model_config_.nms_score_threshold.assign(manifest.postprocessing.score_thresholds.begin(),
+                                           manifest.postprocessing.score_thresholds.end());
 
   model_config_.max_num_points = manifest.preprocessing.max_num_points;
   model_config_.num_point_features = manifest.preprocessing.num_point_features;
@@ -380,8 +380,11 @@ void PointCloudObjectDetection::loadModelConfig() {
       }
     }
     if (pm_type == pm::msg::ObjectClassification::UNCLASSIFIED) {
-      RCLCPP_WARN_STREAM(get_logger(), "The class "" << name << "" is not mapped to any class of"
-                                                      << " perception_msgs::msg::ObjectClassification");
+      RCLCPP_WARN_STREAM(get_logger(),
+                         "The class "
+                         " << name << "
+                         " is not mapped to any class of"
+                             << " perception_msgs::msg::ObjectClassification");
     }
     model_config_.class_mapping_[name] = pm_type;
   }
@@ -400,11 +403,10 @@ void PointCloudObjectDetection::loadModelConfig() {
   model_config_.no_detection_zone_y_min = get_parameter("no_detection_zone.y_min").as_double();
   model_config_.no_detection_zone_y_max = get_parameter("no_detection_zone.y_max").as_double();
 
-  model_config_.detection_area_remove_points_outside =
-      get_parameter("detection_area.enabled").as_bool() &&
-      get_parameter("detection_area.radius").as_double() > 0.0 &&
-      get_parameter("detection_area.fov_deg").as_double() > 0.0 &&
-      get_parameter("detection_area.num_segments").as_int() >= 3;
+  model_config_.detection_area_remove_points_outside = get_parameter("detection_area.enabled").as_bool() &&
+                                                       get_parameter("detection_area.radius").as_double() > 0.0 &&
+                                                       get_parameter("detection_area.fov_deg").as_double() > 0.0 &&
+                                                       get_parameter("detection_area.num_segments").as_int() >= 3;
   model_config_.detection_area_center_x = get_parameter("detection_area.center_x").as_double();
   model_config_.detection_area_center_y = get_parameter("detection_area.center_y").as_double();
   model_config_.detection_area_radius = get_parameter("detection_area.radius").as_double();
