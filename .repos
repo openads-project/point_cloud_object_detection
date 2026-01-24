@@ -6,7 +6,7 @@ repositories:
   perception_interfaces:
     type: git
     url: https://github.com/ika-rwth-aachen/perception_interfaces.git
-    version: main
+    version: v1.0.0
   # remove once [https://github.com/ros2/ros2_tracing/issues/211] is solved in released version
   ros2_tracing:
     type: git
@@ -15,4 +15,4 @@ repositories:
   triton_cpp:
     type: git
     url: https://gitlab.ika.rwth-aachen.de/fb-fi/ml/triton_cpp.git
-    version: main
+    version: v1.0.0
