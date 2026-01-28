@@ -84,7 +84,7 @@ Invalid parameter values result in a fatal log message and the node shuts down. 
 | `model_name` | `string` | [**required**] Model name on the Triton server. | - |
 | `model_version` | `string` | [**required**] Model version on the Triton server. Although numeric, it must be provided as a string. | - |
 | `model_manifest_path` | `string` | Path (relative to the package) of the exported `model_manifest.yml`. | - |
-| `point_type` | `string` | Point type expected by the model (`PointXYZI` or `PointXYZRV`). | Must be one of the supported point types. |
+| `point_feature_source` | `string` | [**dynamic**] Source for the single feature channel when `num_point_features=1` (`intensity` or `reflectivity`). | Must be `intensity` or `reflectivity`. |
 | `server_url` | `string` | Triton server host:port combination. | - |
 | `use_shm` | `bool` | Enable Triton shared-memory transport. | - |
 | `inference_frame` | `string` | [**dynamic**] Frame used for preprocessing and filters. | - |
@@ -177,9 +177,10 @@ ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py
 
 ## Point Cloud Input Fields
 
-The node accepts `sensor_msgs/PointCloud2` messages that always contain XYZ coordinates. The `point_type` parameter controls how additional features are extracted before being forwarded to the model:
+The node accepts `sensor_msgs/PointCloud2` messages that always contain XYZ coordinates. The `point_feature_source` parameter controls how the single feature channel is extracted before being forwarded to the model when `num_point_features=1`:
 
-- `PointXYZI` *(default)* – consumes the ROS `intensity` field as the single feature channel. `num_point_features` **must** be set to 1 in this mode.
-- `PointXYZRV` – expects floating-point `reflectivity` and `velocity` fields. Reflectivity replaces the classic intensity channel, and velocity is forwarded as the second feature. `num_point_features` must be set to 2. Missing reflectivity falls back to the message `intensity`, and missing velocity is treated as zero.
+- `intensity` *(default)* – consumes the ROS `intensity` field as the single feature channel. `num_point_features` **must** be 1 in this mode.
+- `reflectivity` – consumes the ROS `reflectivity` field as the single feature channel. `num_point_features` **must** be 1 in this mode. The field must exist and be `FLOAT32`.
+When `num_point_features=2`, the node expects `reflectivity` and `velocity` fields; reflectivity becomes the first feature and velocity the second.
 
 Additional feature channels beyond these presets are currently not supported and are filled with zeros when requested.
