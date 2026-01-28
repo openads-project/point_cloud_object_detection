@@ -513,8 +513,6 @@ void PointCloudObjectDetection::validateModelConfigOrThrow() const {
       fail("detection_area.fov_deg", "must be in the range (0, 360]");
     }
   }
-
-  // PP/TPOD validation removed; PBOD-only path.
 }
 
 rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCallback(

@@ -21,8 +21,8 @@
 #include <tf2_sensor_msgs/tf2_sensor_msgs.hpp>
 #include <vector>
 
-#include "point_cloud_object_detection/Definitions.hpp"
 #include "pcod_common/nms.hpp"
+#include "point_cloud_object_detection/Definitions.hpp"
 #include "point_cloud_object_detection/Model.hpp"
 #include "point_cloud_object_detection/PBODModel.hpp"
 #include "point_cloud_object_detection/PointTypes.hpp"

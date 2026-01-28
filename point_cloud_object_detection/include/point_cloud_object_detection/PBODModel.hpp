@@ -15,14 +15,14 @@
 #include "PointTypes.hpp"
 
 #include "pcod_common/pbod_postprocess.hpp"
-#include "pcod_common/point_preprocess.hpp"
 #include "pcod_common/pillar_grid.hpp"
+#include "pcod_common/point_preprocess.hpp"
 
 namespace point_cloud_object_detection {
 
 class PBODModel : public Model {
  public:
-  PBODModel(triton_cpp::TritonInterface &triton_interface, ModelConfig &model_config);
+  PBODModel(triton_cpp::TritonInterface& triton_interface, ModelConfig& model_config);
 
   const std::string SAVED_MODEL_INPUT_NAME_POINT_FEATURES = "point_features";
   const std::string SAVED_MODEL_INPUT_NAME_PILLAR_IDS = "pillar_ids";
@@ -36,21 +36,21 @@ class PBODModel : public Model {
   const std::string SAVED_MODEL_OUTPUT_NAME_SIZE = "size_posterior";
 
   virtual std::map<std::string, std::vector<int64_t>> getSpecialOutputShapes() override;
-  void setAdditionalPointFeatures(const float *feature_values, std::size_t point_count,
+  void setAdditionalPointFeatures(const float* feature_values, std::size_t point_count,
                                   std::size_t feature_stride) override;
 
-  virtual ~PBODModel() = default;         // Any method virtual -> destructor virtual
-  PBODModel(const PBODModel &) = delete;  // Rule of five
-  PBODModel &operator=(const PBODModel &) = delete;
-  PBODModel(PBODModel &&) = delete;
-  PBODModel &operator=(PBODModel &&) = delete;
+  virtual ~PBODModel() = default;        // Any method virtual -> destructor virtual
+  PBODModel(const PBODModel&) = delete;  // Rule of five
+  PBODModel& operator=(const PBODModel&) = delete;
+  PBODModel(PBODModel&&) = delete;
+  PBODModel& operator=(PBODModel&&) = delete;
 
  protected:
-  virtual void setupModelInput(const PointCloud &point_cloud) override;
+  virtual void setupModelInput(const PointCloud& point_cloud) override;
   virtual std::vector<BoundingBox> modelOutputToBoxes() override;
 
  private:
-  ModelConfig &model_config_;
+  ModelConfig& model_config_;
   pcod_common::PillarGrid pillar_grid_;
 
   const std::string input_name_point_features_;
@@ -85,7 +85,7 @@ class PBODModel : public Model {
   const int preprocessed_feature_dim_;
   const int num_pillars_;
   std::vector<int64_t> pillar_indices_;
-  const float *external_point_features_ = nullptr;
+  const float* external_point_features_ = nullptr;
   std::size_t external_point_feature_stride_ = 0;
   std::size_t external_point_feature_count_ = 0;
 
@@ -105,7 +105,7 @@ class PBODModel : public Model {
   const float da_fov_rad_;
   pcod_common::PointPreprocessor point_preprocessor_;
 
-  inline const float *getExtraFeatures(std::size_t point_index) const {
+  inline const float* getExtraFeatures(std::size_t point_index) const {
     if (external_point_features_ == nullptr || external_point_feature_stride_ == 0 ||
         point_index >= external_point_feature_count_) {
       return nullptr;

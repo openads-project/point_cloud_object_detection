@@ -22,8 +22,8 @@ PBODModel::PBODModel(triton_cpp::TritonInterface& triton_interface, ModelConfig&
       voxel_x_{static_cast<float>(model_config_.voxel_x)},
       voxel_y_{static_cast<float>(model_config_.voxel_y)},
       voxel_z_{static_cast<float>(model_config_.voxel_z)},
-      normalization_type_{pcod_common::ParsePointFeatureNormalizationType(
-          model_config_.point_feature_normalization_type)},
+      normalization_type_{
+          pcod_common::ParsePointFeatureNormalizationType(model_config_.point_feature_normalization_type)},
       intensity_threshold_{model_config_.point_feature_intensity_threshold},
       min_intensity_{model_config_.point_feature_min_intensity},
       max_intensity_{model_config_.point_feature_max_intensity},
@@ -78,13 +78,12 @@ PBODModel::PBODModel(triton_cpp::TritonInterface& triton_interface, ModelConfig&
       pillar_indices_[idx + 1] = iy;
     }
   }
-  pillar_grid_ = pcod_common::BuildPillarGrid(
-      {grid_x, grid_y},
-      {{{model_config_.pillar_map_range[0][0], model_config_.pillar_map_range[0][1]},
-        {model_config_.pillar_map_range[1][0], model_config_.pillar_map_range[1][1]},
-        {model_config_.pillar_map_range[2][0], model_config_.pillar_map_range[2][1]}}},
-      model_config_.first_up_stride,
-      stride);
+  pillar_grid_ =
+      pcod_common::BuildPillarGrid({grid_x, grid_y},
+                                   {{{model_config_.pillar_map_range[0][0], model_config_.pillar_map_range[0][1]},
+                                     {model_config_.pillar_map_range[1][0], model_config_.pillar_map_range[1][1]},
+                                     {model_config_.pillar_map_range[2][0], model_config_.pillar_map_range[2][1]}}},
+                                   model_config_.first_up_stride, stride);
 }
 
 void PBODModel::setAdditionalPointFeatures(const float* feature_values, std::size_t point_count,

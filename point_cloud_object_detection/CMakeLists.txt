@@ -42,7 +42,6 @@ add_library(
   src/Utils.cpp
   src/Model.cpp
   src/PBODModel.cpp
-  #src/TPODModel.cpp
 )
 
 target_include_directories(
@@ -50,8 +49,6 @@ target_include_directories(
                         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                         $<INSTALL_INTERFACE:include>
 )
-# target_include_directories(${PROJECT_NAME}_lib BEFORE
-#                         PUBLIC ${tensorflow_cpp_INCLUDE_DIRS})
 target_compile_features(
   ${PROJECT_NAME}_lib PUBLIC c_std_99 cxx_std_17) # Require C99 and C++17
 
@@ -97,13 +94,17 @@ install(DIRECTORY scripts DESTINATION share/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
+  find_package(ament_cmake_clang_format REQUIRED)
+  find_package(ament_cmake_pep257 REQUIRED)
 
   set(ament_cmake_clang_format_CONFIG_FILE $ENV{WORKSPACE}/src/target/.vscode/format/.clang-format)
   set(ament_cmake_clang_tidy_CONFIG_FILE $ENV{WORKSPACE}/src/target/.vscode/lint/.clang-tidy)
   set(ament_cmake_flake8_CONFIG_FILE $ENV{WORKSPACE}/src/target/.vscode/lint/ament_flake8.ini)
-  set(ament_cmake_pep257_CONFIG_FILE $ENV{WORKSPACE}/src/target/.vscode/lint/ament_pep257.ini)
+  set(AMENT_LINT_AUTO_EXCLUDE ament_cmake_clang_format ament_cmake_pep257)
 
   ament_lint_auto_find_test_dependencies()
+  ament_clang_format(include src)
+  ament_pep257(--exclude pcod-common)
 endif()
 
 ament_package()
