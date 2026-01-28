@@ -4,7 +4,7 @@
     point_cloud_transport: raw
 
     # model_manifest_path also provides triton.model_name and triton.model_version
-    model_manifest_path: "model_manifests/model_manifest.yml"
+    model_manifest_path: "model_manifests/model_manifest_karl.yml"
     server_url: "134.130.20.221:8001"
     use_shm: False
 

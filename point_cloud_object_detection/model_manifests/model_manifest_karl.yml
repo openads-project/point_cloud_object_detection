@@ -63,5 +63,5 @@ model:
   zero_intensity: false
 triton:
   model_name: pbod_fp32_gpu
-  model_version: '1'
+  model_version: 1
   precision: fp32
