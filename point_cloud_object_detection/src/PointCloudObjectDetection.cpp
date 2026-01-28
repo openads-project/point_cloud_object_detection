@@ -104,6 +104,8 @@ void PointCloudObjectDetection::declareParameters() {
       "Array with variances. Entries correspond to ISCACTR model defined in perception interfaces");
 
   declare_parameter_if_not_exists("class_score_threshold", 0.0, "Model config: Class score threshold");
+  declare_parameter_if_not_exists("point_feature_source", std::string("intensity"),
+                                  "Single-feature source: 'intensity' or 'reflectivity'");
 
   declare_parameter_if_not_exists(
       "publish_unclassified_points_outside_detection_area", false,
@@ -180,6 +182,7 @@ void PointCloudObjectDetection::loadParameters() {
 
   // class score threshold
   params_.class_score_threshold = get_parameter("class_score_threshold").as_double();
+  params_.point_feature_source = get_parameter("point_feature_source").as_string();
 
   // no-detection zone parameters
   params_.no_detection_zone_enabled = get_parameter("no_detection_zone.enabled").as_bool();
@@ -229,6 +232,9 @@ void PointCloudObjectDetection::validateParamsOrThrow() const {
 
   if (!isProbability(params_.class_score_threshold)) {
     fail("class_score_threshold", "must be within [0.0, 1.0]");
+  }
+  if (params_.point_feature_source != "intensity" && params_.point_feature_source != "reflectivity") {
+    fail("point_feature_source", "must be 'intensity' or 'reflectivity'");
   }
   if (params_.server_url.empty()) {
     fail("server_url", "must be set to the Triton server address");
@@ -794,6 +800,8 @@ void PointCloudObjectDetection::processPointCloud(const sensor_msgs::msg::PointC
   };
 
   const bool use_velocity_channel = (model_config_.num_point_features == 2);
+  const bool use_reflectivity =
+      use_velocity_channel || (model_config_.num_point_features == 1 && params_.point_feature_source == "reflectivity");
   const std::size_t extra_channels = use_velocity_channel ? 1U : 0U;
   if (extra_channels == 0) {
     extra_feature_buffer_.clear();
@@ -804,16 +812,18 @@ void PointCloudObjectDetection::processPointCloud(const sensor_msgs::msg::PointC
   std::unique_ptr<sensor_msgs::PointCloud2ConstIterator<float>> reflectivity_iter;
   std::unique_ptr<sensor_msgs::PointCloud2ConstIterator<float>> velocity_iter;
 
-  if (use_velocity_channel) {
+  if (use_reflectivity) {
     const auto* reflectivity_field = findField("reflectivity");
     if (!reflectivity_field || reflectivity_field->datatype != sensor_msgs::msg::PointField::FLOAT32) {
       RCLCPP_FATAL(this->get_logger(),
-                   "Point field 'reflectivity' is required and must be FLOAT32 when num_point_features=2");
+                   "Point field 'reflectivity' is required and must be FLOAT32 when point_feature_source=reflectivity");
       throw std::runtime_error("Missing required PointCloud2 field: reflectivity");
     }
     reflectivity_iter =
         std::make_unique<sensor_msgs::PointCloud2ConstIterator<float>>(*transformed_point_cloud_msg, "reflectivity");
+  }
 
+  if (use_velocity_channel) {
     const auto* velocity_field = findField("velocity");
     if (!velocity_field || velocity_field->datatype != sensor_msgs::msg::PointField::FLOAT32) {
       RCLCPP_FATAL(this->get_logger(),

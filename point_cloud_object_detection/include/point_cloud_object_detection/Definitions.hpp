@@ -90,6 +90,7 @@ struct Params {
 
   std::vector<double> variance;
   double class_score_threshold;
+  std::string point_feature_source = "intensity";
 
   // Optional no-detection rectangle (in inference_frame) where detections are not allowed
   bool no_detection_zone_enabled = false;
