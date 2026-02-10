@@ -860,56 +860,48 @@ void PointCloudObjectDetection::processPointCloud(const sensor_msgs::msg::PointC
     using PF = sensor_msgs::msg::PointField;
     switch (primary_feature->datatype) {
       case PF::FLOAT32:
-        primary_feature_iter_float32 =
-            std::make_unique<sensor_msgs::PointCloud2ConstIterator<float>>(*transformed_point_cloud_msg,
-                                                                            primary_feature_field);
+        primary_feature_iter_float32 = std::make_unique<sensor_msgs::PointCloud2ConstIterator<float>>(
+            *transformed_point_cloud_msg, primary_feature_field);
         break;
       case PF::FLOAT64:
-        primary_feature_iter_float64 =
-            std::make_unique<sensor_msgs::PointCloud2ConstIterator<double>>(*transformed_point_cloud_msg,
-                                                                             primary_feature_field);
+        primary_feature_iter_float64 = std::make_unique<sensor_msgs::PointCloud2ConstIterator<double>>(
+            *transformed_point_cloud_msg, primary_feature_field);
         RCLCPP_WARN(this->get_logger(), "Converting PointCloud2 field '%s' from FLOAT64 to FLOAT32",
                     primary_feature_field.c_str());
         break;
       case PF::UINT16:
-        primary_feature_iter_uint16 =
-            std::make_unique<sensor_msgs::PointCloud2ConstIterator<std::uint16_t>>(*transformed_point_cloud_msg,
-                                                                                     primary_feature_field);
+        primary_feature_iter_uint16 = std::make_unique<sensor_msgs::PointCloud2ConstIterator<std::uint16_t>>(
+            *transformed_point_cloud_msg, primary_feature_field);
         RCLCPP_WARN(this->get_logger(), "Converting PointCloud2 field '%s' from UINT16 to FLOAT32",
                     primary_feature_field.c_str());
         break;
       case PF::UINT8:
-        primary_feature_iter_uint8 =
-            std::make_unique<sensor_msgs::PointCloud2ConstIterator<std::uint8_t>>(*transformed_point_cloud_msg,
-                                                                                    primary_feature_field);
+        primary_feature_iter_uint8 = std::make_unique<sensor_msgs::PointCloud2ConstIterator<std::uint8_t>>(
+            *transformed_point_cloud_msg, primary_feature_field);
         RCLCPP_WARN(this->get_logger(), "Converting PointCloud2 field '%s' from UINT8 to FLOAT32",
                     primary_feature_field.c_str());
         break;
       case PF::INT16:
-        primary_feature_iter_int16 =
-            std::make_unique<sensor_msgs::PointCloud2ConstIterator<std::int16_t>>(*transformed_point_cloud_msg,
-                                                                                    primary_feature_field);
+        primary_feature_iter_int16 = std::make_unique<sensor_msgs::PointCloud2ConstIterator<std::int16_t>>(
+            *transformed_point_cloud_msg, primary_feature_field);
         RCLCPP_WARN(this->get_logger(), "Converting PointCloud2 field '%s' from INT16 to FLOAT32",
                     primary_feature_field.c_str());
         break;
       case PF::INT8:
-        primary_feature_iter_int8 =
-            std::make_unique<sensor_msgs::PointCloud2ConstIterator<std::int8_t>>(*transformed_point_cloud_msg,
-                                                                                   primary_feature_field);
+        primary_feature_iter_int8 = std::make_unique<sensor_msgs::PointCloud2ConstIterator<std::int8_t>>(
+            *transformed_point_cloud_msg, primary_feature_field);
         RCLCPP_WARN(this->get_logger(), "Converting PointCloud2 field '%s' from INT8 to FLOAT32",
                     primary_feature_field.c_str());
         break;
       case PF::UINT32:
-        primary_feature_iter_uint32 =
-            std::make_unique<sensor_msgs::PointCloud2ConstIterator<std::uint32_t>>(*transformed_point_cloud_msg,
-                                                                                     primary_feature_field);
+        primary_feature_iter_uint32 = std::make_unique<sensor_msgs::PointCloud2ConstIterator<std::uint32_t>>(
+            *transformed_point_cloud_msg, primary_feature_field);
         RCLCPP_WARN(this->get_logger(), "Converting PointCloud2 field '%s' from UINT32 to FLOAT32",
                     primary_feature_field.c_str());
         break;
       case PF::INT32:
-        primary_feature_iter_int32 =
-            std::make_unique<sensor_msgs::PointCloud2ConstIterator<std::int32_t>>(*transformed_point_cloud_msg,
-                                                                                    primary_feature_field);
+        primary_feature_iter_int32 = std::make_unique<sensor_msgs::PointCloud2ConstIterator<std::int32_t>>(
+            *transformed_point_cloud_msg, primary_feature_field);
         RCLCPP_WARN(this->get_logger(), "Converting PointCloud2 field '%s' from INT32 to FLOAT32",
                     primary_feature_field.c_str());
         break;
