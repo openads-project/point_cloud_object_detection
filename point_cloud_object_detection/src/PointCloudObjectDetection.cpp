@@ -1292,9 +1292,12 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
   std::vector<BoundingBox> center_boxes = (*detection_model_)(point_cloud, timestamps);
   timestamps.push_back(std::chrono::high_resolution_clock::now());  // index: 4, after output tensor creation
 
+  const std::size_t boxes_before_nms = center_boxes.size();
+
   // non-maximum suppression
   pcod_common::ApplyRotatedNms(center_boxes, nms_config_);
   timestamps.push_back(std::chrono::high_resolution_clock::now());  // index: 5, after nms
+  const std::size_t boxes_after_nms = center_boxes.size();
 
   // filter detections intersecting no-detection zone (inference_frame)
   if (params_.no_detection_zone_enabled) {
@@ -1367,25 +1370,38 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
                   params_.detection_area_filter_mode.c_str());
     }
   }
+  timestamps.push_back(std::chrono::high_resolution_clock::now());  // index: 6, after detection filters
 
   // boxesToObjectList
   pm::msg::ObjectList::UniquePtr object_list = std::make_unique<pm::msg::ObjectList>();
   object_list->header = header;
   boxesToObjectList(center_boxes, *object_list);
-  timestamps.push_back(std::chrono::high_resolution_clock::now());  // index: 6, after nms
+  timestamps.push_back(std::chrono::high_resolution_clock::now());  // index: 7, after object-list conversion
 
   // get size for logging, as publishing invalidates the message here
   std::size_t size = object_list->objects.size();
 
   // publish output message
   publisher_->publish(std::move(object_list));
-  timestamps.push_back(std::chrono::high_resolution_clock::now());  // index: 7, after nms
+  timestamps.push_back(std::chrono::high_resolution_clock::now());  // index: 8, after publish
 
   // log processing
   std::chrono::duration<double> inference_time = timestamps[3] - timestamps[2];
   std::chrono::duration<double> total_time = timestamps.back() - timestamps.front();
   RCLCPP_INFO(this->get_logger(), "%ld objects detected in %.3fs (inference %.3fs)", size, total_time.count(),
               inference_time.count());
+  const auto to_ms = [](const auto& duration) { return std::chrono::duration<double, std::milli>(duration).count(); };
+  const char* event_name = "pcod_timing";
+  RCLCPP_DEBUG(this->get_logger(),
+               "%s points=%zu used_points=%zu boxes_in=%zu boxes_nms=%zu boxes_out=%zu objects=%zu "
+               "e2e_ms=%.3f pcl_pre_ms=%.3f model_input_ms=%.3f infer_ms=%.3f decode_ms=%.3f "
+               "nms_ms=%.3f filter_ms=%.3f boxes_to_msg_ms=%.3f publish_ms=%.3f",
+               event_name, point_cloud.size(), detection_model_->getFilteredInputPoints().size(), boxes_before_nms,
+               boxes_after_nms, center_boxes.size(), size, to_ms(timestamps[8] - timestamps[0]),
+               to_ms(timestamps[1] - timestamps[0]), to_ms(timestamps[2] - timestamps[1]),
+               to_ms(timestamps[3] - timestamps[2]), to_ms(timestamps[4] - timestamps[3]),
+               to_ms(timestamps[5] - timestamps[4]), to_ms(timestamps[6] - timestamps[5]),
+               to_ms(timestamps[7] - timestamps[6]), to_ms(timestamps[8] - timestamps[7]));
 }
 
 // Transition callback for state configuring
