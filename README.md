@@ -84,7 +84,7 @@ Invalid parameter values result in a fatal log message and the node shuts down. 
 | `model_name` | `string` | [**required**] Model name on the Triton server. | - |
 | `model_version` | `string` | [**required**] Model version on the Triton server. Although numeric, it must be provided as a string. | - |
 | `model_manifest_path` | `string` | Path (relative to the package) of the exported `model_manifest.yml`. | - |
-| `point_feature_source` | `string` | [**dynamic**] Source for the single feature channel when `num_point_features=1` (`intensity` or `reflectivity`). | Must be `intensity` or `reflectivity`. |
+| `point_feature_source` | `string` | [**dynamic**] Source for the single feature channel (`intensity` or `reflectivity`). | Must be `intensity` or `reflectivity`. |
 | `server_url` | `string` | Triton server host:port combination. | - |
 | `use_shm` | `bool` | Enable Triton shared-memory transport. | - |
 | `inference_frame` | `string` | [**dynamic**] Frame used for preprocessing and filters. | - |
@@ -177,10 +177,9 @@ ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py
 
 ## Point Cloud Input Fields
 
-The node accepts `sensor_msgs/PointCloud2` messages that always contain XYZ coordinates. The `point_feature_source` parameter controls how the single feature channel is extracted before being forwarded to the model when `num_point_features=1`:
+The node accepts `sensor_msgs/PointCloud2` messages that always contain XYZ coordinates. The `point_feature_source` parameter controls how the single feature channel is extracted before being forwarded to the model:
 
-- `intensity` *(default)* – consumes the ROS `intensity` field as the single feature channel. `num_point_features` **must** be 1 in this mode.
-- `reflectivity` – consumes the ROS `reflectivity` field as the single feature channel. `num_point_features` **must** be 1 in this mode. The field must exist and be `FLOAT32`.
-When `num_point_features=2`, the node expects `reflectivity` and `velocity` fields; reflectivity becomes the first feature and velocity the second.
+- `intensity` *(default)* – consumes the ROS `intensity` field as the single feature channel.
+- `reflectivity` – consumes the ROS `reflectivity` field as the single feature channel. The field must exist and can be any numeric PointField datatype (`INT8/UINT8/INT16/UINT16/INT32/UINT32/FLOAT32/FLOAT64`); values are converted to `FLOAT32` internally.
 
-Additional feature channels beyond these presets are currently not supported and are filled with zeros when requested.
+Additional feature channels beyond this single-feature setup are not supported.

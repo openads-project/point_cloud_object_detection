@@ -47,7 +47,6 @@ struct ModelConfig {
 
   // PBOD specific config
   int max_num_points;
-  int num_point_features = 1;
   std::vector<int64_t> stride;
   int first_up_stride;
 

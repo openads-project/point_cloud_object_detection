@@ -36,9 +36,6 @@ class PBODModel : public Model {
   const std::string SAVED_MODEL_OUTPUT_NAME_SIZE = "size_posterior";
 
   virtual std::map<std::string, std::vector<int64_t>> getSpecialOutputShapes() override;
-  void setAdditionalPointFeatures(const float* feature_values, std::size_t point_count,
-                                  std::size_t feature_stride) override;
-
   virtual ~PBODModel() = default;        // Any method virtual -> destructor virtual
   PBODModel(const PBODModel&) = delete;  // Rule of five
   PBODModel& operator=(const PBODModel&) = delete;
@@ -81,14 +78,9 @@ class PBODModel : public Model {
   const float norm_epsilon_;
   const bool zero_intensity_;
   const int max_num_points_;
-  const int num_point_features_;
   const int preprocessed_feature_dim_;
   const int num_pillars_;
   std::vector<int64_t> pillar_indices_;
-  const float* external_point_features_ = nullptr;
-  std::size_t external_point_feature_stride_ = 0;
-  std::size_t external_point_feature_count_ = 0;
-
   // No-detection zone point filtering
   const bool remove_points_in_zone_;
   const float nd_x_min_;
@@ -105,13 +97,6 @@ class PBODModel : public Model {
   const float da_fov_rad_;
   pcod_common::PointPreprocessor point_preprocessor_;
 
-  inline const float* getExtraFeatures(std::size_t point_index) const {
-    if (external_point_features_ == nullptr || external_point_feature_stride_ == 0 ||
-        point_index >= external_point_feature_count_) {
-      return nullptr;
-    }
-    return external_point_features_ + point_index * external_point_feature_stride_;
-  }
 };
 
 }  // namespace point_cloud_object_detection

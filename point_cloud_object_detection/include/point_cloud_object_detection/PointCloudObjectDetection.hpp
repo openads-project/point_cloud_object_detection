@@ -159,8 +159,6 @@ class PointCloudObjectDetection : public rclcpp::Node {
 
   std::unique_ptr<Model> detection_model_;
   pcod_common::NmsConfig nms_config_;
-
-  std::vector<float> extra_feature_buffer_;
 };
 
 }  // namespace point_cloud_object_detection
