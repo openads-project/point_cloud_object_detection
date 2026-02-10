@@ -30,8 +30,7 @@ PBODModel::PBODModel(triton_cpp::TritonInterface& triton_interface, ModelConfig&
       norm_epsilon_{model_config_.point_feature_norm_epsilon},
       zero_intensity_{model_config_.zero_intensity},
       max_num_points_{model_config_.max_num_points},
-      num_point_features_{model_config_.num_point_features},
-      preprocessed_feature_dim_{num_point_features_ + 17},
+      preprocessed_feature_dim_{18},
       num_pillars_{static_cast<int>(model_config_.pillar_map_size[0] * model_config_.pillar_map_size[1])},
       remove_points_in_zone_{model_config_.no_detection_zone_remove_points},
       nd_x_min_{static_cast<float>(model_config_.no_detection_zone_x_min)},
@@ -86,13 +85,6 @@ PBODModel::PBODModel(triton_cpp::TritonInterface& triton_interface, ModelConfig&
                                    model_config_.first_up_stride, stride);
 }
 
-void PBODModel::setAdditionalPointFeatures(const float* feature_values, std::size_t point_count,
-                                           std::size_t feature_stride) {
-  external_point_features_ = feature_values;
-  external_point_feature_count_ = point_count;
-  external_point_feature_stride_ = feature_stride;
-}
-
 std::map<std::string, std::vector<int64_t>> PBODModel::getSpecialOutputShapes() {
   const int64_t num_pillars = static_cast<int64_t>(pillar_grid_.grid_x * pillar_grid_.grid_y);
   const int64_t num_classes = static_cast<int64_t>(model_config_.predicted_class_names.size());
@@ -134,7 +126,6 @@ void PBODModel::setupModelInput(const PointCloud& point_cloud) {
 
   struct SampledPoint {
     Point point;
-    std::size_t index;
   };
   std::vector<SampledPoint> sampled;
   sampled.reserve(static_cast<std::size_t>(max_num_points_));
@@ -148,12 +139,12 @@ void PBODModel::setupModelInput(const PointCloud& point_cloud) {
     }
     ++valid_point_count;
     if (valid_point_count <= max_num_points_) {
-      sampled.push_back({point, static_cast<std::size_t>(i)});
+      sampled.push_back({point});
     } else {
       std::uniform_int_distribution<int> dist(1, valid_point_count);
       const int random_idx = dist(gen);
       if (random_idx <= max_num_points_) {
-        sampled[static_cast<std::size_t>(random_idx - 1)] = {point, static_cast<std::size_t>(i)};
+        sampled[static_cast<std::size_t>(random_idx - 1)] = {point};
       }
     }
   }
@@ -259,13 +250,6 @@ void PBODModel::setupModelInput(const PointCloud& point_cloud) {
     const float var_z = std::max(mean_z2 - mean_z * mean_z, 0.0f);
 
     float raw_feature0 = point_preprocessor_.NormalizeIntensity(point.intensity);
-    float raw_feature1 = 0.0f;
-    if (num_point_features_ > 1) {
-      const float* extra = getExtraFeatures(entry.index);
-      if (extra != nullptr) {
-        raw_feature1 = extra[0];
-      }
-    }
 
     int offset = 0;
     point_features_map(i, offset++) = point.x;
@@ -280,9 +264,6 @@ void PBODModel::setupModelInput(const PointCloud& point_cloud) {
     point_features_map(i, offset++) = var_y;
     point_features_map(i, offset++) = var_z;
     point_features_map(i, offset++) = raw_feature0;
-    if (num_point_features_ > 1) {
-      point_features_map(i, offset++) = raw_feature1;
-    }
     point_features_map(i, offset++) = f_cluster_x;
     point_features_map(i, offset++) = f_cluster_y;
     point_features_map(i, offset++) = f_cluster_z;

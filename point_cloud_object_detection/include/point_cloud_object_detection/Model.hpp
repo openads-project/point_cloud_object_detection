@@ -50,15 +50,6 @@ class Model {
    */
   const PointCloud& getFilteredInputPoints() const;
 
-  /**
-   * @brief Supply additional per-point feature channels (excluding XYZ and intensity) for the next inference call.
-   * @param feature_values Pointer to contiguous feature storage (row-major) or nullptr if unavailable.
-   * @param point_count Number of points represented in the buffer.
-   * @param feature_stride Number of additional feature values stored per point.
-   */
-  virtual void setAdditionalPointFeatures(const float* /*feature_values*/, std::size_t /*point_count*/,
-                                          std::size_t /*feature_stride*/) {}
-
   virtual std::map<std::string, std::vector<int64_t>> getSpecialOutputShapes() { return {}; };
 
   virtual ~Model() = default;    // Any method virtual -> destructor virtual

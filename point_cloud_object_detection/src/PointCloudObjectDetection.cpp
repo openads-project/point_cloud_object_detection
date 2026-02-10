@@ -4,6 +4,7 @@
 #include <array>
 #include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <filesystem>
 #include <iostream>
 #include <memory>
@@ -36,11 +37,58 @@ bool isProbability(double value) { return std::isfinite(value) && value >= 0.0 &
 
 bool isFinite(double value) { return std::isfinite(value); }
 
+const std::array<const char*, 2> kAllowedPointFeatureSources = {"intensity", "reflectivity"};
+
+bool isAllowedPointFeatureSource(const std::string& source) {
+  return std::any_of(kAllowedPointFeatureSources.begin(), kAllowedPointFeatureSources.end(),
+                     [&](const char* allowed) { return source == allowed; });
+}
+
+std::string allowedPointFeatureSourcesString() {
+  std::ostringstream oss;
+  for (std::size_t i = 0; i < kAllowedPointFeatureSources.size(); ++i) {
+    if (i > 0) {
+      oss << ", ";
+    }
+    oss << "'" << kAllowedPointFeatureSources[i] << "'";
+  }
+  return oss.str();
+}
+
+std::string resolvePrimaryFeatureField(const ModelConfig& model_config, const Params& params) {
+  (void)model_config;
+  return params.point_feature_source;
+}
+
 void sanitizeVarianceVector(std::vector<double>& variance, double sentinel) {
   for (double& value : variance) {
     if (value < 0.0 && std::fabs(value + 1.0) <= 1e-9) {
       value = sentinel;
     }
+  }
+}
+
+const char* pointFieldDatatypeToString(uint8_t datatype) {
+  using PF = sensor_msgs::msg::PointField;
+  switch (datatype) {
+    case PF::INT8:
+      return "INT8";
+    case PF::UINT8:
+      return "UINT8";
+    case PF::INT16:
+      return "INT16";
+    case PF::UINT16:
+      return "UINT16";
+    case PF::INT32:
+      return "INT32";
+    case PF::UINT32:
+      return "UINT32";
+    case PF::FLOAT32:
+      return "FLOAT32";
+    case PF::FLOAT64:
+      return "FLOAT64";
+    default:
+      return "UNKNOWN";
   }
 }
 
@@ -233,8 +281,8 @@ void PointCloudObjectDetection::validateParamsOrThrow() const {
   if (!isProbability(params_.class_score_threshold)) {
     fail("class_score_threshold", "must be within [0.0, 1.0]");
   }
-  if (params_.point_feature_source != "intensity" && params_.point_feature_source != "reflectivity") {
-    fail("point_feature_source", "must be 'intensity' or 'reflectivity'");
+  if (!isAllowedPointFeatureSource(params_.point_feature_source)) {
+    fail("point_feature_source", "must be one of: " + allowedPointFeatureSourcesString());
   }
   if (params_.server_url.empty()) {
     fail("server_url", "must be set to the Triton server address");
@@ -361,7 +409,6 @@ void PointCloudObjectDetection::loadModelConfig() {
                                            manifest.postprocessing.score_thresholds.end());
 
   model_config_.max_num_points = manifest.preprocessing.max_num_points;
-  model_config_.num_point_features = manifest.preprocessing.num_point_features;
   model_config_.stride.clear();
   for (int stride : manifest.model.stride) {
     model_config_.stride.push_back(stride);
@@ -486,12 +533,6 @@ void PointCloudObjectDetection::validateModelConfigOrThrow() const {
   if (model_config_.max_num_points <= 0) {
     fail("max_num_points", "must be greater than zero");
   }
-  if (model_config_.num_point_features <= 0) {
-    fail("num_point_features", "must be greater than zero");
-  }
-  if (model_config_.num_point_features != 1 && model_config_.num_point_features != 2) {
-    fail("num_point_features", "must be 1 (intensity) or 2 (reflectivity + velocity)");
-  }
   if (model_config_.stride.empty()) {
     fail("stride", "must not be empty");
   }
@@ -549,6 +590,15 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
       sanitizeVarianceVector(params_.variance, cscu);
     } else if (param.get_name() == "class_score_threshold") {
       params_.class_score_threshold = param.as_double();
+    } else if (param.get_name() == "point_feature_source") {
+      const std::string new_source = param.as_string();
+      if (!isAllowedPointFeatureSource(new_source)) {
+        result.successful = false;
+        result.reason = "point_feature_source must be one of: " + allowedPointFeatureSourcesString();
+        RCLCPP_ERROR(this->get_logger(), "%s", result.reason.c_str());
+        return result;
+      }
+      params_.point_feature_source = new_source;
     } else if (param.get_name() == "sensor_id") {
       const int64_t sensor_id_value = param.as_int();
       if (sensor_id_value < -1) {
@@ -788,37 +838,93 @@ void PointCloudObjectDetection::processPointCloud(const sensor_msgs::msg::PointC
     return nullptr;
   };
 
-  const bool use_velocity_channel = (model_config_.num_point_features == 2);
-  const bool use_reflectivity =
-      use_velocity_channel || (model_config_.num_point_features == 1 && params_.point_feature_source == "reflectivity");
+  const std::string primary_feature_field = resolvePrimaryFeatureField(model_config_, params_);
+  const bool use_custom_primary_feature_path = primary_feature_field != "intensity";
 
-  std::unique_ptr<sensor_msgs::PointCloud2ConstIterator<float>> reflectivity_iter;
-  std::unique_ptr<sensor_msgs::PointCloud2ConstIterator<float>> velocity_iter;
+  std::unique_ptr<sensor_msgs::PointCloud2ConstIterator<float>> primary_feature_iter_float32;
+  std::unique_ptr<sensor_msgs::PointCloud2ConstIterator<double>> primary_feature_iter_float64;
+  std::unique_ptr<sensor_msgs::PointCloud2ConstIterator<std::uint16_t>> primary_feature_iter_uint16;
+  std::unique_ptr<sensor_msgs::PointCloud2ConstIterator<std::uint8_t>> primary_feature_iter_uint8;
+  std::unique_ptr<sensor_msgs::PointCloud2ConstIterator<std::int16_t>> primary_feature_iter_int16;
+  std::unique_ptr<sensor_msgs::PointCloud2ConstIterator<std::int8_t>> primary_feature_iter_int8;
+  std::unique_ptr<sensor_msgs::PointCloud2ConstIterator<std::uint32_t>> primary_feature_iter_uint32;
+  std::unique_ptr<sensor_msgs::PointCloud2ConstIterator<std::int32_t>> primary_feature_iter_int32;
 
-  if (use_reflectivity) {
-    const auto* reflectivity_field = findField("reflectivity");
-    if (!reflectivity_field || reflectivity_field->datatype != sensor_msgs::msg::PointField::FLOAT32) {
-      RCLCPP_FATAL(this->get_logger(),
-                   "Point field 'reflectivity' is required and must be FLOAT32 when point_feature_source=reflectivity");
-      throw std::runtime_error("Missing required PointCloud2 field: reflectivity");
+  if (use_custom_primary_feature_path) {
+    const auto* primary_feature = findField(primary_feature_field);
+    if (!primary_feature) {
+      RCLCPP_FATAL(this->get_logger(), "Point field '%s' is required for primary feature extraction",
+                   primary_feature_field.c_str());
+      throw std::runtime_error("Missing required PointCloud2 field: " + primary_feature_field);
     }
-    reflectivity_iter =
-        std::make_unique<sensor_msgs::PointCloud2ConstIterator<float>>(*transformed_point_cloud_msg, "reflectivity");
-  }
-
-  if (use_velocity_channel) {
-    const auto* velocity_field = findField("velocity");
-    if (!velocity_field || velocity_field->datatype != sensor_msgs::msg::PointField::FLOAT32) {
-      RCLCPP_FATAL(this->get_logger(),
-                   "Point field 'velocity' is required and must be FLOAT32 when num_point_features=2");
-      throw std::runtime_error("Missing required PointCloud2 field: velocity");
+    using PF = sensor_msgs::msg::PointField;
+    switch (primary_feature->datatype) {
+      case PF::FLOAT32:
+        primary_feature_iter_float32 =
+            std::make_unique<sensor_msgs::PointCloud2ConstIterator<float>>(*transformed_point_cloud_msg,
+                                                                            primary_feature_field);
+        break;
+      case PF::FLOAT64:
+        primary_feature_iter_float64 =
+            std::make_unique<sensor_msgs::PointCloud2ConstIterator<double>>(*transformed_point_cloud_msg,
+                                                                             primary_feature_field);
+        RCLCPP_WARN(this->get_logger(), "Converting PointCloud2 field '%s' from FLOAT64 to FLOAT32",
+                    primary_feature_field.c_str());
+        break;
+      case PF::UINT16:
+        primary_feature_iter_uint16 =
+            std::make_unique<sensor_msgs::PointCloud2ConstIterator<std::uint16_t>>(*transformed_point_cloud_msg,
+                                                                                     primary_feature_field);
+        RCLCPP_WARN(this->get_logger(), "Converting PointCloud2 field '%s' from UINT16 to FLOAT32",
+                    primary_feature_field.c_str());
+        break;
+      case PF::UINT8:
+        primary_feature_iter_uint8 =
+            std::make_unique<sensor_msgs::PointCloud2ConstIterator<std::uint8_t>>(*transformed_point_cloud_msg,
+                                                                                    primary_feature_field);
+        RCLCPP_WARN(this->get_logger(), "Converting PointCloud2 field '%s' from UINT8 to FLOAT32",
+                    primary_feature_field.c_str());
+        break;
+      case PF::INT16:
+        primary_feature_iter_int16 =
+            std::make_unique<sensor_msgs::PointCloud2ConstIterator<std::int16_t>>(*transformed_point_cloud_msg,
+                                                                                    primary_feature_field);
+        RCLCPP_WARN(this->get_logger(), "Converting PointCloud2 field '%s' from INT16 to FLOAT32",
+                    primary_feature_field.c_str());
+        break;
+      case PF::INT8:
+        primary_feature_iter_int8 =
+            std::make_unique<sensor_msgs::PointCloud2ConstIterator<std::int8_t>>(*transformed_point_cloud_msg,
+                                                                                   primary_feature_field);
+        RCLCPP_WARN(this->get_logger(), "Converting PointCloud2 field '%s' from INT8 to FLOAT32",
+                    primary_feature_field.c_str());
+        break;
+      case PF::UINT32:
+        primary_feature_iter_uint32 =
+            std::make_unique<sensor_msgs::PointCloud2ConstIterator<std::uint32_t>>(*transformed_point_cloud_msg,
+                                                                                     primary_feature_field);
+        RCLCPP_WARN(this->get_logger(), "Converting PointCloud2 field '%s' from UINT32 to FLOAT32",
+                    primary_feature_field.c_str());
+        break;
+      case PF::INT32:
+        primary_feature_iter_int32 =
+            std::make_unique<sensor_msgs::PointCloud2ConstIterator<std::int32_t>>(*transformed_point_cloud_msg,
+                                                                                    primary_feature_field);
+        RCLCPP_WARN(this->get_logger(), "Converting PointCloud2 field '%s' from INT32 to FLOAT32",
+                    primary_feature_field.c_str());
+        break;
+      default:
+        RCLCPP_FATAL(this->get_logger(),
+                     "Point field '%s' has unsupported datatype %u (%s). Supported: INT8, UINT8, INT16, UINT16, "
+                     "INT32, UINT32, FLOAT32, FLOAT64",
+                     primary_feature_field.c_str(), primary_feature->datatype,
+                     pointFieldDatatypeToString(primary_feature->datatype));
+        throw std::runtime_error("Unsupported PointCloud2 datatype for field: " + primary_feature_field);
     }
-    velocity_iter =
-        std::make_unique<sensor_msgs::PointCloud2ConstIterator<float>>(*transformed_point_cloud_msg, "velocity");
   }
 
   point_cloud.clear();
-  if (use_reflectivity) {
+  if (use_custom_primary_feature_path) {
     const auto& msg_ref = *transformed_point_cloud_msg;
     const std::size_t total_points = static_cast<std::size_t>(msg_ref.width) * msg_ref.height;
 
@@ -832,26 +938,56 @@ void PointCloudObjectDetection::processPointCloud(const sensor_msgs::msg::PointC
     sensor_msgs::PointCloud2ConstIterator<float> y_iter(msg_ref, "y");
     sensor_msgs::PointCloud2ConstIterator<float> z_iter(msg_ref, "z");
 
-    const std::size_t extra_channels = use_velocity_channel ? 1U : 0U;
-    if (extra_channels == 0) {
-      extra_feature_buffer_.clear();
-    } else {
-      extra_feature_buffer_.assign(point_cloud.points.size() * extra_channels, 0.0f);
-    }
+    const auto read_primary_feature = [&]() -> float {
+      if (primary_feature_iter_float32) {
+        float value = **primary_feature_iter_float32;
+        ++(*primary_feature_iter_float32);
+        return value;
+      }
+      if (primary_feature_iter_float64) {
+        float value = static_cast<float>(**primary_feature_iter_float64);
+        ++(*primary_feature_iter_float64);
+        return value;
+      }
+      if (primary_feature_iter_uint16) {
+        float value = static_cast<float>(**primary_feature_iter_uint16);
+        ++(*primary_feature_iter_uint16);
+        return value;
+      }
+      if (primary_feature_iter_uint8) {
+        float value = static_cast<float>(**primary_feature_iter_uint8);
+        ++(*primary_feature_iter_uint8);
+        return value;
+      }
+      if (primary_feature_iter_int16) {
+        float value = static_cast<float>(**primary_feature_iter_int16);
+        ++(*primary_feature_iter_int16);
+        return value;
+      }
+      if (primary_feature_iter_int8) {
+        float value = static_cast<float>(**primary_feature_iter_int8);
+        ++(*primary_feature_iter_int8);
+        return value;
+      }
+      if (primary_feature_iter_uint32) {
+        float value = static_cast<float>(**primary_feature_iter_uint32);
+        ++(*primary_feature_iter_uint32);
+        return value;
+      }
+      if (primary_feature_iter_int32) {
+        float value = static_cast<float>(**primary_feature_iter_int32);
+        ++(*primary_feature_iter_int32);
+        return value;
+      }
+      throw std::runtime_error("Internal error: primary feature iterator not initialized");
+    };
 
     for (std::size_t idx = 0; idx < total_points; ++idx, ++x_iter, ++y_iter, ++z_iter) {
       auto& dst = point_cloud.points[idx];
       dst.x = *x_iter;
       dst.y = *y_iter;
       dst.z = *z_iter;
-      dst.intensity = **reflectivity_iter;
-      ++(*reflectivity_iter);
-
-      if (use_velocity_channel) {
-        float velocity_value = **velocity_iter;
-        ++(*velocity_iter);
-        extra_feature_buffer_[idx * extra_channels] = velocity_value;
-      }
+      dst.intensity = read_primary_feature();
     }
   } else {
     // Default: use PointXYZI conversion (requires intensity field).
@@ -864,13 +1000,6 @@ void PointCloudObjectDetection::processPointCloud(const sensor_msgs::msg::PointC
     point_cloud.is_dense = base_cloud.is_dense;
     point_cloud.points.resize(base_cloud.size());
 
-    const std::size_t extra_channels = use_velocity_channel ? 1U : 0U;
-    if (extra_channels == 0) {
-      extra_feature_buffer_.clear();
-    } else {
-      extra_feature_buffer_.assign(point_cloud.points.size() * extra_channels, 0.0f);
-    }
-
     for (std::size_t idx = 0; idx < base_cloud.size(); ++idx) {
       const auto& src = base_cloud.points[idx];
       auto& dst = point_cloud.points[idx];
@@ -878,12 +1007,6 @@ void PointCloudObjectDetection::processPointCloud(const sensor_msgs::msg::PointC
       dst.y = src.y;
       dst.z = src.z;
       dst.intensity = src.intensity;
-
-      if (use_velocity_channel) {
-        float velocity_value = **velocity_iter;
-        ++(*velocity_iter);
-        extra_feature_buffer_[idx * extra_channels] = velocity_value;
-      }
     }
   }
 }
@@ -985,17 +1108,6 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
   auto header = msg->header;
   processPointCloud(msg, point_cloud);
   timestamps.push_back(std::chrono::high_resolution_clock::now());  // index: 1, after pcl preprocessing
-
-  const std::size_t extra_channels =
-      model_config_.num_point_features > 1 ? static_cast<std::size_t>(model_config_.num_point_features - 1) : 0;
-  const float* extra_features =
-      (extra_channels > 0 && extra_feature_buffer_.size() == point_cloud.size() * extra_channels)
-          ? extra_feature_buffer_.data()
-          : nullptr;
-  if (detection_model_) {
-    detection_model_->setAdditionalPointFeatures(extra_features, extra_channels > 0 ? point_cloud.size() : 0,
-                                                 extra_channels);
-  }
 
   // Optionally publish raw points inside the no-detection zone
   if (params_.no_detection_zone_publish_points && params_.no_detection_zone_enabled &&
