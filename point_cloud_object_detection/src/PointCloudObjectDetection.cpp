@@ -928,7 +928,7 @@ void PointCloudObjectDetection::processPointCloud(const sensor_msgs::msg::PointC
     const auto& msg_ref = *transformed_point_cloud_msg;
     const std::size_t total_points = static_cast<std::size_t>(msg_ref.width) * msg_ref.height;
 
-    point_cloud.header = msg_ref.header;
+    pcl_conversions::toPCL(msg_ref.header, point_cloud.header);
     point_cloud.width = msg_ref.width;
     point_cloud.height = msg_ref.height;
     point_cloud.is_dense = msg_ref.is_dense;
