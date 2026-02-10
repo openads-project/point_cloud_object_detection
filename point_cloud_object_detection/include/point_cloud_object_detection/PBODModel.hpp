@@ -96,7 +96,6 @@ class PBODModel : public Model {
   const float da_bearing_rad_;
   const float da_fov_rad_;
   pcod_common::PointPreprocessor point_preprocessor_;
-
 };
 
 }  // namespace point_cloud_object_detection

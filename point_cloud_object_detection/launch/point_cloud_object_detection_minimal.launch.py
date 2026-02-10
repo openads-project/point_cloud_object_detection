@@ -5,7 +5,7 @@ import os
 from ament_index_python import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node, SetParameter
 
 
@@ -31,11 +31,6 @@ def generate_launch_description():
                 get_package_share_directory('point_cloud_object_detection'),
                 'config', 'params.yml'),
             description='path to parameter file'),
-        DeclareLaunchArgument('combined_params',
-                              default_value=PathJoinSubstitution([
-                                  '/tmp', 'point_cloud_object_detection',
-                                  'combined_params.yml'
-                              ])),
         DeclareLaunchArgument(
             'log_level',
             default_value='info',
@@ -51,7 +46,7 @@ def generate_launch_description():
         executable='point_cloud_object_detection',
         namespace=LaunchConfiguration('namespace'),
         name=LaunchConfiguration('name'),
-        parameters=[LaunchConfiguration('combined_params')],
+        parameters=[LaunchConfiguration('params')],
         arguments=[
             '--ros-args', '--log-level',
             LaunchConfiguration('log_level')

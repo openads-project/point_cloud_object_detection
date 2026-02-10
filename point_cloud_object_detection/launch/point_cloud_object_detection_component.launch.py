@@ -4,10 +4,9 @@ import os
 
 from ament_index_python import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, GroupAction, RegisterEventHandler
+from launch.actions import DeclareLaunchArgument
 from launch.conditions import IfCondition
-from launch.event_handlers import OnExecutionComplete
-from launch.substitutions import EqualsSubstitution, LaunchConfiguration, NotEqualsSubstitution, PathJoinSubstitution
+from launch.substitutions import EqualsSubstitution, LaunchConfiguration, NotEqualsSubstitution
 from launch_ros.actions import ComposableNodeContainer, LoadComposableNodes, SetParameter
 from launch_ros.descriptions import ComposableNode
 
@@ -34,11 +33,6 @@ def generate_launch_description():
                 get_package_share_directory('point_cloud_object_detection'),
                 'config', 'params.yml'),
             description='path to parameter file'),
-        DeclareLaunchArgument('combined_params',
-                              default_value=PathJoinSubstitution([
-                                  '/tmp', 'point_cloud_object_detection',
-                                  'combined_params.yml'
-                              ])),
         DeclareLaunchArgument(
             'log_level',
             default_value='info',
@@ -58,7 +52,7 @@ def generate_launch_description():
         plugin='point_cloud_object_detection::PointCloudObjectDetection',
         namespace=LaunchConfiguration('namespace'),
         name=LaunchConfiguration('name'),
-        parameters=[LaunchConfiguration('combined_params')],
+        parameters=[LaunchConfiguration('params')],
         # arguments=['--ros-args', '--log-level', LaunchConfiguration('log_level')],
         extra_arguments=[{
             'use_intra_process_comms': True
@@ -93,29 +87,9 @@ def generate_launch_description():
             composable_node,
         ])
 
-    # combine params before launching node
-    node_group_action = GroupAction(actions=[
-        composable_node_container, load_composable_node_to_external_container
-    ])
-    join_params_executor = ExecuteProcess(cmd=[[
-        'python3 ',
-        PathJoinSubstitution([
-            get_package_share_directory('point_cloud_object_detection'),
-            'scripts', 'update_params.py '
-        ]),
-        LaunchConfiguration('params'), ' ',
-        LaunchConfiguration('combined_params'), ' ',
-        LaunchConfiguration('name'), ' ',
-        LaunchConfiguration('namespace')
-    ]],
-                                          shell=True)
-    join_params_event_handler = RegisterEventHandler(
-        OnExecutionComplete(target_action=join_params_executor,
-                            on_completion=[node_group_action]))
-
     return LaunchDescription([
         *args,
         SetParameter('use_sim_time', LaunchConfiguration('use_sim_time')),
-        join_params_event_handler,
-        join_params_executor,
+        composable_node_container,
+        load_composable_node_to_external_container,
     ])
