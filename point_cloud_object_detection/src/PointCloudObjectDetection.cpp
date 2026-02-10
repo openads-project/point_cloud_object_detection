@@ -779,17 +779,6 @@ void PointCloudObjectDetection::processPointCloud(const sensor_msgs::msg::PointC
     transformed_point_cloud_msg = std::make_shared<sensor_msgs::msg::PointCloud2>(*msg);
   }
 
-  // Always convert base XYZ + intensity
-  pcl::PointCloud<pcl::PointXYZI> base_cloud;
-  pcl::fromROSMsg(*transformed_point_cloud_msg, base_cloud);
-
-  point_cloud.clear();
-  point_cloud.header = base_cloud.header;
-  point_cloud.width = base_cloud.width;
-  point_cloud.height = base_cloud.height;
-  point_cloud.is_dense = base_cloud.is_dense;
-  point_cloud.points.resize(base_cloud.size());
-
   auto findField = [&](const std::string& name) -> const sensor_msgs::msg::PointField* {
     for (const auto& field : transformed_point_cloud_msg->fields) {
       if (field.name == name) {
@@ -802,12 +791,6 @@ void PointCloudObjectDetection::processPointCloud(const sensor_msgs::msg::PointC
   const bool use_velocity_channel = (model_config_.num_point_features == 2);
   const bool use_reflectivity =
       use_velocity_channel || (model_config_.num_point_features == 1 && params_.point_feature_source == "reflectivity");
-  const std::size_t extra_channels = use_velocity_channel ? 1U : 0U;
-  if (extra_channels == 0) {
-    extra_feature_buffer_.clear();
-  } else {
-    extra_feature_buffer_.assign(point_cloud.points.size() * extra_channels, 0.0f);
-  }
 
   std::unique_ptr<sensor_msgs::PointCloud2ConstIterator<float>> reflectivity_iter;
   std::unique_ptr<sensor_msgs::PointCloud2ConstIterator<float>> velocity_iter;
@@ -834,27 +817,73 @@ void PointCloudObjectDetection::processPointCloud(const sensor_msgs::msg::PointC
         std::make_unique<sensor_msgs::PointCloud2ConstIterator<float>>(*transformed_point_cloud_msg, "velocity");
   }
 
-  for (std::size_t idx = 0; idx < base_cloud.size(); ++idx) {
-    const auto& src = base_cloud.points[idx];
-    auto& dst = point_cloud.points[idx];
-    dst.x = src.x;
-    dst.y = src.y;
-    dst.z = src.z;
-    float intensity_value = src.intensity;
-    if (reflectivity_iter) {
-      intensity_value = **reflectivity_iter;
-      ++(*reflectivity_iter);
+  point_cloud.clear();
+  if (use_reflectivity) {
+    const auto& msg_ref = *transformed_point_cloud_msg;
+    const std::size_t total_points = static_cast<std::size_t>(msg_ref.width) * msg_ref.height;
+
+    point_cloud.header = msg_ref.header;
+    point_cloud.width = msg_ref.width;
+    point_cloud.height = msg_ref.height;
+    point_cloud.is_dense = msg_ref.is_dense;
+    point_cloud.points.resize(total_points);
+
+    sensor_msgs::PointCloud2ConstIterator<float> x_iter(msg_ref, "x");
+    sensor_msgs::PointCloud2ConstIterator<float> y_iter(msg_ref, "y");
+    sensor_msgs::PointCloud2ConstIterator<float> z_iter(msg_ref, "z");
+
+    const std::size_t extra_channels = use_velocity_channel ? 1U : 0U;
+    if (extra_channels == 0) {
+      extra_feature_buffer_.clear();
+    } else {
+      extra_feature_buffer_.assign(point_cloud.points.size() * extra_channels, 0.0f);
     }
 
-    dst.intensity = intensity_value;
+    for (std::size_t idx = 0; idx < total_points; ++idx, ++x_iter, ++y_iter, ++z_iter) {
+      auto& dst = point_cloud.points[idx];
+      dst.x = *x_iter;
+      dst.y = *y_iter;
+      dst.z = *z_iter;
+      dst.intensity = **reflectivity_iter;
+      ++(*reflectivity_iter);
 
-    if (use_velocity_channel) {
-      float velocity_value = 0.0f;
-      if (velocity_iter) {
-        velocity_value = **velocity_iter;
+      if (use_velocity_channel) {
+        float velocity_value = **velocity_iter;
         ++(*velocity_iter);
+        extra_feature_buffer_[idx * extra_channels] = velocity_value;
       }
-      extra_feature_buffer_[idx * extra_channels] = velocity_value;
+    }
+  } else {
+    // Default: use PointXYZI conversion (requires intensity field).
+    pcl::PointCloud<pcl::PointXYZI> base_cloud;
+    pcl::fromROSMsg(*transformed_point_cloud_msg, base_cloud);
+
+    point_cloud.header = base_cloud.header;
+    point_cloud.width = base_cloud.width;
+    point_cloud.height = base_cloud.height;
+    point_cloud.is_dense = base_cloud.is_dense;
+    point_cloud.points.resize(base_cloud.size());
+
+    const std::size_t extra_channels = use_velocity_channel ? 1U : 0U;
+    if (extra_channels == 0) {
+      extra_feature_buffer_.clear();
+    } else {
+      extra_feature_buffer_.assign(point_cloud.points.size() * extra_channels, 0.0f);
+    }
+
+    for (std::size_t idx = 0; idx < base_cloud.size(); ++idx) {
+      const auto& src = base_cloud.points[idx];
+      auto& dst = point_cloud.points[idx];
+      dst.x = src.x;
+      dst.y = src.y;
+      dst.z = src.z;
+      dst.intensity = src.intensity;
+
+      if (use_velocity_channel) {
+        float velocity_value = **velocity_iter;
+        ++(*velocity_iter);
+        extra_feature_buffer_[idx * extra_channels] = velocity_value;
+      }
     }
   }
 }
