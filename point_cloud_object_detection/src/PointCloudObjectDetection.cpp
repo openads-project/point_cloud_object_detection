@@ -852,14 +852,16 @@ void PointCloudObjectDetection::setup() {
 
 void PointCloudObjectDetection::processPointCloud(const sensor_msgs::msg::PointCloud2::ConstSharedPtr msg,
                                                   PointCloud& point_cloud) {
-  // transform sensor_msgs::msg::PointCloud2 msg if required
+  // Transform only when required; otherwise read directly from the input message.
   sensor_msgs::msg::PointCloud2::SharedPtr transformed_point_cloud_msg;
+  sensor_msgs::msg::PointCloud2::ConstSharedPtr input_point_cloud_msg = msg;
 
   if (!params_.inference_frame.empty() && msg->header.frame_id != params_.inference_frame) {
     transformed_point_cloud_msg = std::make_shared<sensor_msgs::msg::PointCloud2>();
     // transform point cloud
     try {
       tf_buffer_->transform(*msg, *transformed_point_cloud_msg, params_.inference_frame);
+      input_point_cloud_msg = transformed_point_cloud_msg;
     } catch (tf2::TransformException& e) {
       RCLCPP_ERROR(this->get_logger(),
                    "Cannot tranform Pointcloud: Transformation from its frame (%s) to inference_frame "
@@ -867,12 +869,10 @@ void PointCloudObjectDetection::processPointCloud(const sensor_msgs::msg::PointC
                    msg->header.frame_id.c_str(), params_.inference_frame.c_str(), e.what());
       return;
     }
-  } else {
-    transformed_point_cloud_msg = std::make_shared<sensor_msgs::msg::PointCloud2>(*msg);
   }
 
   auto findField = [&](const std::string& name) -> const sensor_msgs::msg::PointField* {
-    for (const auto& field : transformed_point_cloud_msg->fields) {
+    for (const auto& field : input_point_cloud_msg->fields) {
       if (field.name == name) {
         return &field;
       }
@@ -903,47 +903,47 @@ void PointCloudObjectDetection::processPointCloud(const sensor_msgs::msg::PointC
     switch (primary_feature->datatype) {
       case PF::FLOAT32:
         primary_feature_iter_float32 = std::make_unique<sensor_msgs::PointCloud2ConstIterator<float>>(
-            *transformed_point_cloud_msg, primary_feature_field);
+            *input_point_cloud_msg, primary_feature_field);
         break;
       case PF::FLOAT64:
         primary_feature_iter_float64 = std::make_unique<sensor_msgs::PointCloud2ConstIterator<double>>(
-            *transformed_point_cloud_msg, primary_feature_field);
+            *input_point_cloud_msg, primary_feature_field);
         RCLCPP_WARN(this->get_logger(), "Converting PointCloud2 field '%s' from FLOAT64 to FLOAT32",
                     primary_feature_field.c_str());
         break;
       case PF::UINT16:
         primary_feature_iter_uint16 = std::make_unique<sensor_msgs::PointCloud2ConstIterator<std::uint16_t>>(
-            *transformed_point_cloud_msg, primary_feature_field);
+            *input_point_cloud_msg, primary_feature_field);
         RCLCPP_WARN(this->get_logger(), "Converting PointCloud2 field '%s' from UINT16 to FLOAT32",
                     primary_feature_field.c_str());
         break;
       case PF::UINT8:
         primary_feature_iter_uint8 = std::make_unique<sensor_msgs::PointCloud2ConstIterator<std::uint8_t>>(
-            *transformed_point_cloud_msg, primary_feature_field);
+            *input_point_cloud_msg, primary_feature_field);
         RCLCPP_WARN(this->get_logger(), "Converting PointCloud2 field '%s' from UINT8 to FLOAT32",
                     primary_feature_field.c_str());
         break;
       case PF::INT16:
         primary_feature_iter_int16 = std::make_unique<sensor_msgs::PointCloud2ConstIterator<std::int16_t>>(
-            *transformed_point_cloud_msg, primary_feature_field);
+            *input_point_cloud_msg, primary_feature_field);
         RCLCPP_WARN(this->get_logger(), "Converting PointCloud2 field '%s' from INT16 to FLOAT32",
                     primary_feature_field.c_str());
         break;
       case PF::INT8:
         primary_feature_iter_int8 = std::make_unique<sensor_msgs::PointCloud2ConstIterator<std::int8_t>>(
-            *transformed_point_cloud_msg, primary_feature_field);
+            *input_point_cloud_msg, primary_feature_field);
         RCLCPP_WARN(this->get_logger(), "Converting PointCloud2 field '%s' from INT8 to FLOAT32",
                     primary_feature_field.c_str());
         break;
       case PF::UINT32:
         primary_feature_iter_uint32 = std::make_unique<sensor_msgs::PointCloud2ConstIterator<std::uint32_t>>(
-            *transformed_point_cloud_msg, primary_feature_field);
+            *input_point_cloud_msg, primary_feature_field);
         RCLCPP_WARN(this->get_logger(), "Converting PointCloud2 field '%s' from UINT32 to FLOAT32",
                     primary_feature_field.c_str());
         break;
       case PF::INT32:
         primary_feature_iter_int32 = std::make_unique<sensor_msgs::PointCloud2ConstIterator<std::int32_t>>(
-            *transformed_point_cloud_msg, primary_feature_field);
+            *input_point_cloud_msg, primary_feature_field);
         RCLCPP_WARN(this->get_logger(), "Converting PointCloud2 field '%s' from INT32 to FLOAT32",
                     primary_feature_field.c_str());
         break;
@@ -959,7 +959,7 @@ void PointCloudObjectDetection::processPointCloud(const sensor_msgs::msg::PointC
 
   point_cloud.clear();
   if (use_custom_primary_feature_path) {
-    const auto& msg_ref = *transformed_point_cloud_msg;
+    const auto& msg_ref = *input_point_cloud_msg;
     const std::size_t total_points = static_cast<std::size_t>(msg_ref.width) * msg_ref.height;
 
     pcl_conversions::toPCL(msg_ref.header, point_cloud.header);
@@ -1025,23 +1025,7 @@ void PointCloudObjectDetection::processPointCloud(const sensor_msgs::msg::PointC
     }
   } else {
     // Default: use PointXYZI conversion (requires intensity field).
-    pcl::PointCloud<pcl::PointXYZI> base_cloud;
-    pcl::fromROSMsg(*transformed_point_cloud_msg, base_cloud);
-
-    point_cloud.header = base_cloud.header;
-    point_cloud.width = base_cloud.width;
-    point_cloud.height = base_cloud.height;
-    point_cloud.is_dense = base_cloud.is_dense;
-    point_cloud.points.resize(base_cloud.size());
-
-    for (std::size_t idx = 0; idx < base_cloud.size(); ++idx) {
-      const auto& src = base_cloud.points[idx];
-      auto& dst = point_cloud.points[idx];
-      dst.x = src.x;
-      dst.y = src.y;
-      dst.z = src.z;
-      dst.intensity = src.intensity;
-    }
+    pcl::fromROSMsg(*input_point_cloud_msg, point_cloud);
   }
 }
 

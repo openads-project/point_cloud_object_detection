@@ -92,6 +92,10 @@ std::map<std::string, std::vector<int64_t>> PBODModel::getSpecialOutputShapes() 
 }
 
 void PBODModel::setupModelInput(const PointCloud& point_cloud) {
+  const int grid_y = static_cast<int>(model_config_.pillar_map_size[1]);
+  const float inv_voxel_x = 1.0f / voxel_x_;
+  const float inv_voxel_y = 1.0f / voxel_y_;
+
   auto point_features_map =
       triton_interface_.getInputTensor<float>(input_name_point_features_, max_num_points_, preprocessed_feature_dim_);
   auto pillar_ids_map = triton_interface_.getInputTensor<int64_t>(input_name_pillar_ids_, max_num_points_);
@@ -102,12 +106,9 @@ void PBODModel::setupModelInput(const PointCloud& point_cloud) {
   point_features_map.setZero();
   valid_mask_map.setZero();
   pillar_masks_map.setZero();
-  pillar_indices_map.setZero();
 
   const int64_t sentinel = static_cast<int64_t>(num_pillars_);
-  for (int i = 0; i < max_num_points_; ++i) {
-    pillar_ids_map(i) = sentinel;
-  }
+  pillar_ids_map.setConstant(sentinel);
 
   for (int i = 0; i < num_pillars_; ++i) {
     const std::size_t idx = static_cast<std::size_t>(i) * 2;
@@ -124,13 +125,8 @@ void PBODModel::setupModelInput(const PointCloud& point_cloud) {
     return;
   }
 
-  struct SampledPoint {
-    Point point;
-  };
-  std::vector<SampledPoint> sampled;
-  sampled.reserve(static_cast<std::size_t>(max_num_points_));
-
   static thread_local std::mt19937 gen(std::random_device{}());
+  static thread_local std::uniform_int_distribution<int> reservoir_dist;
   int valid_point_count = 0;
   for (int i = 0; i < n_cloud_points; ++i) {
     const auto& point = point_cloud[i];
@@ -139,27 +135,23 @@ void PBODModel::setupModelInput(const PointCloud& point_cloud) {
     }
     ++valid_point_count;
     if (valid_point_count <= max_num_points_) {
-      sampled.push_back({point});
+      filtered_input_points_.push_back(point);
     } else {
-      std::uniform_int_distribution<int> dist(1, valid_point_count);
-      const int random_idx = dist(gen);
+      reservoir_dist.param(std::uniform_int_distribution<int>::param_type(1, valid_point_count));
+      const int random_idx = reservoir_dist(gen);
       if (random_idx <= max_num_points_) {
-        sampled[static_cast<std::size_t>(random_idx - 1)] = {point};
+        filtered_input_points_[static_cast<std::size_t>(random_idx - 1)] = point;
       }
     }
   }
 
-  const int num_selected = static_cast<int>(sampled.size());
-  filtered_input_points_.reserve(num_selected);
-  for (const auto& entry : sampled) {
-    filtered_input_points_.push_back(entry.point);
-  }
+  const int num_selected = static_cast<int>(filtered_input_points_.size());
 
   if (normalization_type_ == pcod_common::PointFeatureNormalizationType::kZScore) {
     double sum = 0.0;
     double sum_sq = 0.0;
-    for (const auto& entry : sampled) {
-      const double value = static_cast<double>(entry.point.intensity);
+    for (const auto& point : filtered_input_points_) {
+      const double value = static_cast<double>(point.intensity);
       sum += value;
       sum_sq += value * value;
     }
@@ -174,23 +166,24 @@ void PBODModel::setupModelInput(const PointCloud& point_cloud) {
   std::vector<float> pillar_sum(static_cast<std::size_t>(num_pillars_) * 3, 0.0f);
   std::vector<float> pillar_sq_sum(static_cast<std::size_t>(num_pillars_) * 3, 0.0f);
   std::vector<int> pillar_ids_raw(static_cast<std::size_t>(num_selected), -1);
+  std::vector<int> pillar_ix_raw(static_cast<std::size_t>(num_selected), -1);
+  std::vector<int> pillar_iy_raw(static_cast<std::size_t>(num_selected), -1);
 
   for (int i = 0; i < num_selected; ++i) {
-    const auto& point = sampled[static_cast<std::size_t>(i)].point;
-    if (point.x < x_min_ || point.x >= x_max_ || point.y < y_min_ || point.y >= y_max_ || point.z < z_min_ ||
-        point.z >= z_max_) {
-      continue;
-    }
-
-    const int grid_x = static_cast<int>(model_config_.pillar_map_size[0]);
-    const int grid_y = static_cast<int>(model_config_.pillar_map_size[1]);
-    const int ix = std::max(0, std::min(static_cast<int>((point.x - x_min_) / voxel_x_), grid_x - 1));
-    const int iy = std::max(0, std::min(static_cast<int>((point.y - y_min_) / voxel_y_), grid_y - 1));
+    const auto& point = filtered_input_points_[static_cast<std::size_t>(i)];
+    // Points come from IsPointValid(), so x/y/z are already in model bounds.
+    const int ix = static_cast<int>((point.x - x_min_) * inv_voxel_x);
+    const int iy = static_cast<int>((point.y - y_min_) * inv_voxel_y);
     const int pillar_id = ix * grid_y + iy;
     pillar_ids_raw[static_cast<std::size_t>(i)] = pillar_id;
+    pillar_ix_raw[static_cast<std::size_t>(i)] = ix;
+    pillar_iy_raw[static_cast<std::size_t>(i)] = iy;
 
     const std::size_t count_offset = static_cast<std::size_t>(pillar_id);
     ++pillar_counts[count_offset];
+    if (pillar_counts[count_offset] == 1) {
+      pillar_masks_map(pillar_id) = true;
+    }
     const std::size_t sum_offset = count_offset * 3;
     pillar_sum[sum_offset + 0] += point.x;
     pillar_sum[sum_offset + 1] += point.y;
@@ -200,19 +193,14 @@ void PBODModel::setupModelInput(const PointCloud& point_cloud) {
     pillar_sq_sum[sum_offset + 2] += point.z * point.z;
   }
 
-  for (int i = 0; i < num_selected; ++i) {
-    const auto& entry = sampled[static_cast<std::size_t>(i)];
-    const int pillar_id = pillar_ids_raw[static_cast<std::size_t>(i)];
-    if (pillar_id < 0) {
-      continue;
-    }
-
-    const std::size_t count_offset = static_cast<std::size_t>(pillar_id);
+  std::vector<float> pillar_mean(static_cast<std::size_t>(num_pillars_) * 3, 0.0f);
+  std::vector<float> pillar_var(static_cast<std::size_t>(num_pillars_) * 3, 0.0f);
+  for (int i = 0; i < num_pillars_; ++i) {
+    const std::size_t count_offset = static_cast<std::size_t>(i);
     const int32_t count = pillar_counts[count_offset];
     if (count <= 0) {
       continue;
     }
-
     const std::size_t sum_offset = count_offset * 3;
     const float inv_count = 1.0f / static_cast<float>(count);
     const float mean_x = pillar_sum[sum_offset + 0] * inv_count;
@@ -221,16 +209,32 @@ void PBODModel::setupModelInput(const PointCloud& point_cloud) {
     const float mean_x2 = pillar_sq_sum[sum_offset + 0] * inv_count;
     const float mean_y2 = pillar_sq_sum[sum_offset + 1] * inv_count;
     const float mean_z2 = pillar_sq_sum[sum_offset + 2] * inv_count;
+    pillar_mean[sum_offset + 0] = mean_x;
+    pillar_mean[sum_offset + 1] = mean_y;
+    pillar_mean[sum_offset + 2] = mean_z;
+    pillar_var[sum_offset + 0] = std::max(mean_x2 - mean_x * mean_x, 0.0f);
+    pillar_var[sum_offset + 1] = std::max(mean_y2 - mean_y * mean_y, 0.0f);
+    pillar_var[sum_offset + 2] = std::max(mean_z2 - mean_z * mean_z, 0.0f);
+  }
 
-    const auto& point = entry.point;
-    const int grid_x = static_cast<int>(model_config_.pillar_map_size[0]);
-    const int grid_y = static_cast<int>(model_config_.pillar_map_size[1]);
-    const int ix = std::max(0, std::min(static_cast<int>((point.x - x_min_) / voxel_x_), grid_x - 1));
-    const int iy = std::max(0, std::min(static_cast<int>((point.y - y_min_) / voxel_y_), grid_y - 1));
+  constexpr float kRadiusEpsilon = 1e-6f;
+  const float center_z = z_min_ + (z_max_ - z_min_) * 0.5f;
+  for (int i = 0; i < num_selected; ++i) {
+    const int pillar_id = pillar_ids_raw[static_cast<std::size_t>(i)];
+    if (pillar_id < 0) {
+      continue;
+    }
+
+    const std::size_t sum_offset = static_cast<std::size_t>(pillar_id) * 3;
+    const auto& point = filtered_input_points_[static_cast<std::size_t>(i)];
+    const int ix = pillar_ix_raw[static_cast<std::size_t>(i)];
+    const int iy = pillar_iy_raw[static_cast<std::size_t>(i)];
 
     const float center_x = x_min_ + (static_cast<float>(ix) + 0.5f) * voxel_x_;
     const float center_y = y_min_ + (static_cast<float>(iy) + 0.5f) * voxel_y_;
-    const float center_z = z_min_ + (z_max_ - z_min_) * 0.5f;
+    const float mean_x = pillar_mean[sum_offset + 0];
+    const float mean_y = pillar_mean[sum_offset + 1];
+    const float mean_z = pillar_mean[sum_offset + 2];
 
     const float f_cluster_x = point.x - mean_x;
     const float f_cluster_y = point.y - mean_y;
@@ -238,16 +242,20 @@ void PBODModel::setupModelInput(const PointCloud& point_cloud) {
     const float f_center_x = point.x - center_x;
     const float f_center_y = point.y - center_y;
     const float f_center_z = point.z - center_z;
-    const float r = std::sqrt(point.x * point.x + point.y * point.y);
+    const float r2 = point.x * point.x + point.y * point.y;
+    const float r = std::sqrt(r2);
     const float z_rel = point.z - z_min_;
-    const float eps = 1e-6f;
-    const float inv_r = 1.0f / (r > eps ? r : eps);
-    const float theta = std::atan2(point.y, point.x);
-    const float sin_theta = std::sin(theta);
-    const float cos_theta = std::cos(theta);
-    const float var_x = std::max(mean_x2 - mean_x * mean_x, 0.0f);
-    const float var_y = std::max(mean_y2 - mean_y * mean_y, 0.0f);
-    const float var_z = std::max(mean_z2 - mean_z * mean_z, 0.0f);
+    const float inv_r = 1.0f / (r > kRadiusEpsilon ? r : kRadiusEpsilon);
+    float sin_theta = 0.0f;
+    float cos_theta = 1.0f;
+    if (r > 0.0f) {
+      const float inv_norm = 1.0f / r;
+      sin_theta = point.y * inv_norm;
+      cos_theta = point.x * inv_norm;
+    }
+    const float var_x = pillar_var[sum_offset + 0];
+    const float var_y = pillar_var[sum_offset + 1];
+    const float var_z = pillar_var[sum_offset + 2];
 
     float raw_feature0 = point_preprocessor_.NormalizeIntensity(point.intensity);
 
@@ -273,12 +281,6 @@ void PBODModel::setupModelInput(const PointCloud& point_cloud) {
 
     valid_mask_map(i) = true;
     pillar_ids_map(i) = static_cast<int64_t>(pillar_id);
-  }
-
-  for (int i = 0; i < num_pillars_; ++i) {
-    if (pillar_counts[static_cast<std::size_t>(i)] > 0) {
-      pillar_masks_map(i) = true;
-    }
   }
 }
 
