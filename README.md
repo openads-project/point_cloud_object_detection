@@ -86,7 +86,7 @@ Invalid parameter values result in a fatal log message and the node shuts down. 
 | `model_manifest_path` | `string` | Path (relative to the package) of the exported `model_manifest.yml`. | - |
 | `point_feature_source` | `string` | [**dynamic**] Source for the single feature channel (`intensity` or `reflectivity`). | Must be `intensity` or `reflectivity`. |
 | `server_url` | `string` | Triton server host:port combination. | - |
-| `use_shm` | `bool` | Enable Triton shared-memory transport. | - |
+| `use_shm` | `bool` | Enable Triton shared-memory transport. | Requires client and Triton on the same host with a shared IPC namespace (e.g., Docker `ipc: host` or equivalent). |
 | `inference_frame` | `string` | [**dynamic**] Frame used for preprocessing and filters. | - |
 | `output_frame` | `string` | [**dynamic**] Frame reported in the output object list. | - |
 | `sensor_id` | `int` | [**dynamic**] Sensor identifier stored on every object. | `-1` for a random id at start-up, otherwise a non-negative integer. |
