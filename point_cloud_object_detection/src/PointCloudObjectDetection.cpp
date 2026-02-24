@@ -126,6 +126,28 @@ PointCloudObjectDetection::PointCloudObjectDetection(const rclcpp::NodeOptions& 
   });
 }
 
+PointCloudObjectDetection::~PointCloudObjectDetection() {
+  if (subscriber_) {
+    subscriber_->shutdown();
+  }
+  subscriber_.reset();
+  if (no_detection_zone_points_publisher_) {
+    no_detection_zone_points_publisher_->shutdown();
+  }
+  no_detection_zone_points_publisher_.reset();
+  publisher_.reset();
+  no_detection_zone_pub_.reset();
+  detection_area_pub_.reset();
+  model_bounds_pub_.reset();
+
+  parameters_callback_.reset();
+  tf_listener_.reset();
+  tf_buffer_.reset();
+  detection_model_.reset();
+  triton_interface_.reset();
+  setup_timer_.reset();
+}
+
 template <typename T>
 void PointCloudObjectDetection::declare_parameter_if_not_exists(const std::string& name, const T& type_or_default,
                                                                 const std::string& desc) {
@@ -715,9 +737,25 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
 void PointCloudObjectDetection::initializeModel() {
   loadModelConfig();
 
-  // load model
-  triton_interface_ = std::make_unique<triton_cpp::TritonInterface>(params_.model_name, params_.model_version,
-                                                                    params_.server_url, params_.use_shm, false, true);
+  // Retry Triton connection until the ROS context is shutting down.
+  constexpr auto kRetryDelay = std::chrono::seconds(1);
+  while (rclcpp::ok(this->get_node_base_interface()->get_context())) {
+    try {
+      triton_interface_ = std::make_unique<triton_cpp::TritonInterface>(
+          params_.model_name, params_.model_version, params_.server_url, params_.use_shm, false, false);
+      break;
+    } catch (const std::exception& e) {
+      RCLCPP_WARN(this->get_logger(),
+                  "Failed to connect to Triton server '%s' for model '%s:%s': %s. Retrying in %.1fs.",
+                  params_.server_url.c_str(), params_.model_name.c_str(), params_.model_version.c_str(), e.what(),
+                  std::chrono::duration<double>(kRetryDelay).count());
+      rclcpp::sleep_for(kRetryDelay);
+    }
+  }
+
+  if (!triton_interface_) {
+    throw std::runtime_error("Shutdown requested while waiting for Triton connection");
+  }
 
   // log model info
   std::cout << triton_interface_->getModelInfo() << std::endl;
@@ -734,7 +772,9 @@ void PointCloudObjectDetection::initializeModel() {
 }
 
 void PointCloudObjectDetection::setupPublishers() {
-  point_cloud_transport::PointCloudTransport pct(this->shared_from_this());
+  // Use a non-owning node handle to avoid ownership cycles with transport plugins.
+  auto node_handle = std::shared_ptr<rclcpp::Node>(this, [](rclcpp::Node*) {});
+  point_cloud_transport::PointCloudTransport pct(node_handle);
 
   // create no-detection zone polygon publisher if enabled
   if (params_.no_detection_zone_publish_polygon) {
@@ -796,7 +836,9 @@ void PointCloudObjectDetection::setup() {
 
   // create subscriber and publisher
   std::string resolved_input_topic = this->get_node_topics_interface()->resolve_topic_name(kInputTopic);
-  point_cloud_transport::PointCloudTransport pct(this->shared_from_this());
+  // Use a non-owning node handle to avoid ownership cycles with transport plugins.
+  auto node_handle = std::shared_ptr<rclcpp::Node>(this, [](rclcpp::Node*) {});
+  point_cloud_transport::PointCloudTransport pct(node_handle);
   subscriber_ = std::make_shared<point_cloud_transport::Subscriber>(pct.subscribe(
       resolved_input_topic, 1, std::bind(&PointCloudObjectDetection::predict, this, std::placeholders::_1),
       std::shared_ptr<void>()));

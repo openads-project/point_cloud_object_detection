@@ -42,6 +42,7 @@ class PointCloudObjectDetection : public rclcpp::Node {
   * @param options NodeOptions
   */
   explicit PointCloudObjectDetection(const rclcpp::NodeOptions& options);
+  ~PointCloudObjectDetection() override;
 
  protected:
   /**
