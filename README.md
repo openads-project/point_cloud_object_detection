@@ -55,7 +55,7 @@ All output topics are node-relative (start with `~`) and are always in the node'
 - You **must** deactivate shared memory (SHM) for multiple instances, i.e., set `use_shm: False` in the [parameter file](point_cloud_object_detection/config/params.yml). 
 
 ## Launch File Usage
-The provided [launch files](point_cloud_object_detection/launch/point_cloud_object_detection.launch.py) declare remappable topics for all inputs and outputs. 
+The provided [launch file](point_cloud_object_detection/launch/point_cloud_object_detection.launch.py) declares remappable topics for all inputs and outputs.
 
 If your detection network predicts additional or different classes than the ones listed in the launch file, you need to add remapping arguments for those class-specific point cloud topics. For each of your classes, add a `DeclareLaunchArgument` for the topic, for example:
 
@@ -163,9 +163,7 @@ ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py
 
 | Package | File | Path | Description |
 | --- | --- | --- | --- |
-| `point_cloud_object_detection` | `point_cloud_object_detection.launch.py` | `/docker-ros/ws/install/share/point_cloud_object_detection/launch` | Launch the inference node and before that, combine params.yml and slikaf config file |
-| `point_cloud_object_detection` | `point_cloud_object_detection_component.launch.py` | `/docker-ros/ws/install/share/point_cloud_object_detection/launch` | Launch the inference node as a component and before that, combine params.yml and slikaf config file |
-| `point_cloud_object_detection` | `point_cloud_object_detection_minimal.launch.py` | `/docker-ros/ws/install/share/point_cloud_object_detection/launch` | Launch the inference node with an existing combined config file |
+| `point_cloud_object_detection` | `point_cloud_object_detection.launch.py` | `/docker-ros/ws/install/share/point_cloud_object_detection/launch` | Launch the inference node using the configured parameter file |
 
 ### Configuration Files
 
