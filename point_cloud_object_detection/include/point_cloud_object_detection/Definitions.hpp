@@ -72,6 +72,7 @@ struct ModelConfig {
   double detection_area_radius = 0.0;       // sector radius (m)
   double detection_area_bearing_deg = 0.0;  // sector central azimuth (deg, 0 along +x, CCW positive)
   double detection_area_fov_deg = 360.0;    // sector FOV angle (deg)
+
 };
 
 // parameters
@@ -79,6 +80,7 @@ struct Params {
   std::string model_name;
   std::string model_version;
   std::string server_url;
+  double triton_client_timeout_s = 2.0;
   bool use_shm;
   std::string model_manifest_path;
 
@@ -119,6 +121,7 @@ struct Params {
 
   // Model bounds polygon publication (XY rectangle from x_min/x_max/y_min/y_max)
   bool model_bounds_publish_polygon = false;
+
 };
 
 }  // namespace point_cloud_object_detection
