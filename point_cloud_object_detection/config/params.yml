@@ -1,53 +1,39 @@
 /**:
   ros__parameters:
-
-    point_cloud_transport: raw
-
-    # model_manifest_path also provides triton.model_name and triton.model_version
     model_manifest_path: "model_manifests/model_manifest_karl.yml"
-    server_url: "134.130.20.221:8001"
-    use_shm: False
+    server_url: "triton-server:8001"
+    inference_frame: base_link
 
-    sensor_id: -1 # Use -1 for a random id or a non-negative integer for a fixed sensor id
+    # Optional parameters (aligned with header defaults)
+    triton_client_timeout_s: 2.0
+    use_shm: false
+    point_cloud_transport: raw
+    point_feature_field: "intensity"
+    output_frame: ""
+    sensor_id: 0
 
-    # inference_frame: ego_vehicle/lidar        # frame for inference
-                                                # (here: sensor frame)
-    # output_frame: object_list_frame   # frame for object list
-    # inference_frame is the prediction frame used for model inference and for the no-detection zone below.
+    # Default variance vector used by the node (CONTINUOUS_STATE_COVARIANCE_UNKNOWN = -1.0)
+    variances: [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0]
+    class_score_threshold: 0.0
 
-    # variances (values must be >=0.0 or -1.0 to mark CONTINUOUS_STATE_COVARIANCE_UNKNOWN)
-    # x, y, z, vel_x, vel_y, acc_x, acc_y, yaw_angle, yaw_rate, width, length, height
-    variances: [0.2, 0.2, 0.1, -1.0, -1.0, -1.0, -1.0, 0.5, -1.0, 0.3, 0.3, 0.3]
-    class_score_threshold: 0.0  # Range [0.0, 1.0]
+    no_detection_zone.enabled: false
+    no_detection_zone.remove_points: false
+    no_detection_zone.x_min: 0.0
+    no_detection_zone.x_max: 0.0
+    no_detection_zone.y_min: 0.0
+    no_detection_zone.y_max: 0.0
+    no_detection_zone.publish_polygon: false
+    no_detection_zone.publish_points: false
 
-    # Normalization + NMS settings are defined in the model manifest.
+    detection_area.enabled: false
+    detection_area.center_x: 0.0
+    detection_area.center_y: 0.0
+    detection_area.radius: 0.0
+    detection_area.bearing_deg: 0.0
+    detection_area.fov_deg: 360.0
+    detection_area.publish_polygon: false
+    detection_area.num_segments: 32
+    detection_area.filter_detections: false
+    detection_area.filter_mode: "center"
 
-    # Optional: forbid detections intersecting a rectangle in the inference_frame
-    # no_detection_zone:
-    #   enabled: False
-    #   remove_points: False         # If True, raw points inside the no-detection zone are removed
-    #                                # from model input and from the published unclassified point cloud
-    #   publish_polygon: False       # If True, publish the rectangle bounds as geometry_msgs/PolygonStamped on
-    #                                # topic "~/no_detection_zone" (inference_frame)
-    #   publish_points: False        # If True, publish raw points in the no-detection zone on "~/no_detection_zone_points"
-    #   x_min: -1.0              # Requires x_min < x_max when enabled/remove_points true
-    #   x_max:  1.0
-    #   y_min: -1.0              # Requires y_min < y_max when enabled/remove_points true
-    #   y_max:  1.0
-
-    # Optional: allow detections only within a circular sector in the inference_frame
-    # detection_area:
-    #   enabled: False                # Enable sector filtering/publishing
-    #   center_x: 0.0                 # Sector center x [m]
-    #   center_y: 0.0                 # Sector center y [m]
-    #   radius: 50.0                  # Sector radius [m] (>=0, must be >0 when enabled)
-    #   bearing_deg: 0.0              # Center azimuth [deg], 0 along +x, CCW positive, within [-360, 360]
-    #   fov_deg: 120.0                # Angular width [deg], must be in (0, 360]
-    #   num_segments: 36              # Arc approximation segments (>=3)
-    #   publish_polygon: False        # Publish geometry_msgs/PolygonStamped on "~/detection_area"
-    #   filter_detections: False      # Remove detections outside the sector
-    #   filter_mode: center           # center|complete only (bbox center vs. full bbox inside)
-
-    # Optional: publish the model XY bounds (x_min/x_max/y_min/y_max) as a polygon
-    # model_bounds:
-    #   publish_polygon: False        # Publish geometry_msgs/PolygonStamped on "~/model_bounds"
+    model_bounds.publish_polygon: false

@@ -1,5 +1,8 @@
 #pragma once
 
+#include <array>
+#include <cstdint>
+
 #include <tf2/transform_datatypes.h>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
@@ -13,6 +16,9 @@
 namespace point_cloud_object_detection {
 using pcod_common::BoundingBox;
 using pcod_common::ClassificationEntry;
+
+inline constexpr std::array<const char*, 2> kAllowedPointFeatureFields = {"intensity", "reflectivity"};
+inline constexpr std::array<const char*, 2> kSupportedManifestPrecisions = {"fp32", "fp16"};
 
 // model config
 struct ModelConfig {
@@ -72,29 +78,30 @@ struct ModelConfig {
   double detection_area_radius = 0.0;       // sector radius (m)
   double detection_area_bearing_deg = 0.0;  // sector central azimuth (deg, 0 along +x, CCW positive)
   double detection_area_fov_deg = 360.0;    // sector FOV angle (deg)
-
 };
 
 // parameters
 struct Params {
   std::string model_name;
   std::string model_version;
-  std::string server_url;
+  std::string server_url;  // required
   double triton_client_timeout_s = 2.0;
-  bool use_shm;
-  std::string model_manifest_path;
+  bool use_shm = false;
+  std::string model_manifest_path;  // required
 
-  std::string inference_frame;
-  std::string output_frame;
+  std::string inference_frame;  // required
+  std::string output_frame = "";
 
-  uint64_t sensor_id;
+  int64_t sensor_id = 0;
 
-  std::vector<double> variance;
-  double class_score_threshold;
-  std::string point_feature_source = "intensity";
+  std::vector<double> variance = std::vector<double>(12, -1.0);  // CONTINUOUS_STATE_COVARIANCE_UNKNOWN sentinel
+  double class_score_threshold = 0.0;
+  std::string point_feature_field = "intensity";
 
   // Optional no-detection rectangle (in inference_frame) where detections are not allowed
   bool no_detection_zone_enabled = false;
+  // If true, remove raw points in the no-detection zone from model input
+  bool no_detection_zone_remove_points = false;
   double no_detection_zone_x_min = 0.0;
   double no_detection_zone_x_max = 0.0;
   double no_detection_zone_y_min = 0.0;
@@ -121,7 +128,6 @@ struct Params {
 
   // Model bounds polygon publication (XY rectangle from x_min/x_max/y_min/y_max)
   bool model_bounds_publish_polygon = false;
-
 };
 
 }  // namespace point_cloud_object_detection
