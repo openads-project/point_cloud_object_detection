@@ -10,7 +10,10 @@
 
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
+#include <functional>
 #include <mutex>
+#include <optional>
 #include <perception_msgs/msg/object.hpp>
 #include <perception_msgs/msg/object_list.hpp>
 #include <perception_msgs_utils/object_access.hpp>
@@ -20,6 +23,8 @@
 #include <string>
 #include <tf2_perception_msgs/tf2_perception_msgs.hpp>
 #include <tf2_sensor_msgs/tf2_sensor_msgs.hpp>
+#include <tuple>
+#include <type_traits>
 #include <vector>
 
 #include "pcod_common/nms.hpp"
@@ -32,6 +37,13 @@
 
 namespace point_cloud_object_detection {
 using namespace std::chrono_literals;
+
+template <typename C>
+struct is_vector : std::false_type {};
+template <typename T, typename A>
+struct is_vector<std::vector<T, A>> : std::true_type {};
+template <typename C>
+inline constexpr bool is_vector_v = is_vector<C>::value;
 
 // namespace acronyms
 namespace pm = perception_msgs;
@@ -55,16 +67,21 @@ class PointCloudObjectDetection : public rclcpp::Node {
    */
   void loadParameters();
   /**
+   * @brief Synchronize model runtime options from the loaded node parameters
+   */
+  void syncModelRuntimeConfigFromParams();
+  /**
    * @brief Loads all ROS parameters for the model depending on the architecture
    */
   void loadModelConfig();
 
-  /**
-   * @brief Declares a parameter, if it is not already declared
-   * @tparam T anything convertible to either rclcpp::ParameterValue or rclcpp::ParameterType
-   */
   template <typename T>
-  void declare_parameter_if_not_exists(const std::string& name, const T& type_or_default, const std::string& desc);
+  void declareAndLoadParameter(const std::string& name, T& param, const std::string& description,
+                               const bool add_to_auto_reconfigurable_params = true, const bool is_required = false,
+                               const bool read_only = false, const std::optional<double>& from_value = std::nullopt,
+                               const std::optional<double>& to_value = std::nullopt,
+                               const std::optional<double>& step_value = std::nullopt,
+                               const std::string& additional_constraints = "");
 
   /**
    * @brief Callback for configurable parameters: Is executed every time a ROS parameter is modified
@@ -133,6 +150,18 @@ class PointCloudObjectDetection : public rclcpp::Node {
   static const std::string kDetectionAreaTopic;
   static const std::string kModelBoundsTopic;
   static const std::map<uint8_t, std::vector<std::string>> kPossibleClassNames;
+  static constexpr std::size_t kExpectedVarianceSize = 12;
+  static constexpr int64_t kMinSensorId = 0;
+  static constexpr int64_t kMaxSensorId = 100000;
+  static constexpr int64_t kSensorIdStep = 1;
+  static constexpr double kMinClassScoreThreshold = 0.0;
+  static constexpr double kMaxClassScoreThreshold = 1.0;
+  static constexpr double kMinDetectionAreaRadius = 0.0;
+  static constexpr double kMinDetectionAreaBearingDeg = -360.0;
+  static constexpr double kMaxDetectionAreaBearingDeg = 360.0;
+  static constexpr double kMinDetectionAreaFovDeg = 0.0;
+  static constexpr double kMaxDetectionAreaFovDeg = 360.0;
+  static constexpr int64_t kMinDetectionAreaNumSegments = 3;
 
   // other member variables
   rclcpp::TimerBase::SharedPtr setup_timer_;
@@ -140,6 +169,7 @@ class PointCloudObjectDetection : public rclcpp::Node {
 
   // dynamic parameter callback
   OnSetParametersCallbackHandle::SharedPtr parameters_callback_;
+  std::vector<std::tuple<std::string, std::function<void(const rclcpp::Parameter&)>>> auto_reconfigurable_params_;
 
   // publisher and subscriber
   std::shared_ptr<point_cloud_transport::Subscriber> subscriber_;
