@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <filesystem>
 #include <iostream>
 #include <memory>
@@ -17,7 +18,6 @@
 #include <rclcpp/logging.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
 #include <sensor_msgs/msg/point_field.hpp>
-#include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <stdexcept>
 
 #include "pcod_common/model_manifest.hpp"
@@ -55,12 +55,18 @@ std::string allowedPointFeatureSourcesString() {
   return oss.str();
 }
 
+bool isSupportedManifestPrecision(const std::string& precision) {
+  return precision == "fp32" || precision == "fp16";
+}
+
 std::string resolvePrimaryFeatureField(const ModelConfig& model_config, const Params& params) {
+  // Kept model-aware on purpose: future model families may map feature channels differently.
   (void)model_config;
   return params.point_feature_source;
 }
 
 void sanitizeVarianceVector(std::vector<double>& variance, double sentinel) {
+  // Accept slightly-off "-1" encodings from YAML/ROS transport and normalize to the exact sentinel.
   for (double& value : variance) {
     if (value < 0.0 && std::fabs(value + 1.0) <= 1e-9) {
       value = sentinel;
@@ -92,6 +98,84 @@ const char* pointFieldDatatypeToString(uint8_t datatype) {
   }
 }
 
+bool isHostLittleEndian() {
+  const std::uint16_t value = 1;
+  return *reinterpret_cast<const std::uint8_t*>(&value) == 1;
+}
+
+std::uint16_t byteSwap16(std::uint16_t value) { return static_cast<std::uint16_t>((value >> 8) | (value << 8)); }
+
+std::uint32_t byteSwap32(std::uint32_t value) {
+  return ((value & 0x000000FFu) << 24) | ((value & 0x0000FF00u) << 8) | ((value & 0x00FF0000u) >> 8) |
+         ((value & 0xFF000000u) >> 24);
+}
+
+std::uint64_t byteSwap64(std::uint64_t value) {
+  return ((value & 0x00000000000000FFull) << 56) | ((value & 0x000000000000FF00ull) << 40) |
+         ((value & 0x0000000000FF0000ull) << 24) | ((value & 0x00000000FF000000ull) << 8) |
+         ((value & 0x000000FF00000000ull) >> 8) | ((value & 0x0000FF0000000000ull) >> 24) |
+         ((value & 0x00FF000000000000ull) >> 40) | ((value & 0xFF00000000000000ull) >> 56);
+}
+
+float readFloat32At(const std::uint8_t* src, bool needs_swap) {
+  // Use memcpy for aliasing/alignment-safe bit reinterpretation from packed PointCloud2 buffers.
+  std::uint32_t bits = 0;
+  std::memcpy(&bits, src, sizeof(bits));
+  if (needs_swap) bits = byteSwap32(bits);
+  float out = 0.0f;
+  std::memcpy(&out, &bits, sizeof(out));
+  return out;
+}
+
+float readFloat64AsFloatAt(const std::uint8_t* src, bool needs_swap) {
+  std::uint64_t bits = 0;
+  std::memcpy(&bits, src, sizeof(bits));
+  if (needs_swap) bits = byteSwap64(bits);
+  double out = 0.0;
+  std::memcpy(&out, &bits, sizeof(out));
+  return static_cast<float>(out);
+}
+
+float readPointFieldAsFloat(const std::uint8_t* src, std::uint8_t datatype, bool needs_swap) {
+  using PF = sensor_msgs::msg::PointField;
+  switch (datatype) {
+    case PF::FLOAT32:
+      return readFloat32At(src, needs_swap);
+    case PF::FLOAT64:
+      return readFloat64AsFloatAt(src, needs_swap);
+    case PF::UINT16: {
+      std::uint16_t value = 0;
+      std::memcpy(&value, src, sizeof(value));
+      if (needs_swap) value = byteSwap16(value);
+      return static_cast<float>(value);
+    }
+    case PF::UINT8:
+      return static_cast<float>(*src);
+    case PF::INT16: {
+      std::uint16_t raw = 0;
+      std::memcpy(&raw, src, sizeof(raw));
+      if (needs_swap) raw = byteSwap16(raw);
+      return static_cast<float>(static_cast<std::int16_t>(raw));
+    }
+    case PF::INT8:
+      return static_cast<float>(static_cast<std::int8_t>(*src));
+    case PF::UINT32: {
+      std::uint32_t value = 0;
+      std::memcpy(&value, src, sizeof(value));
+      if (needs_swap) value = byteSwap32(value);
+      return static_cast<float>(value);
+    }
+    case PF::INT32: {
+      std::uint32_t raw = 0;
+      std::memcpy(&raw, src, sizeof(raw));
+      if (needs_swap) raw = byteSwap32(raw);
+      return static_cast<float>(static_cast<std::int32_t>(raw));
+    }
+    default:
+      throw std::runtime_error("Unsupported PointCloud2 datatype");
+  }
+}
+
 }  // namespace
 
 // constants
@@ -102,17 +186,17 @@ const std::string PointCloudObjectDetection::kNoDetectionZonePointsTopic = "~/no
 const std::string PointCloudObjectDetection::kDetectionAreaTopic = "~/detection_area";
 const std::string PointCloudObjectDetection::kModelBoundsTopic = "~/model_bounds";
 const std::map<uint8_t, std::vector<std::string>> PointCloudObjectDetection::kPossibleClassNames{
-    {pm::msg::ObjectClassification::CAR, {"car", "vehicle"}},
-    {pm::msg::ObjectClassification::PEDESTRIAN, {"pedestrian", "human", "man", "woman", "person"}},
-    {pm::msg::ObjectClassification::BICYCLE, {"bicycle", "bike", "cyclist"}},
-    {pm::msg::ObjectClassification::MOTORBIKE, {"motorcycle", "motorbike"}},
-    {pm::msg::ObjectClassification::TRUCK, {"truck"}},
-    {pm::msg::ObjectClassification::BUS, {"bus"}},
-    {pm::msg::ObjectClassification::VAN, {"van"}},
-    {pm::msg::ObjectClassification::ANIMAL, {"animal"}},
+    {pm::msg::ObjectClassification::CAR, {"car", "vehicle", "van", "karl_car"}},
+    {pm::msg::ObjectClassification::PEDESTRIAN, {"pedestrian", "human", "man", "woman", "person", "karl_pedestrian"}},
+    {pm::msg::ObjectClassification::BICYCLE, {"bicycle", "bike", "cyclist", "karl_bicycle"}},
+    {pm::msg::ObjectClassification::MOTORCYCLE, {"motorcycle", "motorbike", "karl_motorcycle"}},
+    {pm::msg::ObjectClassification::UTILITY, {"utility", "truck", "trailer", "train", "karl_utility"}},
+    {pm::msg::ObjectClassification::BUS, {"bus", "karl_bus"}},
+    {pm::msg::ObjectClassification::ANIMAL, {"animal", "karl_animal"}},
+    {pm::msg::ObjectClassification::VRU, {"vru", "karl_vru"}},
+    {pm::msg::ObjectClassification::MICRO, {"micro", "karl_micro"}},
     {pm::msg::ObjectClassification::ROAD_OBSTACLE, {"obstacle", "road_obstacle"}},
-    {pm::msg::ObjectClassification::TRAIN, {"train"}},
-    {pm::msg::ObjectClassification::TRAILER, {"trailer"}}};
+    {pm::msg::ObjectClassification::UNKNOWN, {"unknown"}}};
 
 PointCloudObjectDetection::PointCloudObjectDetection(const rclcpp::NodeOptions& options)
     : rclcpp::Node("point_cloud_object_detection", options) {
@@ -390,8 +474,19 @@ void PointCloudObjectDetection::loadModelConfig() {
   pcod_common::ValidateModelManifest(manifest);
 
   const std::string manifest_precision = boost::algorithm::to_lower_copy(manifest.precision);
-  if (manifest_precision != "fp32") {
-    throwParameterError(this->get_logger(), "model_manifest_path", "manifest precision must be 'fp32'");
+  if (!isSupportedManifestPrecision(manifest_precision)) {
+    throwParameterError(this->get_logger(), "model_manifest_path", "manifest precision must be either 'fp32' or 'fp16'");
+  }
+  if (!manifest.triton.precision.empty()) {
+    const std::string triton_precision = boost::algorithm::to_lower_copy(manifest.triton.precision);
+    if (!isSupportedManifestPrecision(triton_precision)) {
+      throwParameterError(this->get_logger(), "model_manifest_path",
+                          "manifest triton.precision must be either 'fp32' or 'fp16'");
+    }
+    if (triton_precision != manifest_precision) {
+      throwParameterError(this->get_logger(), "model_manifest_path",
+                          "manifest precision and triton.precision must match");
+    }
   }
   const std::string manifest_device = boost::algorithm::to_lower_copy(manifest.device);
   if (manifest_device.rfind("cuda", 0) != 0) {
@@ -852,7 +947,7 @@ void PointCloudObjectDetection::setup() {
 
 void PointCloudObjectDetection::processPointCloud(const sensor_msgs::msg::PointCloud2::ConstSharedPtr msg,
                                                   PointCloud& point_cloud) {
-  // Transform only when required; otherwise read directly from the input message.
+  // Transform only when required so we avoid TF cost/latency when frames already match.
   sensor_msgs::msg::PointCloud2::SharedPtr transformed_point_cloud_msg;
   sensor_msgs::msg::PointCloud2::ConstSharedPtr input_point_cloud_msg = msg;
 
@@ -881,151 +976,77 @@ void PointCloudObjectDetection::processPointCloud(const sensor_msgs::msg::PointC
   };
 
   const std::string primary_feature_field = resolvePrimaryFeatureField(model_config_, params_);
-  const bool use_custom_primary_feature_path = primary_feature_field != "intensity";
+  const auto* x_field = findField("x");
+  const auto* y_field = findField("y");
+  const auto* z_field = findField("z");
+  const auto* primary_feature = findField(primary_feature_field);
 
-  std::unique_ptr<sensor_msgs::PointCloud2ConstIterator<float>> primary_feature_iter_float32;
-  std::unique_ptr<sensor_msgs::PointCloud2ConstIterator<double>> primary_feature_iter_float64;
-  std::unique_ptr<sensor_msgs::PointCloud2ConstIterator<std::uint16_t>> primary_feature_iter_uint16;
-  std::unique_ptr<sensor_msgs::PointCloud2ConstIterator<std::uint8_t>> primary_feature_iter_uint8;
-  std::unique_ptr<sensor_msgs::PointCloud2ConstIterator<std::int16_t>> primary_feature_iter_int16;
-  std::unique_ptr<sensor_msgs::PointCloud2ConstIterator<std::int8_t>> primary_feature_iter_int8;
-  std::unique_ptr<sensor_msgs::PointCloud2ConstIterator<std::uint32_t>> primary_feature_iter_uint32;
-  std::unique_ptr<sensor_msgs::PointCloud2ConstIterator<std::int32_t>> primary_feature_iter_int32;
-
-  if (use_custom_primary_feature_path) {
-    const auto* primary_feature = findField(primary_feature_field);
-    if (!primary_feature) {
-      RCLCPP_FATAL(this->get_logger(), "Point field '%s' is required for primary feature extraction",
-                   primary_feature_field.c_str());
-      throw std::runtime_error("Missing required PointCloud2 field: " + primary_feature_field);
-    }
-    using PF = sensor_msgs::msg::PointField;
-    switch (primary_feature->datatype) {
-      case PF::FLOAT32:
-        primary_feature_iter_float32 = std::make_unique<sensor_msgs::PointCloud2ConstIterator<float>>(
-            *input_point_cloud_msg, primary_feature_field);
-        break;
-      case PF::FLOAT64:
-        primary_feature_iter_float64 = std::make_unique<sensor_msgs::PointCloud2ConstIterator<double>>(
-            *input_point_cloud_msg, primary_feature_field);
-        RCLCPP_WARN(this->get_logger(), "Converting PointCloud2 field '%s' from FLOAT64 to FLOAT32",
-                    primary_feature_field.c_str());
-        break;
-      case PF::UINT16:
-        primary_feature_iter_uint16 = std::make_unique<sensor_msgs::PointCloud2ConstIterator<std::uint16_t>>(
-            *input_point_cloud_msg, primary_feature_field);
-        RCLCPP_WARN(this->get_logger(), "Converting PointCloud2 field '%s' from UINT16 to FLOAT32",
-                    primary_feature_field.c_str());
-        break;
-      case PF::UINT8:
-        primary_feature_iter_uint8 = std::make_unique<sensor_msgs::PointCloud2ConstIterator<std::uint8_t>>(
-            *input_point_cloud_msg, primary_feature_field);
-        RCLCPP_WARN(this->get_logger(), "Converting PointCloud2 field '%s' from UINT8 to FLOAT32",
-                    primary_feature_field.c_str());
-        break;
-      case PF::INT16:
-        primary_feature_iter_int16 = std::make_unique<sensor_msgs::PointCloud2ConstIterator<std::int16_t>>(
-            *input_point_cloud_msg, primary_feature_field);
-        RCLCPP_WARN(this->get_logger(), "Converting PointCloud2 field '%s' from INT16 to FLOAT32",
-                    primary_feature_field.c_str());
-        break;
-      case PF::INT8:
-        primary_feature_iter_int8 = std::make_unique<sensor_msgs::PointCloud2ConstIterator<std::int8_t>>(
-            *input_point_cloud_msg, primary_feature_field);
-        RCLCPP_WARN(this->get_logger(), "Converting PointCloud2 field '%s' from INT8 to FLOAT32",
-                    primary_feature_field.c_str());
-        break;
-      case PF::UINT32:
-        primary_feature_iter_uint32 = std::make_unique<sensor_msgs::PointCloud2ConstIterator<std::uint32_t>>(
-            *input_point_cloud_msg, primary_feature_field);
-        RCLCPP_WARN(this->get_logger(), "Converting PointCloud2 field '%s' from UINT32 to FLOAT32",
-                    primary_feature_field.c_str());
-        break;
-      case PF::INT32:
-        primary_feature_iter_int32 = std::make_unique<sensor_msgs::PointCloud2ConstIterator<std::int32_t>>(
-            *input_point_cloud_msg, primary_feature_field);
-        RCLCPP_WARN(this->get_logger(), "Converting PointCloud2 field '%s' from INT32 to FLOAT32",
-                    primary_feature_field.c_str());
-        break;
-      default:
-        RCLCPP_FATAL(this->get_logger(),
-                     "Point field '%s' has unsupported datatype %u (%s). Supported: INT8, UINT8, INT16, UINT16, "
-                     "INT32, UINT32, FLOAT32, FLOAT64",
-                     primary_feature_field.c_str(), primary_feature->datatype,
-                     pointFieldDatatypeToString(primary_feature->datatype));
-        throw std::runtime_error("Unsupported PointCloud2 datatype for field: " + primary_feature_field);
-    }
+  if (!x_field || !y_field || !z_field) {
+    RCLCPP_FATAL(this->get_logger(), "Point fields 'x', 'y', 'z' are required in PointCloud2 input");
+    throw std::runtime_error("Missing required PointCloud2 coordinate fields");
+  }
+  if (!primary_feature) {
+    RCLCPP_FATAL(this->get_logger(), "Point field '%s' is required for primary feature extraction",
+                 primary_feature_field.c_str());
+    throw std::runtime_error("Missing required PointCloud2 field: " + primary_feature_field);
   }
 
+  using PF = sensor_msgs::msg::PointField;
+  // Keep x/y/z strictly FLOAT32 so the hot decode path can stay branch-light and deterministic.
+  if (x_field->datatype != PF::FLOAT32 || y_field->datatype != PF::FLOAT32 || z_field->datatype != PF::FLOAT32) {
+    RCLCPP_FATAL(this->get_logger(), "Point fields 'x', 'y', 'z' must be FLOAT32");
+    throw std::runtime_error("Unsupported PointCloud2 datatype for x/y/z fields");
+  }
+
+  switch (primary_feature->datatype) {
+    case PF::FLOAT32:
+      break;
+    case PF::FLOAT64:
+    case PF::UINT16:
+    case PF::UINT8:
+    case PF::INT16:
+    case PF::INT8:
+    case PF::UINT32:
+    case PF::INT32:
+      RCLCPP_WARN_ONCE(this->get_logger(), "Converting PointCloud2 field '%s' from %s to FLOAT32",
+                       primary_feature_field.c_str(), pointFieldDatatypeToString(primary_feature->datatype));
+      break;
+    default:
+      RCLCPP_FATAL(this->get_logger(),
+                   "Point field '%s' has unsupported datatype %u (%s). Supported: INT8, UINT8, INT16, UINT16, "
+                   "INT32, UINT32, FLOAT32, FLOAT64",
+                   primary_feature_field.c_str(), primary_feature->datatype,
+                   pointFieldDatatypeToString(primary_feature->datatype));
+      throw std::runtime_error("Unsupported PointCloud2 datatype for field: " + primary_feature_field);
+  }
+
+  // Swap only when message byte order differs from host byte order.
+  const bool needs_swap = input_point_cloud_msg->is_bigendian == isHostLittleEndian();
+
+  const auto& msg_ref = *input_point_cloud_msg;
+  const std::size_t total_points = static_cast<std::size_t>(msg_ref.width) * msg_ref.height;
+
   point_cloud.clear();
-  if (use_custom_primary_feature_path) {
-    const auto& msg_ref = *input_point_cloud_msg;
-    const std::size_t total_points = static_cast<std::size_t>(msg_ref.width) * msg_ref.height;
+  pcl_conversions::toPCL(msg_ref.header, point_cloud.header);
+  point_cloud.width = msg_ref.width;
+  point_cloud.height = msg_ref.height;
+  point_cloud.is_dense = msg_ref.is_dense;
+  point_cloud.points.resize(total_points);
 
-    pcl_conversions::toPCL(msg_ref.header, point_cloud.header);
-    point_cloud.width = msg_ref.width;
-    point_cloud.height = msg_ref.height;
-    point_cloud.is_dense = msg_ref.is_dense;
-    point_cloud.points.resize(total_points);
-
-    sensor_msgs::PointCloud2ConstIterator<float> x_iter(msg_ref, "x");
-    sensor_msgs::PointCloud2ConstIterator<float> y_iter(msg_ref, "y");
-    sensor_msgs::PointCloud2ConstIterator<float> z_iter(msg_ref, "z");
-
-    const auto read_primary_feature = [&]() -> float {
-      if (primary_feature_iter_float32) {
-        float value = **primary_feature_iter_float32;
-        ++(*primary_feature_iter_float32);
-        return value;
-      }
-      if (primary_feature_iter_float64) {
-        float value = static_cast<float>(**primary_feature_iter_float64);
-        ++(*primary_feature_iter_float64);
-        return value;
-      }
-      if (primary_feature_iter_uint16) {
-        float value = static_cast<float>(**primary_feature_iter_uint16);
-        ++(*primary_feature_iter_uint16);
-        return value;
-      }
-      if (primary_feature_iter_uint8) {
-        float value = static_cast<float>(**primary_feature_iter_uint8);
-        ++(*primary_feature_iter_uint8);
-        return value;
-      }
-      if (primary_feature_iter_int16) {
-        float value = static_cast<float>(**primary_feature_iter_int16);
-        ++(*primary_feature_iter_int16);
-        return value;
-      }
-      if (primary_feature_iter_int8) {
-        float value = static_cast<float>(**primary_feature_iter_int8);
-        ++(*primary_feature_iter_int8);
-        return value;
-      }
-      if (primary_feature_iter_uint32) {
-        float value = static_cast<float>(**primary_feature_iter_uint32);
-        ++(*primary_feature_iter_uint32);
-        return value;
-      }
-      if (primary_feature_iter_int32) {
-        float value = static_cast<float>(**primary_feature_iter_int32);
-        ++(*primary_feature_iter_int32);
-        return value;
-      }
-      throw std::runtime_error("Internal error: primary feature iterator not initialized");
-    };
-
-    for (std::size_t idx = 0; idx < total_points; ++idx, ++x_iter, ++y_iter, ++z_iter) {
-      auto& dst = point_cloud.points[idx];
-      dst.x = *x_iter;
-      dst.y = *y_iter;
-      dst.z = *z_iter;
-      dst.intensity = read_primary_feature();
+  // Decode directly from PointCloud2 bytes to reduce per-point overhead in high-rate clouds.
+  std::size_t out_idx = 0;
+  const std::size_t row_step = static_cast<std::size_t>(msg_ref.row_step);
+  const std::size_t point_step = static_cast<std::size_t>(msg_ref.point_step);
+  for (std::size_t row = 0; row < msg_ref.height; ++row) {
+    const std::uint8_t* row_ptr = msg_ref.data.data() + row * row_step;
+    for (std::size_t col = 0; col < msg_ref.width; ++col) {
+      const std::uint8_t* point_ptr = row_ptr + col * point_step;
+      auto& dst = point_cloud.points[out_idx++];
+      dst.x = readFloat32At(point_ptr + x_field->offset, needs_swap);
+      dst.y = readFloat32At(point_ptr + y_field->offset, needs_swap);
+      dst.z = readFloat32At(point_ptr + z_field->offset, needs_swap);
+      dst.intensity = readPointFieldAsFloat(point_ptr + primary_feature->offset, primary_feature->datatype, needs_swap);
     }
-  } else {
-    // Default: use PointXYZI conversion (requires intensity field).
-    pcl::fromROSMsg(*input_point_cloud_msg, point_cloud);
   }
 }
 
@@ -1219,7 +1240,7 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
     const double sector_fov_deg = params_.detection_area_fov_deg;
     const int num_segments = std::max(3, params_.detection_area_num_segments);
 
-    // Build sector polygon: start at center, then arc points, then back to center
+    // Build a fan-shaped sector polygon first; clipping later keeps visualization aligned with model bounds.
     std::vector<geometry_msgs::msg::Point32> sector_poly;
     {
       geometry_msgs::msg::Point32 pt;
@@ -1242,7 +1263,8 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
       }
     }
 
-    // Sutherland–Hodgman clipping of polygon to model bounds rectangle
+    // Sutherland-Hodgman clipping: each pass clips against one rectangle side and carries
+    // generated intersection vertices forward, yielding a robust clipped polygon.
     auto clip_poly_to_halfplane = [](const std::vector<geometry_msgs::msg::Point32>& poly, auto inside,
                                      auto intersect) {
       std::vector<geometry_msgs::msg::Point32> output;
@@ -1269,7 +1291,7 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
     const double ry_min = static_cast<double>(model_config_.y_min);
     const double ry_max = static_cast<double>(model_config_.y_max);
 
-    // Intersections with vertical and horizontal lines
+    // Explicit line intersections keep clipping numerically stable for nearly axis-aligned edges.
     auto intersect_x = [](const geometry_msgs::msg::Point32& a, const geometry_msgs::msg::Point32& b, double x_val) {
       geometry_msgs::msg::Point32 out;
       const double dx = static_cast<double>(b.x) - static_cast<double>(a.x);
@@ -1289,7 +1311,8 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
       return out;
     };
 
-    // Clip in order: left, right, bottom, top
+    // Clip in order: left, right, bottom, top. Order is arbitrary for convex clip polygons,
+    // but keeping it fixed makes behavior easier to reason about.
     std::vector<geometry_msgs::msg::Point32> clipped = sector_poly;
     clipped = clip_poly_to_halfplane(
         clipped, [&](const auto& p) { return static_cast<double>(p.x) >= rx_min; },
@@ -1314,7 +1337,10 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
   }
 
   // pointcloudToBoxes
-  // index: 2 & 3, inside model call
+  // Timing layout is fixed to keep debug logs comparable across runs and with model-internal timings.
+  // 0=start, 1=after point cloud conversion, 2=after model input prep, 3=after inference,
+  // 4=after output decode, 5=after NMS, 6=after geometric filtering, 7=after msg conversion, 8=after publish.
+  // Index 2 and 3 are appended by the model implementation itself.
   std::vector<BoundingBox> center_boxes = (*detection_model_)(point_cloud, timestamps);
   timestamps.push_back(std::chrono::high_resolution_clock::now());  // index: 4, after output tensor creation
 
@@ -1340,6 +1366,7 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
     no_detection_rectangle.yaw = 0.0f;     // axis-aligned rectangle in inference_frame
     no_detection_rectangle.existence_probability = 1.0f;
 
+    // Remove any overlapping detection, not just detections whose center lies in the zone.
     auto num_boxes_before = center_boxes.size();
     center_boxes.erase(std::remove_if(center_boxes.begin(), center_boxes.end(),
                                       [&no_detection_rectangle](const BoundingBox& bbox) {
@@ -1368,7 +1395,7 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
       if (squared_distance_to_center > sector_radius * sector_radius) return false;
       double angle_to_center = std::atan2(delta_y, delta_x);
       double angle_offset = angle_to_center - sector_bearing_rad;
-      // wrap to [-pi, pi]
+      // Normalize to [-pi, pi] so wrap-around at +/-pi does not misclassify boundary angles.
       while (angle_offset > M_PI) angle_offset -= 2.0 * M_PI;
       while (angle_offset < -M_PI) angle_offset += 2.0 * M_PI;
       return std::abs(angle_offset) <= (sector_fov_rad * 0.5 + 1e-9);
@@ -1376,9 +1403,10 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
 
     auto is_bounding_box_inside_sector = [&](const BoundingBox& bbox) -> bool {
       if (!require_complete_box_inside) {
+        // "center": cheaper and less strict; keeps boxes with centroids inside the sector.
         return is_point_inside_sector(bbox.center[0], bbox.center[1]);
       }
-      // Check all 4 rectangle vertices in 2D
+      // "complete": conservative; all 4 oriented box corners must remain inside.
       auto vertices = bbox.rectangle_vertices();
       for (const auto& vertex : vertices) {
         if (!is_point_inside_sector(vertex.x, vertex.y)) return false;
