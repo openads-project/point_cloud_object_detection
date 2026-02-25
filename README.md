@@ -57,13 +57,6 @@ All output topics are node-relative (start with `~`) and are always in the node'
 ## Launch File Usage
 The provided [launch file](point_cloud_object_detection/launch/point_cloud_object_detection.launch.py) declares remappable topics for all inputs and outputs.
 
-If your detection network predicts additional or different classes than the ones listed in the launch file, you need to add remapping arguments for those class-specific point cloud topics. For each of your classes, add a `DeclareLaunchArgument` for the topic, for example:
-
-```python
-DeclareLaunchArgument('class_point_clouds_myclass',
-                      default_value='~/class_point_clouds/myclass'),
-```
-
 Example usage:
 
 ```bash
@@ -92,8 +85,6 @@ Invalid parameter values result in a fatal log message and the node shuts down. 
 | `sensor_id` | `int` | [**dynamic**] Sensor identifier stored on every object. | `-1` for a random id at start-up, otherwise a non-negative integer. |
 | `variances` | `double array` | [**dynamic**] Continuous-state covariance diagonal. | Exactly 12 entries; each entry must be ≥ 0.0 or `-1.0` (`CONTINUOUS_STATE_COVARIANCE_UNKNOWN`). |
 | `class_score_threshold` | `double` | [**dynamic**] Minimum class score kept in the output list. | Must be within `[0.0, 1.0]`. |
-| `publish_class_point_clouds` | `bool` | Publish per-class point clouds. | - |
-| `publish_unclassified_points` | `bool` | Publish points not covered by any bounding box. | - |
 
 **No-Detection Zone (inference_frame)**
 
@@ -124,7 +115,6 @@ If `remove_points` or `enabled` is true and the bounds are invalid, the node log
 | `detection_area.publish_polygon` | `bool` | Publish the sector as `geometry_msgs/msg/PolygonStamped` on `~/detection_area`. | - |
 | `detection_area.filter_detections` | `bool` | Remove detections outside the sector. | - |
 | `detection_area.filter_mode` | `string` | Filtering mode. | Must be either `center` or `complete`. |
-| `publish_unclassified_points_outside_detection_area` | `bool` | Publish unclassified points that lie outside the configured sector. | Only meaningful when the detection area is enabled with a positive radius. |
 
 Any violation of the detection area constraints above causes the node to emit a fatal error and terminate.
 

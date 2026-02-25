@@ -10,6 +10,7 @@
 
 #include <chrono>
 #include <cstddef>
+#include <mutex>
 #include <perception_msgs/msg/object.hpp>
 #include <perception_msgs/msg/object_list.hpp>
 #include <perception_msgs_utils/object_access.hpp>
@@ -157,6 +158,7 @@ class PointCloudObjectDetection : public rclcpp::Node {
  private:
   Params params_;
   ModelConfig model_config_;
+  std::mutex model_mutex_;
 
   std::unique_ptr<Model> detection_model_;
   pcod_common::NmsConfig nms_config_;

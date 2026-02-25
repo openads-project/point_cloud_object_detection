@@ -16,20 +16,6 @@ def generate_launch_description():
                               default_value='~/point_cloud'),
         DeclareLaunchArgument('object_list_topic',
                               default_value='~/object_list'),
-        DeclareLaunchArgument('class_point_cloud_car_topic',
-                              default_value='~/class_point_cloud/car'),
-        DeclareLaunchArgument('class_point_cloud_pedestrian_topic',
-                              default_value='~/class_point_cloud/pedestrian'),
-        DeclareLaunchArgument('class_point_cloud_truck_topic',
-                              default_value='~/class_point_cloud/truck'),
-        DeclareLaunchArgument('class_point_cloud_trailer_topic',
-                              default_value='~/class_point_cloud/trailer'),
-        DeclareLaunchArgument('class_point_cloud_bus_topic',
-                              default_value='~/class_point_cloud/bus'),
-        DeclareLaunchArgument('class_point_cloud_two_wheeler_topic',
-                              default_value='~/class_point_cloud/two_wheeler'),
-        DeclareLaunchArgument('unclassified_point_cloud_topic',
-                              default_value='~/unclassified_point_cloud'),
     ]
 
     args = [
