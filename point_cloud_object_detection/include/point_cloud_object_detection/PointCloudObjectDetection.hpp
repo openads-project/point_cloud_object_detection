@@ -8,10 +8,10 @@
 #include <tf2_ros/transform_listener.h>
 #include <triton_cpp/triton_interface.hpp>
 
+#include <atomic>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
-#include <atomic>
 #include <functional>
 #include <mutex>
 #include <optional>

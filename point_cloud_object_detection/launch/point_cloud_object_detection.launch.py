@@ -15,9 +15,25 @@ def generate_launch_description():
 
     remappable_topics = [
         DeclareLaunchArgument("point_cloud_topic",
-                              default_value="~/point_cloud"),
+                              default_value="~/point_cloud",
+                              description="input point cloud topic remap"),
         DeclareLaunchArgument("object_list_topic",
-                              default_value="~/object_list"),
+                              default_value="~/object_list",
+                              description="output object list topic remap"),
+        DeclareLaunchArgument(
+            "no_detection_zone_topic",
+            default_value="~/no_detection_zone",
+            description="no-detection zone polygon topic remap"),
+        DeclareLaunchArgument(
+            "no_detection_zone_points_topic",
+            default_value="~/no_detection_zone_points",
+            description="no-detection zone points topic remap"),
+        DeclareLaunchArgument("detection_area_topic",
+                              default_value="~/detection_area",
+                              description="detection area polygon topic remap"),
+        DeclareLaunchArgument("model_bounds_topic",
+                              default_value="~/model_bounds",
+                              description="model bounds polygon topic remap"),
     ]
 
     args = [
@@ -31,7 +47,7 @@ def generate_launch_description():
             "params",
             default_value=os.path.join(
                 get_package_share_directory("point_cloud_object_detection"),
-                "config", "params_test.yml"),
+                "config", "params.yml"),
             description="path to parameter file"),
         DeclareLaunchArgument(
             "log_level",
