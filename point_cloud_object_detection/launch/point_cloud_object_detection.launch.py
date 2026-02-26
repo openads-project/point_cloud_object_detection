@@ -4,7 +4,7 @@ import os
 
 from ament_index_python import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, SetEnvironmentVariable
 from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node, SetParameter
@@ -50,6 +50,13 @@ def generate_launch_description():
                 "config", "params.yml"),
             description="path to parameter file"),
         DeclareLaunchArgument(
+            "manifest_path",
+            default_value=os.path.join(
+                get_package_share_directory("point_cloud_object_detection"),
+                "model_manifests",
+                "model_manifest_karl.yml"),
+            description="path to model_manifest.yml (absolute or package-relative)"),
+        DeclareLaunchArgument(
             "log_level",
             default_value="info",
             description="ROS logging level (debug, info, warn, error, fatal)"),
@@ -90,6 +97,8 @@ def generate_launch_description():
 
     return LaunchDescription([
         *args,
+        SetEnvironmentVariable("POINT_CLOUD_OBJECT_DETECTION_MODEL_MANIFEST_PATH",
+                               LaunchConfiguration("manifest_path")),
         SetParameter("use_sim_time", LaunchConfiguration("use_sim_time")),
         *nodes,
     ])

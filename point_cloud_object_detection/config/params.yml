@@ -1,6 +1,5 @@
 /**:
   ros__parameters:
-    prediction.model_manifest_path: "model_manifests/model_manifest_karl.yml"
     prediction.server_url: "triton-server:8001"
     preprocessing.inference_frame: base_link
 

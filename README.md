@@ -44,6 +44,7 @@ Example usage:
 ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py \
     namespace:=/perception \
     params:=/docker-ros/ws/src/target/point_cloud_object_detection/config/params.yml \
+    manifest_path:=/docker-ros/ws/src/target/point_cloud_object_detection/model_manifests/model_manifest_karl.yml \
     point_cloud_topic:=/my_lidar/points \
     object_list_topic:=/my_lidar/objects
 ```
@@ -55,6 +56,7 @@ ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py 
 | `name` | `string` | Node name (default: `point_cloud_object_detection`). |
 | `namespace` | `string` | Node namespace (default: empty). |
 | `params` | `string` | Path to parameter file (default: `point_cloud_object_detection/config/params.yml` from package share). |
+| `manifest_path` | `string` | Path to exported `model_manifest.yml` (default: `point_cloud_object_detection/model_manifests/model_manifest_karl.yml` from package share). |
 | `log_level` | `string` | ROS log level (`debug|info|warn|error|fatal`, default: `info`). |
 | `use_sim_time` | `bool` | Use simulation clock (`true|false`, default: `false`). |
 | `trace` | `bool` | Enable tracing (`true|false`, default: `false`). |
@@ -73,7 +75,6 @@ At startup, invalid parameter values fail initialization (typically with a fatal
 
 | Parameter | Type | Description | Constraints |
 | --- | --- | --- | --- |
-| `prediction.model_manifest_path` | `string` | Path (relative to the package) of the exported `model_manifest.yml`. | Required. |
 | `prediction.server_url` | `string` | Triton server host:port combination. | Required at startup. Read-only at runtime. |
 | `prediction.triton_client_timeout_s` | `double` | [**dynamic**] Client timeout for Triton requests in seconds (`0.0` disables timeout). | Must be in `[0.0, 300.0]`. |
 | `prediction.use_shm` | `bool` | Enable Triton shared-memory transport. | Requires client and Triton on the same host with a shared IPC namespace (e.g., Docker `ipc: host` or equivalent). |
@@ -126,7 +127,7 @@ At startup, invalid parameter values fail initialization (typically with a fatal
 | `output.variances` | `double array` | [**dynamic**] Continuous-state covariance diagonal. | Exactly 12 entries; each entry must be ≥ 0.0 or `-1.0` (`CONTINUOUS_STATE_COVARIANCE_UNKNOWN`). |
 | `output.model_bounds.publish_polygon` | `bool` | Publish the xy bounds as `geometry_msgs/msg/PolygonStamped` on `~/model_bounds`. | - |
 
-Model-specific parameters (grid size, class names, stride, etc.) are loaded from the exported `model_manifest.yml`.
+Model-specific parameters (grid size, class names, stride, etc.) are loaded from the exported `model_manifest.yml` selected via launch argument `manifest_path`.
 `postprocessing.nms.score_threshold`, `postprocessing.nms.iou_threshold`, and `postprocessing.nms.max_num_objects` can optionally override their manifest values at runtime.
 The Triton model identity (`model_name`, `model_version`) is also loaded from `triton.model_name` and `triton.model_version` inside that manifest, not from separate ROS parameters.
 
@@ -156,7 +157,7 @@ ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py
 | Package | File | Source Path | Installed Path | Description |
 | --- | --- | --- | --- | --- |
 | `point_cloud_object_detection` | `params.yml` | `/docker-ros/ws/src/target/point_cloud_object_detection/config/params.yml` | `/docker-ros/ws/install/point_cloud_object_detection/share/point_cloud_object_detection/config/params.yml` | Default runtime parameter file used by launch. |
-| `point_cloud_object_detection` | `model_manifest_karl.yml` | `/docker-ros/ws/src/target/point_cloud_object_detection/model_manifests/model_manifest_karl.yml` | `/docker-ros/ws/install/point_cloud_object_detection/share/point_cloud_object_detection/model_manifests/model_manifest_karl.yml` | Model export manifest loaded via `prediction.model_manifest_path`. |
+| `point_cloud_object_detection` | `model_manifest_karl.yml` | `/docker-ros/ws/src/target/point_cloud_object_detection/model_manifests/model_manifest_karl.yml` | `/docker-ros/ws/install/point_cloud_object_detection/share/point_cloud_object_detection/model_manifests/model_manifest_karl.yml` | Model export manifest selected via launch argument `manifest_path`. |
 
 ## Point Cloud Input Fields
 
