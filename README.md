@@ -69,7 +69,7 @@ ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py 
 
 ## Parameters
 
-At startup, invalid parameter values fail initialization (typically with a fatal log and exception). At runtime, invalid dynamic updates are rejected and the previous configuration is kept. The tables below list the allowed ranges and constraints.
+At startup, invalid parameter values fail initialization. At runtime, invalid dynamic updates are rejected and the previous configuration is kept. The tables below list the allowed ranges and constraints.
 
 **Prediction Parameters**
 
