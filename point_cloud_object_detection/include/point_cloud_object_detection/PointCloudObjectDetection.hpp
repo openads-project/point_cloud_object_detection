@@ -11,6 +11,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <atomic>
 #include <functional>
 #include <mutex>
 #include <optional>
@@ -70,6 +71,10 @@ class PointCloudObjectDetection : public rclcpp::Node {
    * @brief Synchronize model runtime options from the loaded node parameters
    */
   void syncModelRuntimeConfigFromParams();
+  /**
+   * @brief Apply optional NMS overrides from node params onto manifest-derived model config
+   */
+  void syncNmsRuntimeConfigFromParams();
   /**
    * @brief Loads all ROS parameters for the model depending on the architecture
    */
@@ -156,12 +161,15 @@ class PointCloudObjectDetection : public rclcpp::Node {
   static constexpr int64_t kSensorIdStep = 1;
   static constexpr double kMinClassScoreThreshold = 0.0;
   static constexpr double kMaxClassScoreThreshold = 1.0;
+  static constexpr double kMaxTritonClientTimeoutS = 300.0;
   static constexpr double kMinDetectionAreaRadius = 0.0;
+  static constexpr double kMaxDetectionAreaRadius = 1000.0;
   static constexpr double kMinDetectionAreaBearingDeg = -360.0;
   static constexpr double kMaxDetectionAreaBearingDeg = 360.0;
   static constexpr double kMinDetectionAreaFovDeg = 0.0;
   static constexpr double kMaxDetectionAreaFovDeg = 360.0;
   static constexpr int64_t kMinDetectionAreaNumSegments = 3;
+  static constexpr int64_t kMaxDetectionAreaNumSegments = 2048;
 
   // other member variables
   rclcpp::TimerBase::SharedPtr setup_timer_;
@@ -192,6 +200,7 @@ class PointCloudObjectDetection : public rclcpp::Node {
 
   std::unique_ptr<Model> detection_model_;
   pcod_common::NmsConfig nms_config_;
+  std::atomic<bool> publishers_update_pending_{false};
 };
 
 }  // namespace point_cloud_object_detection
