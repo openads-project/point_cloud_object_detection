@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <limits>
 
 #include <tf2/transform_datatypes.h>
 #include <tf2_ros/buffer.h>
@@ -96,6 +97,10 @@ struct Params {
 
   std::vector<double> variance = std::vector<double>(12, -1.0);  // CONTINUOUS_STATE_COVARIANCE_UNKNOWN sentinel
   double class_score_threshold = 0.0;
+  // If NaN, use model-manifest value.
+  double nms_iou_threshold = std::numeric_limits<double>::quiet_NaN();
+  // If < 0, use model-manifest value.
+  int64_t nms_max_num_objects = -1;
   std::string point_feature_field = "intensity";
 
   // Optional no-detection rectangle (in inference_frame) where detections are not allowed

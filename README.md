@@ -55,7 +55,9 @@ All output topics are node-relative (start with `~`) and are always in the node'
 - You **must** deactivate shared memory (SHM) for multiple instances, i.e., set `use_shm: False` in the [parameter file](point_cloud_object_detection/config/params.yml). 
 
 ## Launch File Usage
-The provided [launch file](point_cloud_object_detection/launch/point_cloud_object_detection.launch.py) declares remappable topics for all inputs and outputs.
+The provided [launch file](point_cloud_object_detection/launch/point_cloud_object_detection.launch.py) declares remappable topics for:
+- `~/point_cloud` via launch arg `point_cloud_topic`
+- `~/object_list` via launch arg `object_list_topic`
 
 Example usage:
 
@@ -73,18 +75,18 @@ Invalid parameter values result in a fatal log message and the node shuts down. 
 
 | Parameter | Type | Description | Constraints |
 | --- | --- | --- | --- |
-| `point_cloud_transport` | `string` | Transport hint for the `point_cloud_transport` subscriber. | - |
-| `model_name` | `string` | [**required**] Model name on the Triton server. | - |
-| `model_version` | `string` | [**required**] Model version on the Triton server. Although numeric, it must be provided as a string. | - |
 | `model_manifest_path` | `string` | Path (relative to the package) of the exported `model_manifest.yml`. | - |
-| `point_feature_source` | `string` | [**dynamic**] Source for the single feature channel (`intensity` or `reflectivity`). | Must be `intensity` or `reflectivity`. |
-| `server_url` | `string` | Triton server host:port combination. | - |
+| `server_url` | `string` | Triton server host:port combination. | Required at startup. Read-only at runtime. |
+| `triton_client_timeout_s` | `double` | [**dynamic**] Client timeout for Triton requests in seconds (`0.0` disables timeout). | Must be in `[0.0, 300.0]`. |
 | `use_shm` | `bool` | Enable Triton shared-memory transport. | Requires client and Triton on the same host with a shared IPC namespace (e.g., Docker `ipc: host` or equivalent). |
 | `inference_frame` | `string` | [**dynamic**] Frame used for preprocessing and filters. | - |
 | `output_frame` | `string` | [**dynamic**] Frame reported in the output object list. | - |
-| `sensor_id` | `int` | [**dynamic**] Sensor identifier stored on every object. | `-1` for a random id at start-up, otherwise a non-negative integer. |
+| `sensor_id` | `int` | [**dynamic**] Sensor identifier stored on every object. | Must be within `[0, 100000]`. |
+| `point_feature_field` | `string` | [**dynamic**] Source for the single feature channel (`intensity` or `reflectivity`). | Must be `intensity` or `reflectivity`. |
 | `variances` | `double array` | [**dynamic**] Continuous-state covariance diagonal. | Exactly 12 entries; each entry must be ≥ 0.0 or `-1.0` (`CONTINUOUS_STATE_COVARIANCE_UNKNOWN`). |
 | `class_score_threshold` | `double` | [**dynamic**] Minimum class score kept in the output list. | Must be within `[0.0, 1.0]`. |
+| `nms_iou_threshold` | `double` | [**dynamic**] Optional NMS IoU threshold override. | If unset, uses `postprocessing.nms_iou_threshold` from `model_manifest.yml`; if set, must be within `[0.0, 1.0]`. |
+| `nms_max_num_objects` | `int` | [**dynamic**] Optional maximum number of objects after NMS. | If unset, uses `postprocessing.max_detections` from `model_manifest.yml`; if set, must be zero or positive. |
 
 **No-Detection Zone (inference_frame)**
 
@@ -125,14 +127,8 @@ Any violation of the detection area constraints above causes the node to emit a 
 | `model_bounds.publish_polygon` | `bool` | Publish the xy bounds as `geometry_msgs/msg/PolygonStamped` on `~/model_bounds`. | - |
 
 Model-specific parameters (grid size, class names, stride, etc.) are loaded from the exported `model_manifest.yml`.
-
-**NMS parameters (overrides manifest)**
-
-| Parameter | Type | Description | Constraints |
-| --- | --- | --- | --- |
-| `nms_max_num_objects` | `int` | [**dynamic**] Maximum number of objects considered during NMS. | Must be ≥ 0. |
-| `nms_iou_threshold` | `double` | [**dynamic**] IoU threshold for suppression. | Must be within `[0.0, 1.0]`. |
-| `nms_score_threshold` | `double array` | [**dynamic**] Minimum score(s) used during suppression. | Provide either one value or one per class; every entry must lie within `[0.0, 1.0]`. |
+`nms_iou_threshold` and `nms_max_num_objects` can optionally override their manifest values at runtime.
+The Triton model identity (`model_name`, `model_version`) is also loaded from `triton.model_name` and `triton.model_version` inside that manifest, not from separate ROS parameters.
 
 
 ## Usage of docker-ros Images
@@ -165,7 +161,7 @@ ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py
 
 ## Point Cloud Input Fields
 
-The node accepts `sensor_msgs/PointCloud2` messages that always contain XYZ coordinates. The `point_feature_source` parameter controls how the single feature channel is extracted before being forwarded to the model:
+The node accepts `sensor_msgs/PointCloud2` messages that always contain XYZ coordinates. The `point_feature_field` parameter controls how the single feature channel is extracted before being forwarded to the model:
 
 - `intensity` *(default)* – consumes the ROS `intensity` field as the single feature channel.
 - `reflectivity` – consumes the ROS `reflectivity` field as the single feature channel. The field must exist and can be any numeric PointField datatype (`INT8/UINT8/INT16/UINT16/INT32/UINT32/FLOAT32/FLOAT64`); values are converted to `FLOAT32` internally.
