@@ -4,8 +4,8 @@
 #include <array>
 #include <chrono>
 #include <cmath>
-#include <cstdlib>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <iostream>
@@ -931,8 +931,7 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
   bool model_change_on_runtime = false;
   bool publishers_changed = false;
   for (const auto& param : parameters) {
-    if (name_in(param.get_name(),
-                {"prediction.triton_client_timeout_s", "prediction.use_shm"})) {
+    if (name_in(param.get_name(), {"prediction.triton_client_timeout_s", "prediction.use_shm"})) {
       model_change_on_runtime = true;
     }
     if (name_in(param.get_name(),
