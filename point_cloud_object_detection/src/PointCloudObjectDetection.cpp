@@ -4,6 +4,7 @@
 #include <array>
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
@@ -26,6 +27,8 @@
 namespace point_cloud_object_detection {
 
 namespace {
+
+constexpr char kManifestPathEnvVar[] = "POINT_CLOUD_OBJECT_DETECTION_MODEL_MANIFEST_PATH";
 
 [[noreturn]] void throwParameterError(const rclcpp::Logger& logger, const std::string& param_name,
                                       const std::string& details) {
@@ -56,6 +59,17 @@ std::string allowedPointFeatureFieldsString() {
 bool isSupportedManifestPrecision(const std::string& precision) {
   return std::any_of(kSupportedManifestPrecisions.begin(), kSupportedManifestPrecisions.end(),
                      [&](const char* supported) { return precision == supported; });
+}
+
+std::string resolveModelManifestPath(const std::string& path) {
+  if (path.empty()) {
+    return path;
+  }
+  if (std::filesystem::path(path).is_absolute()) {
+    return path;
+  }
+  const auto share_dir = ament_index_cpp::get_package_share_directory("point_cloud_object_detection");
+  return (std::filesystem::path(share_dir) / path).string();
 }
 
 std::string resolvePrimaryFeatureField(const ModelConfig& model_config, const Params& params) {
@@ -199,6 +213,10 @@ const std::map<uint8_t, std::vector<std::string>> PointCloudObjectDetection::kPo
 
 PointCloudObjectDetection::PointCloudObjectDetection(const rclcpp::NodeOptions& options)
     : rclcpp::Node("point_cloud_object_detection", options) {
+  const char* manifest_path = std::getenv(kManifestPathEnvVar);
+  if (manifest_path != nullptr) {
+    model_manifest_path_ = manifest_path;
+  }
   declareParameters();
   loadParameters();
 
@@ -327,13 +345,6 @@ void PointCloudObjectDetection::declareParameters() {
                                 false,                                                          // read_only
                                 std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
                                 "");                                                            // additional_constraints
-  this->declareAndLoadParameter("prediction.model_manifest_path", params_.model_manifest_path,             // name
-                                "Path to model_manifest.yml exported by training",              // description
-                                true,                                                          // add_to_auto_reconfigurable_params
-                                true,                                                           // is_required
-                                false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "Must be set.");                                                // additional_constraints
   this->declareAndLoadParameter("preprocessing.inference_frame", params_.inference_frame,                     // name
                                 "Frame for inference",                                          // description
                                 true,                                                          // add_to_auto_reconfigurable_params
@@ -641,17 +652,12 @@ void PointCloudObjectDetection::validateParamsOrThrow() const {
   if (!isFinite(params_.triton_client_timeout_s)) {
     fail("prediction.triton_client_timeout_s", "must be finite");
   }
-  if (params_.model_manifest_path.empty()) {
-    fail("prediction.model_manifest_path", "must be set to the exported model_manifest.yml");
-  } else {
-    std::string manifest_path = params_.model_manifest_path;
-    if (!std::filesystem::path(manifest_path).is_absolute()) {
-      const auto share_dir = ament_index_cpp::get_package_share_directory("point_cloud_object_detection");
-      manifest_path = (std::filesystem::path(share_dir) / manifest_path).string();
-    }
-    if (!std::filesystem::exists(manifest_path)) {
-      fail("prediction.model_manifest_path", "model_manifest.yml does not exist at the configured path");
-    }
+  if (model_manifest_path_.empty()) {
+    fail("launch.manifest_path", std::string("must be set via launch argument (env ") + kManifestPathEnvVar + ")");
+  }
+  const std::string resolved_manifest_path = resolveModelManifestPath(model_manifest_path_);
+  if (!std::filesystem::exists(resolved_manifest_path)) {
+    fail("launch.manifest_path", "model_manifest.yml does not exist at the configured path");
   }
 
   if (!isFinite(params_.no_detection_zone_x_min) || !isFinite(params_.no_detection_zone_x_max) ||
@@ -704,36 +710,32 @@ bool PointCloudObjectDetection::updateNMSScoreThreshold(std::vector<double>& sco
 }
 
 void PointCloudObjectDetection::loadModelConfig() {
-  std::string manifest_path = params_.model_manifest_path;
-  if (!manifest_path.empty() && !std::filesystem::path(manifest_path).is_absolute()) {
-    const auto share_dir = ament_index_cpp::get_package_share_directory("point_cloud_object_detection");
-    manifest_path = (std::filesystem::path(share_dir) / manifest_path).string();
-  }
+  const std::string manifest_path = resolveModelManifestPath(model_manifest_path_);
   pcod_common::ModelManifest manifest = pcod_common::LoadModelManifest(manifest_path);
   pcod_common::ValidateModelManifest(manifest);
 
   const std::string manifest_precision = boost::algorithm::to_lower_copy(manifest.precision);
   if (!isSupportedManifestPrecision(manifest_precision)) {
-    throwParameterError(this->get_logger(), "prediction.model_manifest_path",
+    throwParameterError(this->get_logger(), "launch.manifest_path",
                         "manifest precision must be either 'fp32' or 'fp16'");
   }
   if (!manifest.triton.precision.empty()) {
     const std::string triton_precision = boost::algorithm::to_lower_copy(manifest.triton.precision);
     if (!isSupportedManifestPrecision(triton_precision)) {
-      throwParameterError(this->get_logger(), "prediction.model_manifest_path",
+      throwParameterError(this->get_logger(), "launch.manifest_path",
                           "manifest triton.precision must be either 'fp32' or 'fp16'");
     }
     if (triton_precision != manifest_precision) {
-      throwParameterError(this->get_logger(), "prediction.model_manifest_path",
+      throwParameterError(this->get_logger(), "launch.manifest_path",
                           "manifest precision and triton.precision must match");
     }
   }
   const std::string manifest_device = boost::algorithm::to_lower_copy(manifest.device);
   if (manifest_device.rfind("cuda", 0) != 0) {
-    throwParameterError(this->get_logger(), "prediction.model_manifest_path", "manifest device must start with 'cuda'");
+    throwParameterError(this->get_logger(), "launch.manifest_path", "manifest device must start with 'cuda'");
   }
   if (manifest.triton.model_name.empty() || manifest.triton.model_version.empty()) {
-    throwParameterError(this->get_logger(), "prediction.model_manifest_path",
+    throwParameterError(this->get_logger(), "launch.manifest_path",
                         "manifest must define triton.model_name and triton.model_version");
   }
   params_.model_name = manifest.triton.model_name;
@@ -930,7 +932,7 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
   bool publishers_changed = false;
   for (const auto& param : parameters) {
     if (name_in(param.get_name(),
-                {"prediction.model_manifest_path", "prediction.triton_client_timeout_s", "prediction.use_shm"})) {
+                {"prediction.triton_client_timeout_s", "prediction.use_shm"})) {
       model_change_on_runtime = true;
     }
     if (name_in(param.get_name(),

@@ -195,6 +195,7 @@ class PointCloudObjectDetection : public rclcpp::Node {
 
  private:
   Params params_;
+  std::string model_manifest_path_;
   ModelConfig model_config_;
   std::mutex model_mutex_;
 
