@@ -1,39 +1,43 @@
 /**:
   ros__parameters:
-    model_manifest_path: "model_manifests/model_manifest_karl.yml"
-    server_url: "triton-server:8001"
-    inference_frame: base_link
+    prediction.model_manifest_path: "model_manifests/model_manifest_karl.yml"
+    prediction.server_url: "triton-server:8001"
+    preprocessing.inference_frame: base_link
 
     # Optional parameters (aligned with header defaults)
-    triton_client_timeout_s: 2.0
-    use_shm: false
-    point_cloud_transport: raw
-    point_feature_field: "intensity"
-    output_frame: ""
-    sensor_id: 0
+    prediction.triton_client_timeout_s: 2.0
+    prediction.use_shm: false
+    input.point_feature_field: "intensity"
+    output.frame: ""
+    output.sensor_id: 0
 
     # Default variance vector used by the node (CONTINUOUS_STATE_COVARIANCE_UNKNOWN = -1.0)
-    variances: [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0]
-    class_score_threshold: 0.0
+    output.variances: [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0]
+    postprocessing.class_score_threshold: 0.0
+    # Optional NMS score threshold override (single value or per-class list); if unset, manifest score_threshold is used
+    # postprocessing.nms.score_threshold: [0.1]
+    # Optional NMS overrides (leave unset to use values from model manifest)
+    # postprocessing.nms.iou_threshold: 0.2
+    # postprocessing.nms.max_num_objects: 64
 
-    no_detection_zone.enabled: false
-    no_detection_zone.remove_points: false
-    no_detection_zone.x_min: 0.0
-    no_detection_zone.x_max: 0.0
-    no_detection_zone.y_min: 0.0
-    no_detection_zone.y_max: 0.0
-    no_detection_zone.publish_polygon: false
-    no_detection_zone.publish_points: false
+    preprocessing.no_detection_zone.enabled: false
+    preprocessing.no_detection_zone.remove_points: false
+    preprocessing.no_detection_zone.x_min: 0.0
+    preprocessing.no_detection_zone.x_max: 0.0
+    preprocessing.no_detection_zone.y_min: 0.0
+    preprocessing.no_detection_zone.y_max: 0.0
+    preprocessing.no_detection_zone.publish_polygon: false
+    preprocessing.no_detection_zone.publish_points: false
 
-    detection_area.enabled: false
-    detection_area.center_x: 0.0
-    detection_area.center_y: 0.0
-    detection_area.radius: 0.0
-    detection_area.bearing_deg: 0.0
-    detection_area.fov_deg: 360.0
-    detection_area.publish_polygon: false
-    detection_area.num_segments: 32
-    detection_area.filter_detections: false
-    detection_area.filter_mode: "center"
+    preprocessing.detection_area.enabled: false
+    preprocessing.detection_area.center_x: 0.0
+    preprocessing.detection_area.center_y: 0.0
+    preprocessing.detection_area.radius: 0.0
+    preprocessing.detection_area.bearing_deg: 0.0
+    preprocessing.detection_area.fov_deg: 360.0
+    preprocessing.detection_area.publish_polygon: false
+    preprocessing.detection_area.num_segments: 32
+    preprocessing.detection_area.filter_detections: false
+    preprocessing.detection_area.filter_mode: "center"
 
-    model_bounds.publish_polygon: false
+    output.model_bounds.publish_polygon: false
