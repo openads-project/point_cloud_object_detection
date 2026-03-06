@@ -78,6 +78,18 @@ rclcpp_components_register_node(${PROJECT_NAME}_lib
   PLUGIN "point_cloud_object_detection::PointCloudObjectDetection"
   EXECUTABLE ${PROJECT_NAME})
 
+set(_triton_runtime_paths "/opt/tritonclient/lib;/opt/tritonclient/tritonserver/clients/lib")
+set_target_properties(${PROJECT_NAME}_lib PROPERTIES
+  BUILD_RPATH "${_triton_runtime_paths}"
+  INSTALL_RPATH "${_triton_runtime_paths}"
+  INSTALL_RPATH_USE_LINK_PATH TRUE
+)
+set_target_properties(${PROJECT_NAME} PROPERTIES
+  BUILD_RPATH "${_triton_runtime_paths}"
+  INSTALL_RPATH "${_triton_runtime_paths}"
+  INSTALL_RPATH_USE_LINK_PATH TRUE
+)
+
 install(TARGETS ${PROJECT_NAME}_lib
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
