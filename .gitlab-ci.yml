@@ -7,7 +7,7 @@ variables:
   PLATFORM: amd64,arm64
   RMW_IMPLEMENTATION: rmw_zenoh_cpp
   ENABLE_RECURSIVE_VCS_IMPORT: 'false'
-  COMMAND: bash -ic 'ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py'
+  COMMAND: ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py
   ENABLE_INDUSTRIAL_CI: 'true'
   TARGET: dev,run
   TARGET_CMAKE_ARGS : '-DCMAKE_EXPORT_COMPILE_COMMANDS=1'
