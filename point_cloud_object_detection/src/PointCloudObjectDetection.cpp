@@ -1081,10 +1081,6 @@ void PointCloudObjectDetection::initializeModel() {
 }
 
 void PointCloudObjectDetection::setupPublishers() {
-  // Use a non-owning node handle to avoid ownership cycles with transport plugins.
-  auto node_handle = std::shared_ptr<rclcpp::Node>(this, [](rclcpp::Node*) {});
-  point_cloud_transport::PointCloudTransport pct(node_handle);
-
   // create no-detection zone polygon publisher if enabled
   if (params_.no_detection_zone_publish_polygon) {
     if (!no_detection_zone_pub_) {
@@ -1122,7 +1118,7 @@ void PointCloudObjectDetection::setupPublishers() {
     if (!no_detection_zone_points_publisher_) {
       std::string topic_name = this->get_node_topics_interface()->resolve_topic_name(kNoDetectionZonePointsTopic);
       no_detection_zone_points_publisher_ =
-          std::make_shared<point_cloud_transport::Publisher>(pct.advertise(topic_name, 1));
+          std::make_shared<point_cloud_transport::Publisher>(point_cloud_transport_->advertise(topic_name, 1));
       RCLCPP_INFO(this->get_logger(), "Publishing no-detection zone points to '%s'",
                   no_detection_zone_points_publisher_->getTopic().c_str());
     }
@@ -1140,12 +1136,13 @@ void PointCloudObjectDetection::setup() {
   tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
   tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
-  // create subscriber and publisher
-  std::string resolved_input_topic = this->get_node_topics_interface()->resolve_topic_name(kInputTopic);
   // Use a non-owning node handle to avoid ownership cycles with transport plugins.
   auto node_handle = std::shared_ptr<rclcpp::Node>(this, [](rclcpp::Node*) {});
-  point_cloud_transport::PointCloudTransport pct(node_handle);
-  subscriber_ = std::make_shared<point_cloud_transport::Subscriber>(pct.subscribe(
+  point_cloud_transport_ = std::make_unique<point_cloud_transport::PointCloudTransport>(node_handle);
+
+  // create subscriber and publisher
+  std::string resolved_input_topic = this->get_node_topics_interface()->resolve_topic_name(kInputTopic);
+  subscriber_ = std::make_shared<point_cloud_transport::Subscriber>(point_cloud_transport_->subscribe(
       resolved_input_topic, 1, std::bind(&PointCloudObjectDetection::predict, this, std::placeholders::_1),
       std::shared_ptr<void>()));
   publisher_ = create_publisher<pm::msg::ObjectList>(kOutputTopic, 1);
