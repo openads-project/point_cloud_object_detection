@@ -8,6 +8,8 @@
     prediction.triton_client_timeout_s: 2.0
     prediction.use_shm: false
     input.point_feature_field: "intensity"
+    # Optional point-feature normalization override; if unset, manifest intensity_threshold is used
+    # preprocessing.point_feature.intensity_threshold: 5000.0
     output.frame: ""
     output.sensor_id: 0
 

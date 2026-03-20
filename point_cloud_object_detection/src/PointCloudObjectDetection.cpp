@@ -391,44 +391,52 @@ void PointCloudObjectDetection::declareParameters() {
                                 true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                      // from_value, to_value, step_value
-                                "If set, must be within [0.0, 1.0].");                         // additional_constraints
+                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
+                                "If set, must be within [0.0, 1.0].");                          // additional_constraints
   this->declareAndLoadParameter("postprocessing.nms.max_num_objects", params_.nms_max_num_objects,            // name
                                 "Maximum number of objects after NMS override; if unset, value from model manifest is used",
                                 true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                      // from_value, to_value, step_value
-                                "If set, must be zero or positive.");                          // additional_constraints
+                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
+                                "If set, must be zero or positive.");                           // additional_constraints
   this->declareAndLoadParameter("postprocessing.nms.score_threshold", params_.nms_score_threshold,            // name
                                 "NMS score threshold override (single value or per-class list); if unset, manifest value is used",
                                 true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                      // from_value, to_value, step_value
+                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
                                 "If set, must contain exactly one value or one value per predicted class; entries must be in [0.0, 1.0].");
   this->declareAndLoadParameter("input.point_feature_field", params_.point_feature_field,          // name
-                                "Single-feature source: 'intensity' or 'reflectivity'",        // description
-                                true,                                                          // add_to_auto_reconfigurable_params
+                                "Single-feature source: 'intensity' or 'reflectivity'",         // description
+                                true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                      // from_value, to_value, step_value
+                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
                                 "");                                                            // additional_constraints
+  this->declareAndLoadParameter("preprocessing.point_feature.intensity_threshold",
+                                params_.point_feature_intensity_threshold,                      // name
+                                "Point-feature intensity-threshold override; if unset, value from model manifest is used",
+                                true,                                                           // add_to_auto_reconfigurable_params
+                                false,                                                          // is_required
+                                false,                                                          // read_only
+                                0.0, 1000000.0, std::nullopt,                                   // from_value, to_value, step_value
+                                "If set, must be greater than 0 when intensity_threshold normalization is used.");
 
   this->declareAndLoadParameter("preprocessing.no_detection_zone.enabled", params_.no_detection_zone_enabled,
                                 "Enable rectangular no-detection zone in inference_frame",      // description
-                                true,                                                          // add_to_auto_reconfigurable_params
+                                true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                      // from_value, to_value, step_value
+                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
                                 "");                                                            // additional_constraints
   this->declareAndLoadParameter("preprocessing.no_detection_zone.remove_points", params_.no_detection_zone_remove_points,
                                 "If true, remove raw points inside the no-detection zone from model input and"
                                 " unclassified point publishing",
-                                true,                                                          // add_to_auto_reconfigurable_params
+                                true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                      // from_value, to_value, step_value
+                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
                                 "");                                                            // additional_constraints
   this->declareAndLoadParameter("preprocessing.no_detection_zone.x_min", params_.no_detection_zone_x_min,    // name
                                 "No-detection zone x_min (inference_frame)",                    // description
@@ -439,92 +447,92 @@ void PointCloudObjectDetection::declareParameters() {
                                 "");                                                            // additional_constraints
   this->declareAndLoadParameter("preprocessing.no_detection_zone.x_max", params_.no_detection_zone_x_max,    // name
                                 "No-detection zone x_max (inference_frame)",                    // description
-                                true,                                                          // add_to_auto_reconfigurable_params
+                                true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                      // from_value, to_value, step_value
+                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
                                 "");                                                            // additional_constraints
   this->declareAndLoadParameter("preprocessing.no_detection_zone.y_min", params_.no_detection_zone_y_min,    // name
                                 "No-detection zone y_min (inference_frame)",                    // description
-                                true,                                                          // add_to_auto_reconfigurable_params
+                                true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                      // from_value, to_value, step_value
+                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
                                 "");                                                            // additional_constraints
   this->declareAndLoadParameter("preprocessing.no_detection_zone.y_max", params_.no_detection_zone_y_max,    // name
                                 "No-detection zone y_max (inference_frame)",                    // description
-                                true,                                                          // add_to_auto_reconfigurable_params
+                                true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                      // from_value, to_value, step_value
+                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
                                 "");                                                            // additional_constraints
   this->declareAndLoadParameter("preprocessing.no_detection_zone.publish_polygon", params_.no_detection_zone_publish_polygon,
                                 "If true, publish a geometry_msgs/PolygonStamped with the no-detection zone bounds",
-                                true,                                                          // add_to_auto_reconfigurable_params
+                                true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                      // from_value, to_value, step_value
+                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
                                 "");                                                            // additional_constraints
   this->declareAndLoadParameter("preprocessing.no_detection_zone.publish_points", params_.no_detection_zone_publish_points,
-                                "If true, publish raw points inside the no-detection zone",    // description
-                                true,                                                          // add_to_auto_reconfigurable_params
+                                "If true, publish raw points inside the no-detection zone",     // description
+                                true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                      // from_value, to_value, step_value
+                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
                                 "");                                                            // additional_constraints
 
   this->declareAndLoadParameter("preprocessing.detection_area.enabled", params_.detection_area_enabled,      // name
                                 "Enable circular-sector detection area",                        // description
-                                true,                                                          // add_to_auto_reconfigurable_params
+                                true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                      // from_value, to_value, step_value
+                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
                                 "");                                                            // additional_constraints
   this->declareAndLoadParameter("preprocessing.detection_area.center_x", params_.detection_area_center_x,    // name
                                 "Detection area center x (m) in inference_frame",               // description
-                                true,                                                          // add_to_auto_reconfigurable_params
+                                true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                      // from_value, to_value, step_value
+                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
                                 "");                                                            // additional_constraints
   this->declareAndLoadParameter("preprocessing.detection_area.center_y", params_.detection_area_center_y,    // name
                                 "Detection area center y (m) in inference_frame",               // description
-                                true,                                                          // add_to_auto_reconfigurable_params
+                                true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                      // from_value, to_value, step_value
+                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
                                 "");                                                            // additional_constraints
   this->declareAndLoadParameter("preprocessing.detection_area.radius", params_.detection_area_radius,        // name
                                 "Detection area radius (m)",                                    // description
-                                true,                                                          // add_to_auto_reconfigurable_params
+                                true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
                                 kMinDetectionAreaRadius, kMaxDetectionAreaRadius, std::nullopt, // from_value, to_value, step_value
                                 "Must be non-negative.");                                       // additional_constraints
   this->declareAndLoadParameter("preprocessing.detection_area.bearing_deg", params_.detection_area_bearing_deg,
                                 "Detection area central azimuth (deg, 0 along +x, CCW positive)",
-                                true,                                                          // add_to_auto_reconfigurable_params
+                                true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
                                 kMinDetectionAreaBearingDeg, kMaxDetectionAreaBearingDeg, std::nullopt,
                                 "Must be within [-360, 360].");                                 // additional_constraints
   this->declareAndLoadParameter("preprocessing.detection_area.fov_deg", params_.detection_area_fov_deg,      // name
                                 "Detection area FOV angle (deg)",                               // description
-                                true,                                                          // add_to_auto_reconfigurable_params
+                                true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
                                 kMinDetectionAreaFovDeg, kMaxDetectionAreaFovDeg, std::nullopt, // from_value, to_value, step_value
                                 "Must be in the range (0, 360].");                              // additional_constraints
   this->declareAndLoadParameter("preprocessing.detection_area.publish_polygon", params_.detection_area_publish_polygon,
                                 "Publish geometry_msgs/PolygonStamped approximating the sector",
-                                true,                                                          // add_to_auto_reconfigurable_params
+                                true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                      // from_value, to_value, step_value
+                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
                                 "");                                                            // additional_constraints
   this->declareAndLoadParameter("preprocessing.detection_area.num_segments", params_.detection_area_num_segments,
-                                "Number of segments to approximate the circular arc (>= 3)",   // description
-                                true,                                                          // add_to_auto_reconfigurable_params
+                                "Number of segments to approximate the circular arc (>= 3)",    // description
+                                true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
                                 static_cast<double>(kMinDetectionAreaNumSegments),
@@ -533,25 +541,25 @@ void PointCloudObjectDetection::declareParameters() {
                                 "Must be greater than or equal to 3.");                         // additional_constraints
   this->declareAndLoadParameter("preprocessing.detection_area.filter_detections", params_.detection_area_filter_detections,
                                 "Remove detections outside the detection area",                 // description
-                                true,                                                          // add_to_auto_reconfigurable_params
+                                true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                      // from_value, to_value, step_value
+                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
                                 "");                                                            // additional_constraints
   this->declareAndLoadParameter("preprocessing.detection_area.filter_mode", params_.detection_area_filter_mode,
                                 "Filtering mode: 'center' or 'complete'",                       // description
-                                true,                                                          // add_to_auto_reconfigurable_params
+                                true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                      // from_value, to_value, step_value
+                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
                                 "");                                                            // additional_constraints
 
   this->declareAndLoadParameter("output.model_bounds.publish_polygon", params_.model_bounds_publish_polygon,
                                 "Publish the model x/y range rectangle as geometry_msgs/PolygonStamped",
-                                true,                                                          // add_to_auto_reconfigurable_params
+                                true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                      // from_value, to_value, step_value
+                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
                                 "");                                                            // additional_constraints
 
   validateParamsOrThrow();
@@ -559,6 +567,9 @@ void PointCloudObjectDetection::declareParameters() {
 }
 
 void PointCloudObjectDetection::syncModelRuntimeConfigFromParams() {
+  if (!std::isnan(params_.point_feature_intensity_threshold)) {
+    model_config_.point_feature_intensity_threshold = static_cast<float>(params_.point_feature_intensity_threshold);
+  }
   model_config_.no_detection_zone_remove_points = params_.no_detection_zone_remove_points;
   model_config_.no_detection_zone_x_min = params_.no_detection_zone_x_min;
   model_config_.no_detection_zone_x_max = params_.no_detection_zone_x_max;
@@ -622,6 +633,14 @@ void PointCloudObjectDetection::validateParamsOrThrow() const {
 
   if (!isAllowedPointFeatureField(params_.point_feature_field)) {
     fail("input.point_feature_field", "must be one of: " + allowedPointFeatureFieldsString());
+  }
+  if (!std::isnan(params_.point_feature_intensity_threshold)) {
+    if (!isFinite(params_.point_feature_intensity_threshold)) {
+      fail("preprocessing.point_feature.intensity_threshold", "must be finite when set");
+    }
+    if (params_.point_feature_intensity_threshold <= 0.0) {
+      fail("preprocessing.point_feature.intensity_threshold", "must be greater than 0 when set");
+    }
   }
   if (!isFinite(params_.output_class_score_threshold)) {
     fail("postprocessing.class_score_threshold", "must be finite");
@@ -874,6 +893,10 @@ void PointCloudObjectDetection::validateModelConfigOrThrow() const {
   }
   if (model_config_.nms_max_num_objects < 0) {
     fail("postprocessing.nms.max_num_objects", "must be zero or positive");
+  }
+  if (model_config_.point_feature_normalization_type == "intensity_threshold" &&
+      model_config_.point_feature_intensity_threshold <= 0.0f) {
+    fail("preprocessing.point_feature.intensity_threshold", "must be greater than 0");
   }
 
   if (model_config_.max_num_points <= 0) {
