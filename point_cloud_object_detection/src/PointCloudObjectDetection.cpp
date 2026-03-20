@@ -1455,18 +1455,23 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
       const int num_segments =
           std::max(static_cast<int>(kMinDetectionAreaNumSegments), params_.detection_area_num_segments);
 
-      // Build a fan-shaped sector polygon first; clipping later keeps visualization aligned with model bounds.
+      // Build a sector polygon first; for a full 360-degree FOV, use only the perimeter so no spoke closes to center.
       std::vector<geometry_msgs::msg::Point32> sector_poly;
       {
-        geometry_msgs::msg::Point32 pt;
-        pt.x = static_cast<float>(sector_center_x);
-        pt.y = static_cast<float>(sector_center_y);
-        pt.z = 0.0f;
-        sector_poly.push_back(pt);
-
         const double start_angle_deg = sector_bearing_deg - 0.5 * sector_fov_deg;
         const double end_angle_deg = sector_bearing_deg + 0.5 * sector_fov_deg;
-        for (int i = 0; i <= num_segments; ++i) {
+        constexpr double kFullCircleToleranceDeg = 1e-3;
+        const bool is_full_circle = std::abs(sector_fov_deg - kMaxDetectionAreaFovDeg) <= kFullCircleToleranceDeg;
+        if (!is_full_circle) {
+          geometry_msgs::msg::Point32 pt;
+          pt.x = static_cast<float>(sector_center_x);
+          pt.y = static_cast<float>(sector_center_y);
+          pt.z = 0.0f;
+          sector_poly.push_back(pt);
+        }
+
+        const int arc_samples = is_full_circle ? num_segments : num_segments + 1;
+        for (int i = 0; i < arc_samples; ++i) {
           const double angle_deg =
               start_angle_deg + (end_angle_deg - start_angle_deg) * static_cast<double>(i) / num_segments;
           const double angle_rad = angle_deg * M_PI / 180.0;
