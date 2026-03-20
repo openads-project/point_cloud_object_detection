@@ -1,18 +1,39 @@
 #include "point_cloud_object_detection/PBODModel.hpp"
 
 namespace point_cloud_object_detection {
+
+void PBODModel::validateInterface(const triton_cpp::TritonInterface& triton_interface) {
+  if (triton_interface.nInputs() != kExpectedInputNames.size()) {
+    throw std::runtime_error("PBOD model interface mismatch: expected " + std::to_string(kExpectedInputNames.size()) +
+                             " inputs but Triton reports " + std::to_string(triton_interface.nInputs()));
+  }
+  if (triton_interface.nOutputs() != kExpectedOutputNames.size()) {
+    throw std::runtime_error("PBOD model interface mismatch: expected " + std::to_string(kExpectedOutputNames.size()) +
+                             " outputs but Triton reports " + std::to_string(triton_interface.nOutputs()));
+  }
+
+  for (const char* input_name : kExpectedInputNames) {
+    try {
+      (void)triton_interface.getInputShape(input_name);
+    } catch (const std::invalid_argument& e) {
+      throw std::runtime_error("PBOD model is missing expected input tensor '" + std::string(input_name) + "': " +
+                               e.what());
+    }
+  }
+
+  for (const char* output_name : kExpectedOutputNames) {
+    try {
+      (void)triton_interface.getOutputShape(output_name);
+    } catch (const std::invalid_argument& e) {
+      throw std::runtime_error("PBOD model is missing expected output tensor '" + std::string(output_name) + "': " +
+                               e.what());
+    }
+  }
+}
+
 PBODModel::PBODModel(triton_cpp::TritonInterface& triton_interface, ModelConfig& model_config)
     : Model(triton_interface),
       model_config_{model_config},
-      input_name_point_features_{SAVED_MODEL_INPUT_NAME_POINT_FEATURES},
-      input_name_pillar_ids_{SAVED_MODEL_INPUT_NAME_PILLAR_IDS},
-      input_name_valid_mask_{SAVED_MODEL_INPUT_NAME_VALID_MASK},
-      input_name_pillar_masks_{SAVED_MODEL_INPUT_NAME_PILLAR_MASKS},
-      input_name_pillar_indices_{SAVED_MODEL_INPUT_NAME_PILLAR_INDICES},
-      output_name_focal_{SAVED_MODEL_OUTPUT_NAME_FOCAL},
-      output_name_reg_{SAVED_MODEL_OUTPUT_NAME_REG},
-      output_name_class_{SAVED_MODEL_OUTPUT_NAME_CLASS},
-      output_name_size_{SAVED_MODEL_OUTPUT_NAME_SIZE},
       x_min_{model_config_.pillar_map_range[0][0]},
       x_max_{model_config_.pillar_map_range[0][1]},
       y_min_{model_config_.pillar_map_range[1][0]},
@@ -30,7 +51,7 @@ PBODModel::PBODModel(triton_cpp::TritonInterface& triton_interface, ModelConfig&
       norm_epsilon_{model_config_.point_feature_norm_epsilon},
       zero_intensity_{model_config_.zero_intensity},
       max_num_points_{model_config_.max_num_points},
-      preprocessed_feature_dim_{18},
+      preprocessed_feature_dim_{kPreprocessedFeatureDim},
       num_pillars_{static_cast<int>(model_config_.pillar_map_size[0] * model_config_.pillar_map_size[1])},
       remove_points_in_zone_{model_config_.no_detection_zone_remove_points},
       nd_x_min_{static_cast<float>(model_config_.no_detection_zone_x_min)},
@@ -67,12 +88,12 @@ PBODModel::PBODModel(triton_cpp::TritonInterface& triton_interface, ModelConfig&
                            da_bearing_rad_,
                            da_fov_rad_}) {
   const int stride = model_config_.stride.empty() ? 1 : static_cast<int>(model_config_.stride[0]);
-  pillar_indices_.resize(static_cast<std::size_t>(num_pillars_) * 2);
+  pillar_indices_.resize(static_cast<std::size_t>(num_pillars_) * kPillarIndexDim);
   const int grid_x = static_cast<int>(model_config_.pillar_map_size[0]);
   const int grid_y = static_cast<int>(model_config_.pillar_map_size[1]);
   for (int ix = 0; ix < grid_x; ++ix) {
     for (int iy = 0; iy < grid_y; ++iy) {
-      const std::size_t idx = static_cast<std::size_t>(ix * grid_y + iy) * 2;
+      const std::size_t idx = static_cast<std::size_t>(ix * grid_y + iy) * kPillarIndexDim;
       pillar_indices_[idx] = ix;
       pillar_indices_[idx + 1] = iy;
     }
@@ -88,7 +109,8 @@ PBODModel::PBODModel(triton_cpp::TritonInterface& triton_interface, ModelConfig&
 std::map<std::string, std::vector<int64_t>> PBODModel::getSpecialOutputShapes() {
   const int64_t num_pillars = static_cast<int64_t>(pillar_grid_.grid_x * pillar_grid_.grid_y);
   const int64_t num_classes = static_cast<int64_t>(model_config_.predicted_class_names.size());
-  return {{output_name_reg_, {num_pillars, 7 * num_classes}}, {output_name_size_, {num_pillars, 3 * num_classes}}};
+  return {{kOutputNameReg, {num_pillars, kRegressionValuesPerClass * num_classes}},
+          {kOutputNameSize, {num_pillars, kSizeValuesPerClass * num_classes}}};
 }
 
 void PBODModel::setupModelInput(const PointCloud& point_cloud) {
@@ -97,11 +119,12 @@ void PBODModel::setupModelInput(const PointCloud& point_cloud) {
   const float inv_voxel_y = 1.0f / voxel_y_;
 
   auto point_features_map =
-      triton_interface_.getInputTensor<float>(input_name_point_features_, max_num_points_, preprocessed_feature_dim_);
-  auto pillar_ids_map = triton_interface_.getInputTensor<int64_t>(input_name_pillar_ids_, max_num_points_);
-  auto valid_mask_map = triton_interface_.getInputTensor<bool>(input_name_valid_mask_, max_num_points_);
-  auto pillar_masks_map = triton_interface_.getInputTensor<bool>(input_name_pillar_masks_, num_pillars_);
-  auto pillar_indices_map = triton_interface_.getInputTensor<int64_t>(input_name_pillar_indices_, num_pillars_, 2);
+      triton_interface_.getInputTensor<float>(kInputNamePointFeatures, max_num_points_, preprocessed_feature_dim_);
+  auto pillar_ids_map = triton_interface_.getInputTensor<int64_t>(kInputNamePillarIds, max_num_points_);
+  auto valid_mask_map = triton_interface_.getInputTensor<bool>(kInputNameValidMask, max_num_points_);
+  auto pillar_masks_map = triton_interface_.getInputTensor<bool>(kInputNamePillarMasks, num_pillars_);
+  auto pillar_indices_map =
+      triton_interface_.getInputTensor<int64_t>(kInputNamePillarIndices, num_pillars_, kPillarIndexDim);
 
   point_features_map.setZero();
   valid_mask_map.setZero();
@@ -111,7 +134,7 @@ void PBODModel::setupModelInput(const PointCloud& point_cloud) {
   pillar_ids_map.setConstant(sentinel);
 
   for (int i = 0; i < num_pillars_; ++i) {
-    const std::size_t idx = static_cast<std::size_t>(i) * 2;
+    const std::size_t idx = static_cast<std::size_t>(i) * kPillarIndexDim;
     pillar_indices_map(i, 0) = pillar_indices_[idx];
     pillar_indices_map(i, 1) = pillar_indices_[idx + 1];
   }
@@ -163,8 +186,8 @@ void PBODModel::setupModelInput(const PointCloud& point_cloud) {
   }
 
   std::vector<int32_t> pillar_counts(static_cast<std::size_t>(num_pillars_), 0);
-  std::vector<float> pillar_sum(static_cast<std::size_t>(num_pillars_) * 3, 0.0f);
-  std::vector<float> pillar_sq_sum(static_cast<std::size_t>(num_pillars_) * 3, 0.0f);
+  std::vector<float> pillar_sum(static_cast<std::size_t>(num_pillars_) * kPointCoordinateDim, 0.0f);
+  std::vector<float> pillar_sq_sum(static_cast<std::size_t>(num_pillars_) * kPointCoordinateDim, 0.0f);
   std::vector<int> pillar_ids_raw(static_cast<std::size_t>(num_selected), -1);
   std::vector<int> pillar_ix_raw(static_cast<std::size_t>(num_selected), -1);
   std::vector<int> pillar_iy_raw(static_cast<std::size_t>(num_selected), -1);
@@ -184,7 +207,7 @@ void PBODModel::setupModelInput(const PointCloud& point_cloud) {
     if (pillar_counts[count_offset] == 1) {
       pillar_masks_map(pillar_id) = true;
     }
-    const std::size_t sum_offset = count_offset * 3;
+    const std::size_t sum_offset = count_offset * kPointCoordinateDim;
     pillar_sum[sum_offset + 0] += point.x;
     pillar_sum[sum_offset + 1] += point.y;
     pillar_sum[sum_offset + 2] += point.z;
@@ -193,15 +216,15 @@ void PBODModel::setupModelInput(const PointCloud& point_cloud) {
     pillar_sq_sum[sum_offset + 2] += point.z * point.z;
   }
 
-  std::vector<float> pillar_mean(static_cast<std::size_t>(num_pillars_) * 3, 0.0f);
-  std::vector<float> pillar_var(static_cast<std::size_t>(num_pillars_) * 3, 0.0f);
+  std::vector<float> pillar_mean(static_cast<std::size_t>(num_pillars_) * kPointCoordinateDim, 0.0f);
+  std::vector<float> pillar_var(static_cast<std::size_t>(num_pillars_) * kPointCoordinateDim, 0.0f);
   for (int i = 0; i < num_pillars_; ++i) {
     const std::size_t count_offset = static_cast<std::size_t>(i);
     const int32_t count = pillar_counts[count_offset];
     if (count <= 0) {
       continue;
     }
-    const std::size_t sum_offset = count_offset * 3;
+    const std::size_t sum_offset = count_offset * kPointCoordinateDim;
     const float inv_count = 1.0f / static_cast<float>(count);
     const float mean_x = pillar_sum[sum_offset + 0] * inv_count;
     const float mean_y = pillar_sum[sum_offset + 1] * inv_count;
@@ -225,7 +248,7 @@ void PBODModel::setupModelInput(const PointCloud& point_cloud) {
       continue;
     }
 
-    const std::size_t sum_offset = static_cast<std::size_t>(pillar_id) * 3;
+    const std::size_t sum_offset = static_cast<std::size_t>(pillar_id) * kPointCoordinateDim;
     const auto& point = filtered_input_points_[static_cast<std::size_t>(i)];
     const int ix = pillar_ix_raw[static_cast<std::size_t>(i)];
     const int iy = pillar_iy_raw[static_cast<std::size_t>(i)];
@@ -257,27 +280,26 @@ void PBODModel::setupModelInput(const PointCloud& point_cloud) {
     const float var_y = pillar_var[sum_offset + 1];
     const float var_z = pillar_var[sum_offset + 2];
 
-    float raw_feature0 = point_preprocessor_.NormalizeIntensity(point.intensity);
+    const float normalized_intensity = point_preprocessor_.NormalizeIntensity(point.intensity);
 
-    int offset = 0;
-    point_features_map(i, offset++) = point.x;
-    point_features_map(i, offset++) = point.y;
-    point_features_map(i, offset++) = point.z;
-    point_features_map(i, offset++) = r;
-    point_features_map(i, offset++) = z_rel;
-    point_features_map(i, offset++) = inv_r;
-    point_features_map(i, offset++) = sin_theta;
-    point_features_map(i, offset++) = cos_theta;
-    point_features_map(i, offset++) = var_x;
-    point_features_map(i, offset++) = var_y;
-    point_features_map(i, offset++) = var_z;
-    point_features_map(i, offset++) = raw_feature0;
-    point_features_map(i, offset++) = f_cluster_x;
-    point_features_map(i, offset++) = f_cluster_y;
-    point_features_map(i, offset++) = f_cluster_z;
-    point_features_map(i, offset++) = f_center_x;
-    point_features_map(i, offset++) = f_center_y;
-    point_features_map(i, offset++) = f_center_z;
+    point_features_map(i, kFeatureX) = point.x;
+    point_features_map(i, kFeatureY) = point.y;
+    point_features_map(i, kFeatureZ) = point.z;
+    point_features_map(i, kFeatureRadius) = r;
+    point_features_map(i, kFeatureZRelative) = z_rel;
+    point_features_map(i, kFeatureInverseRadius) = inv_r;
+    point_features_map(i, kFeatureSinTheta) = sin_theta;
+    point_features_map(i, kFeatureCosTheta) = cos_theta;
+    point_features_map(i, kFeatureVarianceX) = var_x;
+    point_features_map(i, kFeatureVarianceY) = var_y;
+    point_features_map(i, kFeatureVarianceZ) = var_z;
+    point_features_map(i, kFeatureIntensity) = normalized_intensity;
+    point_features_map(i, kFeatureClusterOffsetX) = f_cluster_x;
+    point_features_map(i, kFeatureClusterOffsetY) = f_cluster_y;
+    point_features_map(i, kFeatureClusterOffsetZ) = f_cluster_z;
+    point_features_map(i, kFeatureCenterOffsetX) = f_center_x;
+    point_features_map(i, kFeatureCenterOffsetY) = f_center_y;
+    point_features_map(i, kFeatureCenterOffsetZ) = f_center_z;
 
     valid_mask_map(i) = true;
     pillar_ids_map(i) = static_cast<int64_t>(pillar_id);
@@ -287,10 +309,12 @@ void PBODModel::setupModelInput(const PointCloud& point_cloud) {
 std::vector<BoundingBox> PBODModel::modelOutputToBoxes() {
   const int num_pillars = pillar_grid_.grid_x * pillar_grid_.grid_y;
   const int num_classes = static_cast<int>(model_config_.predicted_class_names.size());
-  auto class_logits = triton_interface_.getOutputTensor<float>(output_name_class_, num_pillars, num_classes);
-  auto size_posterior = triton_interface_.getOutputTensor<float>(output_name_size_, num_pillars, 3 * num_classes);
-  auto focal_logits = triton_interface_.getOutputTensor<float>(output_name_focal_, num_pillars);
-  auto reg_logits = triton_interface_.getOutputTensor<float>(output_name_reg_, num_pillars, 7 * num_classes);
+  auto class_logits = triton_interface_.getOutputTensor<float>(kOutputNameClass, num_pillars, num_classes);
+  auto size_posterior =
+      triton_interface_.getOutputTensor<float>(kOutputNameSize, num_pillars, kSizeValuesPerClass * num_classes);
+  auto focal_logits = triton_interface_.getOutputTensor<float>(kOutputNameFocal, num_pillars);
+  auto reg_logits =
+      triton_interface_.getOutputTensor<float>(kOutputNameReg, num_pillars, kRegressionValuesPerClass * num_classes);
 
   pcod_common::PbodOutputsView view;
   view.focal_logits = focal_logits.data();
@@ -299,7 +323,7 @@ std::vector<BoundingBox> PBODModel::modelOutputToBoxes() {
   view.reg_logits = reg_logits.data();
   view.num_pillars = num_pillars;
   view.num_classes = num_classes;
-  view.reg_dim = 7;
+  view.reg_dim = kRegressionValuesPerClass;
 
   pcod_common::PbodPostprocessConfig config;
   config.class_names = model_config_.predicted_class_names;
