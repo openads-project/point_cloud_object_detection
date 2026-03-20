@@ -1035,11 +1035,15 @@ void PointCloudObjectDetection::initializeModel() {
   std::lock_guard<std::mutex> model_lock(model_mutex_);
   loadModelConfig();
 
+  auto new_model_config = model_config_;
+  std::unique_ptr<triton_cpp::TritonInterface> new_triton_interface;
+  std::unique_ptr<Model> new_detection_model;
+
   // Retry Triton connection until the ROS context is shutting down.
   constexpr auto kRetryDelay = std::chrono::seconds(1);
   while (rclcpp::ok(this->get_node_base_interface()->get_context())) {
     try {
-      triton_interface_ =
+      new_triton_interface =
           std::make_unique<triton_cpp::TritonInterface>(params_.model_name, params_.model_version, params_.server_url,
                                                         params_.use_shm, false, false, params_.triton_client_timeout_s);
       break;
@@ -1052,23 +1056,28 @@ void PointCloudObjectDetection::initializeModel() {
     }
   }
 
-  if (!triton_interface_) {
+  if (!new_triton_interface) {
     throw std::runtime_error("Shutdown requested while waiting for Triton connection");
   }
 
   // log model info
-  const std::string model_info = triton_interface_->getModelInfo();
+  const std::string model_info = new_triton_interface->getModelInfo();
   std::cout << model_info << std::endl;
 
   // create model architecture (PBOD only)
-  if (triton_interface_->nInputs() == 5 && triton_interface_->nOutputs() == 4) {
-    detection_model_ = std::make_unique<PBODModel>(*triton_interface_.get(), model_config_);
+  if (new_triton_interface->nInputs() == 5 && new_triton_interface->nOutputs() == 4) {
+    new_detection_model = std::make_unique<PBODModel>(*new_triton_interface.get(), new_model_config);
   } else {
     RCLCPP_FATAL(this->get_logger(),
                  "Model error: Expected PBOD interface with 5 inputs and 4 outputs from training export.");
     exit(EXIT_FAILURE);
   }
-  triton_interface_->initInOutputs(detection_model_->getSpecialOutputShapes());
+
+  new_triton_interface->initInOutputs(new_detection_model->getSpecialOutputShapes());
+  model_config_ = std::move(new_model_config);
+  triton_interface_ = std::move(new_triton_interface);
+  detection_model_ = std::move(new_detection_model);
+  model_ready_.store(true, std::memory_order_release);
 }
 
 void PointCloudObjectDetection::setupPublishers() {
@@ -1123,9 +1132,6 @@ void PointCloudObjectDetection::setupPublishers() {
 }
 
 void PointCloudObjectDetection::setup() {
-  // initially load model
-  initializeModel();
-
   // create a callback for dynamic parameter configuration
   parameters_callback_ = this->add_on_set_parameters_callback(
       std::bind(&PointCloudObjectDetection::parametersCallback, this, std::placeholders::_1));
@@ -1148,6 +1154,10 @@ void PointCloudObjectDetection::setup() {
 
   // Setup all publishers
   setupPublishers();
+
+  // Initialize the model after transport endpoints exist so runtime dependencies
+  // are exercised during startup even if Triton is temporarily unavailable.
+  initializeModel();
 }
 
 void PointCloudObjectDetection::processPointCloud(const sensor_msgs::msg::PointCloud2::ConstSharedPtr msg,
@@ -1347,6 +1357,12 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
   try {
     if (publishers_update_pending_.exchange(false, std::memory_order_acq_rel)) {
       setupPublishers();
+    }
+
+    if (!model_ready_.load(std::memory_order_acquire)) {
+      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                           "Detection model is not ready yet. Dropping incoming point cloud frame.");
+      return;
     }
 
     // initialize timer
