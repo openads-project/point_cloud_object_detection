@@ -179,6 +179,10 @@ class PointCloudObjectDetection : public rclcpp::Node {
   OnSetParametersCallbackHandle::SharedPtr parameters_callback_;
   std::vector<std::tuple<std::string, std::function<void(const rclcpp::Parameter&)>>> auto_reconfigurable_params_;
 
+  // Keep the transport factory alive for the full node lifetime so plugin loaders
+  // outlive transport publishers/subscribers created from it.
+  std::unique_ptr<point_cloud_transport::PointCloudTransport> point_cloud_transport_;
+
   // publisher and subscriber
   std::shared_ptr<point_cloud_transport::Subscriber> subscriber_;
   rclcpp::Publisher<perception_msgs::msg::ObjectList>::SharedPtr publisher_;
