@@ -120,6 +120,7 @@ class PointCloudObjectDetection : public rclcpp::Node {
    *
    */
   void initializeModel();
+  void refreshResolvedModelConfigLocked();
 
   /**
    * @brief Setup of publishers
@@ -142,7 +143,7 @@ class PointCloudObjectDetection : public rclcpp::Node {
    * @param object_list       Object list -> Return reference
    */
   void boxesToObjectList(const std::vector<BoundingBox>& bboxes, const ModelConfig& model_config, const Params& params,
-                        perception_msgs::msg::ObjectList& object_list);
+                         perception_msgs::msg::ObjectList& object_list);
 
   /**
    * @brief Callback executing the prediction every time a point cloud message is received by the ROS node
