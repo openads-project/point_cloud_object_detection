@@ -71,14 +71,18 @@ class PointCloudObjectDetection : public rclcpp::Node {
    * @brief Synchronize model runtime options from the loaded node parameters
    */
   void syncModelRuntimeConfigFromParams();
+  void syncModelRuntimeConfigFromParams(ModelConfig& model_config, const Params& params) const;
   /**
    * @brief Apply optional NMS overrides from node params onto manifest-derived model config
    */
   void syncNmsRuntimeConfigFromParams();
+  void syncNmsRuntimeConfigFromParams(ModelConfig& model_config, pcod_common::NmsConfig& nms_config,
+                                      const Params& params) const;
   /**
    * @brief Loads all ROS parameters for the model depending on the architecture
    */
-  void loadModelConfig();
+  ModelConfig loadModelConfig(const Params& params, std::string& model_name, std::string& model_version,
+                              pcod_common::NmsConfig& nms_config) const;
 
   template <typename T>
   void declareAndLoadParameter(const std::string& name, T& param, const std::string& description,
@@ -102,7 +106,8 @@ class PointCloudObjectDetection : public rclcpp::Node {
    * @param score_thresholds
    * @return true if the update was successful, i.e. the vector has the same size as the number of classes or 1
    */
-  bool updateNMSScoreThreshold(std::vector<double>& score_thresholds);
+  bool updateNMSScoreThreshold(std::vector<double>& score_thresholds,
+                               const std::vector<std::string>& predicted_class_names) const;
 
   /**
    * @brief Setup of model, parameter callback and publisher/subscriber
@@ -128,14 +133,16 @@ class PointCloudObjectDetection : public rclcpp::Node {
    * @param msg               Point cloud data in ROS message type format
    * @param point_cloud       Point cloud in pcl format -> Return reference
    */
-  void processPointCloud(const sensor_msgs::msg::PointCloud2::ConstSharedPtr msg, PointCloud& point_cloud);
+  void processPointCloud(const sensor_msgs::msg::PointCloud2::ConstSharedPtr msg, const ModelConfig& model_config,
+                         const Params& params, PointCloud& point_cloud);
   /**
    * @brief Create object list message type format using bounding box data
    *
    * @param bboxes            Vector containing all bounding boxes
    * @param object_list       Object list -> Return reference
    */
-  void boxesToObjectList(const std::vector<BoundingBox>& bboxes, perception_msgs::msg::ObjectList& object_list);
+  void boxesToObjectList(const std::vector<BoundingBox>& bboxes, const ModelConfig& model_config, const Params& params,
+                        perception_msgs::msg::ObjectList& object_list);
 
   /**
    * @brief Callback executing the prediction every time a point cloud message is received by the ROS node
@@ -145,6 +152,7 @@ class PointCloudObjectDetection : public rclcpp::Node {
   void predict(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& pcl_msg);
 
   void validateParamsOrThrow() const;
+  void validateModelConfigOrThrow(const ModelConfig& model_config) const;
   void validateModelConfigOrThrow() const;
 
   // constants
@@ -189,6 +197,7 @@ class PointCloudObjectDetection : public rclcpp::Node {
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr no_detection_zone_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr detection_area_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr model_bounds_pub_;
+  std::mutex publishers_mutex_;
 
   // publisher for raw points inside the no-detection zone
   std::shared_ptr<point_cloud_transport::Publisher> no_detection_zone_points_publisher_;
