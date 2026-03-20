@@ -201,6 +201,7 @@ class PointCloudObjectDetection : public rclcpp::Node {
 
   std::unique_ptr<Model> detection_model_;
   pcod_common::NmsConfig nms_config_;
+  std::atomic<bool> model_ready_{false};
   std::atomic<bool> publishers_update_pending_{false};
 };
 
