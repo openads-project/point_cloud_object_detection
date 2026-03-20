@@ -735,7 +735,9 @@ bool PointCloudObjectDetection::updateNMSScoreThreshold(std::vector<double>& sco
     }
   }
   if (score_thresholds.size() != predicted_class_names.size()) {
-    RCLCPP_ERROR(this->get_logger(), "The number of NMS score thresholds does not match the number of classes.");
+    RCLCPP_ERROR(this->get_logger(),
+                 "NMS score threshold count mismatch: got %zu value(s), expected 1 or %zu (one per predicted class).",
+                 score_thresholds.size(), predicted_class_names.size());
     return false;
   }
   return true;
@@ -901,7 +903,10 @@ void PointCloudObjectDetection::validateModelConfigOrThrow(const ModelConfig& mo
   }
   if (model_config.nms_score_threshold.size() != 1 &&
       model_config.nms_score_threshold.size() != model_config.predicted_class_names.size()) {
-    fail("postprocessing.nms.score_threshold", "must contain exactly one value or one per predicted class");
+    fail("postprocessing.nms.score_threshold", "must contain exactly one value or one per predicted class (got " +
+                                                   std::to_string(model_config.nms_score_threshold.size()) +
+                                                   ", expected 1 or " +
+                                                   std::to_string(model_config.predicted_class_names.size()) + ")");
   }
   for (double threshold : model_config.nms_score_threshold) {
     if (!isProbability(threshold)) {
@@ -1052,13 +1057,28 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
   return result;
 }
 
-void PointCloudObjectDetection::initializeModel() {
-  std::lock_guard<std::mutex> model_lock(model_mutex_);
+void PointCloudObjectDetection::refreshResolvedModelConfigLocked() {
   const Params params_snapshot = params_;
   std::string model_name;
   std::string model_version;
   pcod_common::NmsConfig new_nms_config;
   auto new_model_config = loadModelConfig(params_snapshot, model_name, model_version, new_nms_config);
+  params_.model_name = model_name;
+  params_.model_version = model_version;
+  model_config_ = std::move(new_model_config);
+  nms_config_ = std::move(new_nms_config);
+}
+
+void PointCloudObjectDetection::initializeModel() {
+  std::lock_guard<std::mutex> model_lock(model_mutex_);
+  if (params_.model_name.empty() || params_.model_version.empty() || model_config_.predicted_class_names.empty()) {
+    refreshResolvedModelConfigLocked();
+  }
+
+  const Params params_snapshot = params_;
+  const std::string model_name = params_.model_name;
+  const std::string model_version = params_.model_version;
+  ModelConfig new_model_config = model_config_;
   std::unique_ptr<triton_cpp::TritonInterface> new_triton_interface;
   std::unique_ptr<Model> new_detection_model;
 
@@ -1092,10 +1112,6 @@ void PointCloudObjectDetection::initializeModel() {
   new_detection_model = std::make_unique<PBODModel>(*new_triton_interface.get(), new_model_config);
 
   new_triton_interface->initInOutputs(new_detection_model->getSpecialOutputShapes());
-  params_.model_name = model_name;
-  params_.model_version = model_version;
-  model_config_ = std::move(new_model_config);
-  nms_config_ = std::move(new_nms_config);
   triton_interface_ = std::move(new_triton_interface);
   detection_model_ = std::move(new_detection_model);
   model_ready_.store(true, std::memory_order_release);
@@ -1150,6 +1166,14 @@ void PointCloudObjectDetection::setupPublishers() {
 }
 
 void PointCloudObjectDetection::setup() {
+  // Preload manifest-derived model config before any parameter-driven transport setup.
+  // point_cloud_transport may set parameters during subscribe/advertise, and those callbacks
+  // validate NMS overrides against the predicted class list from the manifest.
+  {
+    std::lock_guard<std::mutex> model_lock(model_mutex_);
+    refreshResolvedModelConfigLocked();
+  }
+
   // create a callback for dynamic parameter configuration
   parameters_callback_ = this->add_on_set_parameters_callback(
       std::bind(&PointCloudObjectDetection::parametersCallback, this, std::placeholders::_1));
