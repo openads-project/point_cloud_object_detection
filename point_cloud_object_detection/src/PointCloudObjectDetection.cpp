@@ -295,8 +295,9 @@ void PointCloudObjectDetection::declareAndLoadParameter(
     RCLCPP_INFO_STREAM(this->get_logger(), ss.str());
   } catch (rclcpp::exceptions::ParameterUninitializedException&) {
     if (is_required) {
-      RCLCPP_FATAL_STREAM(this->get_logger(), "Missing required parameter '" << name << "', exiting");
-      exit(EXIT_FAILURE);
+      const std::string message = "Missing required parameter '" + name + "'";
+      RCLCPP_FATAL_STREAM(this->get_logger(), message);
+      throw std::runtime_error(message);
     } else {
       std::stringstream ss;
       ss << "Missing parameter '" << name << "', using default value: ";
@@ -566,9 +567,12 @@ void PointCloudObjectDetection::declareParameters() {
   // clang-format on
 }
 
-void PointCloudObjectDetection::syncModelRuntimeConfigFromParams() { syncModelRuntimeConfigFromParams(model_config_, params_); }
+void PointCloudObjectDetection::syncModelRuntimeConfigFromParams() {
+  syncModelRuntimeConfigFromParams(model_config_, params_);
+}
 
-void PointCloudObjectDetection::syncModelRuntimeConfigFromParams(ModelConfig& model_config, const Params& params) const {
+void PointCloudObjectDetection::syncModelRuntimeConfigFromParams(ModelConfig& model_config,
+                                                                 const Params& params) const {
   if (!std::isnan(params.point_feature_intensity_threshold)) {
     model_config.point_feature_intensity_threshold = static_cast<float>(params.point_feature_intensity_threshold);
   }
@@ -1083,14 +1087,9 @@ void PointCloudObjectDetection::initializeModel() {
   const std::string model_info = new_triton_interface->getModelInfo();
   std::cout << model_info << std::endl;
 
-  // create model architecture (PBOD only)
-  if (new_triton_interface->nInputs() == 5 && new_triton_interface->nOutputs() == 4) {
-    new_detection_model = std::make_unique<PBODModel>(*new_triton_interface.get(), new_model_config);
-  } else {
-    RCLCPP_FATAL(this->get_logger(),
-                 "Model error: Expected PBOD interface with 5 inputs and 4 outputs from training export.");
-    exit(EXIT_FAILURE);
-  }
+  // create model architecture
+  PBODModel::validateInterface(*new_triton_interface);
+  new_detection_model = std::make_unique<PBODModel>(*new_triton_interface.get(), new_model_config);
 
   new_triton_interface->initInOutputs(new_detection_model->getSpecialOutputShapes());
   params_.model_name = model_name;
@@ -1196,8 +1195,8 @@ void PointCloudObjectDetection::processPointCloud(const sensor_msgs::msg::PointC
     } catch (tf2::TransformException& e) {
       RCLCPP_ERROR(this->get_logger(),
                    "Cannot tranform Pointcloud: Transformation from its frame (%s) to inference_frame "
-                    "(%s) not found: %s",
-                    msg->header.frame_id.c_str(), params.inference_frame.c_str(), e.what());
+                   "(%s) not found: %s",
+                   msg->header.frame_id.c_str(), params.inference_frame.c_str(), e.what());
       return;
     }
   }

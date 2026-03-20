@@ -1,7 +1,7 @@
-#ifndef POINT_CLOUD_OBJECT_DETECTION__PBOD_MODEL_HPP_
-#define POINT_CLOUD_OBJECT_DETECTION__PBOD_MODEL_HPP_
+#pragma once
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -23,44 +23,67 @@ namespace point_cloud_object_detection {
 
 class PBODModel : public Model {
  public:
+  static constexpr const char* kInputNamePointFeatures = "point_features";
+  static constexpr const char* kInputNamePillarIds = "pillar_ids";
+  static constexpr const char* kInputNameValidMask = "valid_mask";
+  static constexpr const char* kInputNamePillarMasks = "pillar_masks";
+  static constexpr const char* kInputNamePillarIndices = "pillar_indices";
+
+  static constexpr const char* kOutputNameFocal = "focal_logits";
+  static constexpr const char* kOutputNameReg = "reg_logits";
+  static constexpr const char* kOutputNameClass = "class_logits";
+  static constexpr const char* kOutputNameSize = "size_posterior";
+
+  static constexpr int kPreprocessedFeatureDim = 18;
+  static constexpr int kPillarIndexDim = 2;
+  static constexpr int kPointCoordinateDim = 3;
+  static constexpr int kRegressionValuesPerClass = 7;
+  static constexpr int kSizeValuesPerClass = 3;
+  enum FeatureIndex : int {
+    kFeatureX = 0,
+    kFeatureY,
+    kFeatureZ,
+    kFeatureRadius,
+    kFeatureZRelative,
+    kFeatureInverseRadius,
+    kFeatureSinTheta,
+    kFeatureCosTheta,
+    kFeatureVarianceX,
+    kFeatureVarianceY,
+    kFeatureVarianceZ,
+    kFeatureIntensity,
+    kFeatureClusterOffsetX,
+    kFeatureClusterOffsetY,
+    kFeatureClusterOffsetZ,
+    kFeatureCenterOffsetX,
+    kFeatureCenterOffsetY,
+    kFeatureCenterOffsetZ
+  };
+
+  static constexpr std::array<const char*, 5> kExpectedInputNames{kInputNamePointFeatures, kInputNamePillarIds,
+                                                                  kInputNameValidMask, kInputNamePillarMasks,
+                                                                  kInputNamePillarIndices};
+  static constexpr std::array<const char*, 4> kExpectedOutputNames{kOutputNameFocal, kOutputNameReg, kOutputNameClass,
+                                                                   kOutputNameSize};
+
+  static void validateInterface(const triton_cpp::TritonInterface& triton_interface);
+
   PBODModel(triton_cpp::TritonInterface& triton_interface, ModelConfig& model_config);
 
-  const std::string SAVED_MODEL_INPUT_NAME_POINT_FEATURES = "point_features";
-  const std::string SAVED_MODEL_INPUT_NAME_PILLAR_IDS = "pillar_ids";
-  const std::string SAVED_MODEL_INPUT_NAME_VALID_MASK = "valid_mask";
-  const std::string SAVED_MODEL_INPUT_NAME_PILLAR_MASKS = "pillar_masks";
-  const std::string SAVED_MODEL_INPUT_NAME_PILLAR_INDICES = "pillar_indices";
-
-  const std::string SAVED_MODEL_OUTPUT_NAME_FOCAL = "focal_logits";
-  const std::string SAVED_MODEL_OUTPUT_NAME_REG = "reg_logits";
-  const std::string SAVED_MODEL_OUTPUT_NAME_CLASS = "class_logits";
-  const std::string SAVED_MODEL_OUTPUT_NAME_SIZE = "size_posterior";
-
-  virtual std::map<std::string, std::vector<int64_t>> getSpecialOutputShapes() override;
-  virtual ~PBODModel() = default;        // Any method virtual -> destructor virtual
+  std::map<std::string, std::vector<int64_t>> getSpecialOutputShapes() override;
+  ~PBODModel() override = default;
   PBODModel(const PBODModel&) = delete;  // Rule of five
   PBODModel& operator=(const PBODModel&) = delete;
   PBODModel(PBODModel&&) = delete;
   PBODModel& operator=(PBODModel&&) = delete;
 
  protected:
-  virtual void setupModelInput(const PointCloud& point_cloud) override;
-  virtual std::vector<BoundingBox> modelOutputToBoxes() override;
+  void setupModelInput(const PointCloud& point_cloud) override;
+  std::vector<BoundingBox> modelOutputToBoxes() override;
 
  private:
   ModelConfig& model_config_;
   pcod_common::PillarGrid pillar_grid_;
-
-  const std::string input_name_point_features_;
-  const std::string input_name_pillar_ids_;
-  const std::string input_name_valid_mask_;
-  const std::string input_name_pillar_masks_;
-  const std::string input_name_pillar_indices_;
-
-  const std::string output_name_focal_;
-  const std::string output_name_reg_;
-  const std::string output_name_class_;
-  const std::string output_name_size_;
 
   // Cached range values for performance
   const float x_min_;
@@ -100,5 +123,3 @@ class PBODModel : public Model {
 };
 
 }  // namespace point_cloud_object_detection
-
-#endif  // POINT_CLOUD_OBJECT_DETECTION__PBOD_MODEL_HPP_
