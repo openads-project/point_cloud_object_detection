@@ -43,6 +43,9 @@ class Model {
       const PointCloud& point_cloud,
       std::vector<std::chrono::time_point<std::chrono::high_resolution_clock>>& timestamps);
 
+  std::vector<BoundingBox> inferAndDecode(
+      std::vector<std::chrono::time_point<std::chrono::high_resolution_clock>>& timestamps);
+
   /**
    * @brief Get the points that were actually used as input to the model after filtering
    * 

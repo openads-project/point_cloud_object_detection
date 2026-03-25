@@ -10,6 +10,11 @@ std::vector<BoundingBox> Model::operator()(
   setupModelInput(point_cloud);
   timestamps.push_back(std::chrono::high_resolution_clock::now());  // after input tensor creation, before inference
 
+  return inferAndDecode(timestamps);
+}
+
+std::vector<BoundingBox> Model::inferAndDecode(
+    std::vector<std::chrono::time_point<std::chrono::high_resolution_clock>>& timestamps) {
   // inference
   triton_interface_.infer();
   timestamps.push_back(std::chrono::high_resolution_clock::now());  // after inference

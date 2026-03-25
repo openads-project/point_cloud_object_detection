@@ -189,6 +189,126 @@ float readPointFieldAsFloat(const std::uint8_t* src, std::uint8_t datatype, bool
   }
 }
 
+struct PreparedPointCloudInput {
+  sensor_msgs::msg::PointCloud2::ConstSharedPtr msg;
+  sensor_msgs::msg::PointCloud2::SharedPtr transformed_owner;
+  uint32_t x_offset = 0;
+  uint32_t y_offset = 0;
+  uint32_t z_offset = 0;
+  uint32_t feature_offset = 0;
+  uint8_t feature_datatype = sensor_msgs::msg::PointField::FLOAT32;
+  bool needs_swap = false;
+  std::size_t total_points = 0;
+};
+
+PreparedPointCloudInput preparePointCloudInput(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg,
+                                               const ModelConfig& model_config, const Params& params,
+                                               tf2_ros::Buffer& tf_buffer, const rclcpp::Logger& logger) {
+  PreparedPointCloudInput prepared;
+  prepared.msg = msg;
+
+  if (!params.inference_frame.empty() && msg->header.frame_id != params.inference_frame) {
+    prepared.transformed_owner = std::make_shared<sensor_msgs::msg::PointCloud2>();
+    try {
+      tf_buffer.transform(*msg, *prepared.transformed_owner, params.inference_frame);
+      prepared.msg = prepared.transformed_owner;
+    } catch (tf2::TransformException& e) {
+      RCLCPP_ERROR(logger,
+                   "Cannot tranform Pointcloud: Transformation from its frame (%s) to inference_frame "
+                   "(%s) not found: %s",
+                   msg->header.frame_id.c_str(), params.inference_frame.c_str(), e.what());
+      throw;
+    }
+  }
+
+  auto findField = [&](const std::string& name) -> const sensor_msgs::msg::PointField* {
+    for (const auto& field : prepared.msg->fields) {
+      if (field.name == name) {
+        return &field;
+      }
+    }
+    return nullptr;
+  };
+
+  const std::string primary_feature_field = resolvePrimaryFeatureField(model_config, params);
+  const auto* x_field = findField("x");
+  const auto* y_field = findField("y");
+  const auto* z_field = findField("z");
+  const auto* primary_feature = findField(primary_feature_field);
+
+  if (!x_field || !y_field || !z_field) {
+    RCLCPP_FATAL(logger, "Point fields 'x', 'y', 'z' are required in PointCloud2 input");
+    throw std::runtime_error("Missing required PointCloud2 coordinate fields");
+  }
+  if (!primary_feature) {
+    RCLCPP_FATAL(logger, "Point field '%s' is required for primary feature extraction", primary_feature_field.c_str());
+    throw std::runtime_error("Missing required PointCloud2 field: " + primary_feature_field);
+  }
+
+  using PF = sensor_msgs::msg::PointField;
+  if (x_field->datatype != PF::FLOAT32 || y_field->datatype != PF::FLOAT32 || z_field->datatype != PF::FLOAT32) {
+    RCLCPP_FATAL(logger, "Point fields 'x', 'y', 'z' must be FLOAT32");
+    throw std::runtime_error("Unsupported PointCloud2 datatype for x/y/z fields");
+  }
+
+  switch (primary_feature->datatype) {
+    case PF::FLOAT32:
+      break;
+    case PF::FLOAT64:
+    case PF::UINT16:
+    case PF::UINT8:
+    case PF::INT16:
+    case PF::INT8:
+    case PF::UINT32:
+    case PF::INT32:
+      RCLCPP_WARN_ONCE(logger, "Converting PointCloud2 field '%s' from %s to FLOAT32", primary_feature_field.c_str(),
+                       pointFieldDatatypeToString(primary_feature->datatype));
+      break;
+    default:
+      RCLCPP_FATAL(logger,
+                   "Point field '%s' has unsupported datatype %u (%s). Supported: INT8, UINT8, INT16, UINT16, "
+                   "INT32, UINT32, FLOAT32, FLOAT64",
+                   primary_feature_field.c_str(), primary_feature->datatype,
+                   pointFieldDatatypeToString(primary_feature->datatype));
+      throw std::runtime_error("Unsupported PointCloud2 datatype for field: " + primary_feature_field);
+  }
+
+  prepared.x_offset = x_field->offset;
+  prepared.y_offset = y_field->offset;
+  prepared.z_offset = z_field->offset;
+  prepared.feature_offset = primary_feature->offset;
+  prepared.feature_datatype = primary_feature->datatype;
+  prepared.needs_swap = prepared.msg->is_bigendian == isHostLittleEndian();
+  prepared.total_points = static_cast<std::size_t>(prepared.msg->width) * prepared.msg->height;
+  return prepared;
+}
+
+void decodePreparedPointCloudToPcl(const PreparedPointCloudInput& prepared, PointCloud& point_cloud) {
+  const auto& msg_ref = *prepared.msg;
+  point_cloud.clear();
+  pcl_conversions::toPCL(msg_ref.header, point_cloud.header);
+  point_cloud.width = msg_ref.width;
+  point_cloud.height = msg_ref.height;
+  point_cloud.is_dense = msg_ref.is_dense;
+  point_cloud.points.resize(prepared.total_points);
+
+  std::size_t out_idx = 0;
+  const std::size_t row_step = static_cast<std::size_t>(msg_ref.row_step);
+  const std::size_t point_step = static_cast<std::size_t>(msg_ref.point_step);
+  for (std::size_t row = 0; row < msg_ref.height; ++row) {
+    const std::uint8_t* row_ptr = msg_ref.data.data() + row * row_step;
+    for (std::size_t col = 0; col < msg_ref.width; ++col) {
+      const std::uint8_t* point_ptr = row_ptr + col * point_step;
+      auto& dst = point_cloud.points[out_idx++];
+      dst.x = readFloat32At(point_ptr + prepared.x_offset, prepared.needs_swap);
+      dst.y = readFloat32At(point_ptr + prepared.y_offset, prepared.needs_swap);
+      dst.z = readFloat32At(point_ptr + prepared.z_offset, prepared.needs_swap);
+      dst.intensity =
+          readPointFieldAsFloat(point_ptr + prepared.feature_offset, prepared.feature_datatype, prepared.needs_swap);
+    }
+  }
+}
+
 }  // namespace
 
 // constants
@@ -1213,107 +1333,8 @@ void PointCloudObjectDetection::setup() {
 void PointCloudObjectDetection::processPointCloud(const sensor_msgs::msg::PointCloud2::ConstSharedPtr msg,
                                                   const ModelConfig& model_config, const Params& params,
                                                   PointCloud& point_cloud) {
-  // Transform only when required so we avoid TF cost/latency when frames already match.
-  sensor_msgs::msg::PointCloud2::SharedPtr transformed_point_cloud_msg;
-  sensor_msgs::msg::PointCloud2::ConstSharedPtr input_point_cloud_msg = msg;
-
-  if (!params.inference_frame.empty() && msg->header.frame_id != params.inference_frame) {
-    transformed_point_cloud_msg = std::make_shared<sensor_msgs::msg::PointCloud2>();
-    // transform point cloud
-    try {
-      tf_buffer_->transform(*msg, *transformed_point_cloud_msg, params.inference_frame);
-      input_point_cloud_msg = transformed_point_cloud_msg;
-    } catch (tf2::TransformException& e) {
-      RCLCPP_ERROR(this->get_logger(),
-                   "Cannot tranform Pointcloud: Transformation from its frame (%s) to inference_frame "
-                   "(%s) not found: %s",
-                   msg->header.frame_id.c_str(), params.inference_frame.c_str(), e.what());
-      return;
-    }
-  }
-
-  auto findField = [&](const std::string& name) -> const sensor_msgs::msg::PointField* {
-    for (const auto& field : input_point_cloud_msg->fields) {
-      if (field.name == name) {
-        return &field;
-      }
-    }
-    return nullptr;
-  };
-
-  const std::string primary_feature_field = resolvePrimaryFeatureField(model_config, params);
-  const auto* x_field = findField("x");
-  const auto* y_field = findField("y");
-  const auto* z_field = findField("z");
-  const auto* primary_feature = findField(primary_feature_field);
-
-  if (!x_field || !y_field || !z_field) {
-    RCLCPP_FATAL(this->get_logger(), "Point fields 'x', 'y', 'z' are required in PointCloud2 input");
-    throw std::runtime_error("Missing required PointCloud2 coordinate fields");
-  }
-  if (!primary_feature) {
-    RCLCPP_FATAL(this->get_logger(), "Point field '%s' is required for primary feature extraction",
-                 primary_feature_field.c_str());
-    throw std::runtime_error("Missing required PointCloud2 field: " + primary_feature_field);
-  }
-
-  using PF = sensor_msgs::msg::PointField;
-  // Keep x/y/z strictly FLOAT32 so the hot decode path can stay branch-light and deterministic.
-  if (x_field->datatype != PF::FLOAT32 || y_field->datatype != PF::FLOAT32 || z_field->datatype != PF::FLOAT32) {
-    RCLCPP_FATAL(this->get_logger(), "Point fields 'x', 'y', 'z' must be FLOAT32");
-    throw std::runtime_error("Unsupported PointCloud2 datatype for x/y/z fields");
-  }
-
-  switch (primary_feature->datatype) {
-    case PF::FLOAT32:
-      break;
-    case PF::FLOAT64:
-    case PF::UINT16:
-    case PF::UINT8:
-    case PF::INT16:
-    case PF::INT8:
-    case PF::UINT32:
-    case PF::INT32:
-      RCLCPP_WARN_ONCE(this->get_logger(), "Converting PointCloud2 field '%s' from %s to FLOAT32",
-                       primary_feature_field.c_str(), pointFieldDatatypeToString(primary_feature->datatype));
-      break;
-    default:
-      RCLCPP_FATAL(this->get_logger(),
-                   "Point field '%s' has unsupported datatype %u (%s). Supported: INT8, UINT8, INT16, UINT16, "
-                   "INT32, UINT32, FLOAT32, FLOAT64",
-                   primary_feature_field.c_str(), primary_feature->datatype,
-                   pointFieldDatatypeToString(primary_feature->datatype));
-      throw std::runtime_error("Unsupported PointCloud2 datatype for field: " + primary_feature_field);
-  }
-
-  // Swap only when message byte order differs from host byte order.
-  const bool needs_swap = input_point_cloud_msg->is_bigendian == isHostLittleEndian();
-
-  const auto& msg_ref = *input_point_cloud_msg;
-  const std::size_t total_points = static_cast<std::size_t>(msg_ref.width) * msg_ref.height;
-
-  point_cloud.clear();
-  pcl_conversions::toPCL(msg_ref.header, point_cloud.header);
-  point_cloud.width = msg_ref.width;
-  point_cloud.height = msg_ref.height;
-  point_cloud.is_dense = msg_ref.is_dense;
-  point_cloud.points.resize(total_points);
-
-  // Decode directly from PointCloud2 bytes to reduce per-point overhead in high-rate clouds.
-  std::size_t out_idx = 0;
-  const std::size_t row_step = static_cast<std::size_t>(msg_ref.row_step);
-  const std::size_t point_step = static_cast<std::size_t>(msg_ref.point_step);
-  for (std::size_t row = 0; row < msg_ref.height; ++row) {
-    const std::uint8_t* row_ptr = msg_ref.data.data() + row * row_step;
-    for (std::size_t col = 0; col < msg_ref.width; ++col) {
-      const std::uint8_t* point_ptr = row_ptr + col * point_step;
-      auto& dst = point_cloud.points[out_idx++];
-      dst.x = readFloat32At(point_ptr + x_field->offset, needs_swap);
-      dst.y = readFloat32At(point_ptr + y_field->offset, needs_swap);
-      dst.z = readFloat32At(point_ptr + z_field->offset, needs_swap);
-      dst.intensity = readPointFieldAsFloat(point_ptr + primary_feature->offset, primary_feature->datatype, needs_swap);
-    }
-  }
+  const auto prepared = preparePointCloudInput(msg, model_config, params, *tf_buffer_, this->get_logger());
+  decodePreparedPointCloudToPcl(prepared, point_cloud);
 }
 
 void PointCloudObjectDetection::boxesToObjectList(const std::vector<BoundingBox>& bboxes,
@@ -1443,15 +1464,20 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
     std::vector<std::chrono::time_point<std::chrono::high_resolution_clock>> timestamps = {
         std::chrono::high_resolution_clock::now()};  // index: 0, start timer
 
-    // msg to transformed pointcloud
-    PointCloud point_cloud;
     auto header = msg->header;
-    processPointCloud(msg, model_config_snapshot, params_snapshot, point_cloud);
+    const PreparedPointCloudInput prepared_input =
+        preparePointCloudInput(msg, model_config_snapshot, params_snapshot, *tf_buffer_, this->get_logger());
+    const bool need_point_cloud =
+        params_snapshot.no_detection_zone_publish_points && params_snapshot.no_detection_zone_enabled &&
+        no_detection_zone_points_publisher;
+    PointCloud point_cloud;
+    if (need_point_cloud) {
+      decodePreparedPointCloudToPcl(prepared_input, point_cloud);
+    }
     timestamps.push_back(std::chrono::high_resolution_clock::now());  // index: 1, after pcl preprocessing
 
     // Optionally publish raw points inside the no-detection zone
-    if (params_snapshot.no_detection_zone_publish_points && params_snapshot.no_detection_zone_enabled &&
-        no_detection_zone_points_publisher) {
+    if (need_point_cloud) {
       PointCloud ndz_points;
       ndz_points.header.frame_id =
           params_snapshot.inference_frame.empty() ? msg->header.frame_id : params_snapshot.inference_frame;
@@ -1663,7 +1689,20 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
       if (!detection_model_) {
         throw std::runtime_error("Detection model is not initialized");
       }
-      center_boxes = (*detection_model_)(point_cloud, timestamps);
+      auto* pbod_model = dynamic_cast<PBODModel*>(detection_model_.get());
+      const bool can_use_direct_preprocess = pbod_model != nullptr && !need_point_cloud;
+      if (can_use_direct_preprocess) {
+        pbod_model->prepareModelInputFromPointCloud2(*prepared_input.msg, prepared_input.x_offset, prepared_input.y_offset,
+                                                     prepared_input.z_offset, prepared_input.feature_offset,
+                                                     prepared_input.feature_datatype, prepared_input.needs_swap);
+        timestamps.push_back(std::chrono::high_resolution_clock::now());
+        center_boxes = detection_model_->inferAndDecode(timestamps);
+      } else {
+        if (!need_point_cloud) {
+          decodePreparedPointCloudToPcl(prepared_input, point_cloud);
+        }
+        center_boxes = (*detection_model_)(point_cloud, timestamps);
+      }
       used_points = detection_model_->getFilteredInputPoints().size();
     } catch (const std::exception& e) {
       RCLCPP_WARN(this->get_logger(), "Lost Triton connection for '%s:%s' on server '%s': %s. Attempting to reconnect.",
@@ -1787,8 +1826,8 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
                  "%s points=%zu used_points=%zu boxes_in=%zu boxes_nms=%zu boxes_out=%zu objects=%zu "
                  "e2e_ms=%.3f pcl_pre_ms=%.3f model_input_ms=%.3f infer_ms=%.3f decode_ms=%.3f "
                  "nms_ms=%.3f filter_ms=%.3f boxes_to_msg_ms=%.3f publish_ms=%.3f",
-                 event_name, point_cloud.size(), used_points, boxes_before_nms, boxes_after_nms, center_boxes.size(),
-                 size, to_ms(timestamps[8] - timestamps[0]), to_ms(timestamps[1] - timestamps[0]),
+                 event_name, prepared_input.total_points, used_points, boxes_before_nms, boxes_after_nms,
+                 center_boxes.size(), size, to_ms(timestamps[8] - timestamps[0]), to_ms(timestamps[1] - timestamps[0]),
                  to_ms(timestamps[2] - timestamps[1]), to_ms(timestamps[3] - timestamps[2]),
                  to_ms(timestamps[4] - timestamps[3]), to_ms(timestamps[5] - timestamps[4]),
                  to_ms(timestamps[6] - timestamps[5]), to_ms(timestamps[7] - timestamps[6]),

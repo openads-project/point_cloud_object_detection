@@ -1,6 +1,86 @@
 #include "point_cloud_object_detection/PBODModel.hpp"
 
+#include <cstring>
+
+#include <sensor_msgs/msg/point_field.hpp>
+
 namespace point_cloud_object_detection {
+
+namespace {
+
+std::uint16_t byteSwap16(std::uint16_t value) { return static_cast<std::uint16_t>((value >> 8) | (value << 8)); }
+
+std::uint32_t byteSwap32(std::uint32_t value) {
+  return ((value & 0x000000FFu) << 24) | ((value & 0x0000FF00u) << 8) | ((value & 0x00FF0000u) >> 8) |
+         ((value & 0xFF000000u) >> 24);
+}
+
+std::uint64_t byteSwap64(std::uint64_t value) {
+  return ((value & 0x00000000000000FFull) << 56) | ((value & 0x000000000000FF00ull) << 40) |
+         ((value & 0x0000000000FF0000ull) << 24) | ((value & 0x00000000FF000000ull) << 8) |
+         ((value & 0x000000FF00000000ull) >> 8) | ((value & 0x0000FF0000000000ull) >> 24) |
+         ((value & 0x00FF000000000000ull) >> 40) | ((value & 0xFF00000000000000ull) >> 56);
+}
+
+float readFloat32At(const std::uint8_t* src, bool needs_swap) {
+  std::uint32_t bits = 0;
+  std::memcpy(&bits, src, sizeof(bits));
+  if (needs_swap) bits = byteSwap32(bits);
+  float out = 0.0f;
+  std::memcpy(&out, &bits, sizeof(out));
+  return out;
+}
+
+float readFloat64AsFloatAt(const std::uint8_t* src, bool needs_swap) {
+  std::uint64_t bits = 0;
+  std::memcpy(&bits, src, sizeof(bits));
+  if (needs_swap) bits = byteSwap64(bits);
+  double out = 0.0;
+  std::memcpy(&out, &bits, sizeof(out));
+  return static_cast<float>(out);
+}
+
+float readPointFieldAsFloat(const std::uint8_t* src, std::uint8_t datatype, bool needs_swap) {
+  using PF = sensor_msgs::msg::PointField;
+  switch (datatype) {
+    case PF::FLOAT32:
+      return readFloat32At(src, needs_swap);
+    case PF::FLOAT64:
+      return readFloat64AsFloatAt(src, needs_swap);
+    case PF::UINT16: {
+      std::uint16_t value = 0;
+      std::memcpy(&value, src, sizeof(value));
+      if (needs_swap) value = byteSwap16(value);
+      return static_cast<float>(value);
+    }
+    case PF::UINT8:
+      return static_cast<float>(*src);
+    case PF::INT16: {
+      std::uint16_t raw = 0;
+      std::memcpy(&raw, src, sizeof(raw));
+      if (needs_swap) raw = byteSwap16(raw);
+      return static_cast<float>(static_cast<std::int16_t>(raw));
+    }
+    case PF::INT8:
+      return static_cast<float>(static_cast<std::int8_t>(*src));
+    case PF::UINT32: {
+      std::uint32_t value = 0;
+      std::memcpy(&value, src, sizeof(value));
+      if (needs_swap) value = byteSwap32(value);
+      return static_cast<float>(value);
+    }
+    case PF::INT32: {
+      std::uint32_t raw = 0;
+      std::memcpy(&raw, src, sizeof(raw));
+      if (needs_swap) raw = byteSwap32(raw);
+      return static_cast<float>(static_cast<std::int32_t>(raw));
+    }
+    default:
+      throw std::runtime_error("Unsupported PointCloud2 datatype");
+  }
+}
+
+}  // namespace
 
 void PBODModel::validateInterface(const triton_cpp::TritonInterface& triton_interface) {
   if (triton_interface.nInputs() != kExpectedInputNames.size()) {
@@ -120,6 +200,40 @@ std::map<std::string, std::vector<int64_t>> PBODModel::getSpecialOutputShapes() 
 }
 
 void PBODModel::setupModelInput(const PointCloud& point_cloud) {
+  setupModelInputFromGetter(static_cast<int>(point_cloud.size()), [&](int i) {
+    const auto& point = point_cloud[static_cast<std::size_t>(i)];
+    return PointRecord{point.x, point.y, point.z, point.intensity};
+  });
+}
+
+void PBODModel::prepareModelInputFromPointCloud2(const sensor_msgs::msg::PointCloud2& point_cloud_msg,
+                                                 uint32_t x_offset, uint32_t y_offset, uint32_t z_offset,
+                                                 uint32_t feature_offset, uint8_t feature_datatype, bool needs_swap) {
+  const std::size_t width = point_cloud_msg.width;
+  const std::size_t row_step = static_cast<std::size_t>(point_cloud_msg.row_step);
+  const std::size_t point_step = static_cast<std::size_t>(point_cloud_msg.point_step);
+  setupModelInputFromGetter(static_cast<int>(point_cloud_msg.width * point_cloud_msg.height), [&](int i) {
+    const std::size_t index = static_cast<std::size_t>(i);
+    const std::size_t row = index / width;
+    const std::size_t col = index % width;
+    const std::uint8_t* point_ptr = point_cloud_msg.data.data() + row * row_step + col * point_step;
+    return PointRecord{readFloat32At(point_ptr + x_offset, needs_swap), readFloat32At(point_ptr + y_offset, needs_swap),
+                       readFloat32At(point_ptr + z_offset, needs_swap),
+                       readPointFieldAsFloat(point_ptr + feature_offset, feature_datatype, needs_swap)};
+  });
+}
+
+template <typename PointGetter>
+void PBODModel::setupModelInputFromGetter(int n_cloud_points, PointGetter&& get_point) {
+  auto makePoint = [](const PointRecord& point_record) {
+    Point point;
+    point.x = point_record.x;
+    point.y = point_record.y;
+    point.z = point_record.z;
+    point.intensity = point_record.intensity;
+    return point;
+  };
+
   const int grid_y = static_cast<int>(model_config_.pillar_map_size[1]);
   const float inv_voxel_x = 1.0f / voxel_x_;
   const float inv_voxel_y = 1.0f / voxel_y_;
@@ -149,9 +263,8 @@ void PBODModel::setupModelInput(const PointCloud& point_cloud) {
   }
 
   filtered_input_points_.clear();
-  filtered_input_points_.reserve(std::min(static_cast<int>(point_cloud.size()), max_num_points_));
+  filtered_input_points_.reserve(std::min(n_cloud_points, max_num_points_));
 
-  const int n_cloud_points = static_cast<int>(point_cloud.size());
   if (n_cloud_points == 0) {
     RCLCPP_DEBUG(rclcpp::get_logger("PBODModel"), "Input point cloud is empty.");
     return;
@@ -161,18 +274,18 @@ void PBODModel::setupModelInput(const PointCloud& point_cloud) {
   static thread_local std::uniform_int_distribution<int> reservoir_dist;
   int valid_point_count = 0;
   for (int i = 0; i < n_cloud_points; ++i) {
-    const auto& point = point_cloud[i];
+    const PointRecord point = get_point(i);
     if (!point_preprocessor_.IsPointValid(point.x, point.y, point.z)) {
       continue;
     }
     ++valid_point_count;
     if (valid_point_count <= max_num_points_) {
-      filtered_input_points_.push_back(point);
+      filtered_input_points_.push_back(makePoint(point));
     } else {
       reservoir_dist.param(std::uniform_int_distribution<int>::param_type(1, valid_point_count));
       const int random_idx = reservoir_dist(gen);
       if (random_idx <= max_num_points_) {
-        filtered_input_points_[static_cast<std::size_t>(random_idx - 1)] = point;
+        filtered_input_points_[static_cast<std::size_t>(random_idx - 1)] = makePoint(point);
       }
     }
   }
