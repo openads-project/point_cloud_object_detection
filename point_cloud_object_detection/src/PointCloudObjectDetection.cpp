@@ -986,31 +986,23 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
     }
   }
 
-  for (const auto& param : parameters) {
-    for (auto& auto_reconfigurable_param : auto_reconfigurable_params_) {
-      if (param.get_name() == std::get<0>(auto_reconfigurable_param)) {
-        try {
-          std::get<1>(auto_reconfigurable_param)(param);
-        } catch (const std::exception& e) {
-          rollback_state();
-          result.successful = false;
-          result.reason = std::string("Invalid parameter update: ") + e.what();
-          RCLCPP_ERROR(this->get_logger(), "%s", result.reason.c_str());
-          return result;
-        }
-        RCLCPP_INFO(this->get_logger(), "Reconfigured parameter '%s' to: %s", param.get_name().c_str(),
-                    param.value_to_string().c_str());
-        break;
-      }
-    }
-  }
-
-  const double cscu = pm::object_access::CONTINUOUS_STATE_COVARIANCE_UNKNOWN;
-  sanitizeVarianceVector(params_.variance, cscu);
+  std::vector<rclcpp::Parameter> applied_parameters;
 
   {
     std::lock_guard<std::mutex> model_lock(model_mutex_);
     try {
+      for (const auto& param : parameters) {
+        for (auto& auto_reconfigurable_param : auto_reconfigurable_params_) {
+          if (param.get_name() == std::get<0>(auto_reconfigurable_param)) {
+            std::get<1>(auto_reconfigurable_param)(param);
+            applied_parameters.push_back(param);
+            break;
+          }
+        }
+      }
+
+      const double cscu = pm::object_access::CONTINUOUS_STATE_COVARIANCE_UNKNOWN;
+      sanitizeVarianceVector(params_.variance, cscu);
       syncModelRuntimeConfigFromParams();
       syncNmsRuntimeConfigFromParams();
       validateParamsOrThrow();
@@ -1032,6 +1024,11 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
     }
   }
 
+  for (const auto& param : applied_parameters) {
+    RCLCPP_INFO(this->get_logger(), "Reconfigured parameter '%s' to: %s", param.get_name().c_str(),
+                param.value_to_string().c_str());
+  }
+
   // Reinitialize model if runtime-critical configuration changed
   if (model_change_on_runtime) {
     try {
@@ -1040,7 +1037,11 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
       RCLCPP_INFO(this->get_logger(), "Successfully reinitialized model with name: %s, version: %s",
                   params_.model_name.c_str(), params_.model_version.c_str());
     } catch (const std::exception& e) {
-      rollback_state();
+      {
+        std::lock_guard<std::mutex> model_lock(model_mutex_);
+        rollback_state();
+        model_ready_.store(detection_model_ != nullptr, std::memory_order_release);
+      }
       result.successful = false;
       result.reason = "Failed to reinitialize model: " + std::string(e.what());
       RCLCPP_ERROR(this->get_logger(), "Failed to reinitialize model: %s", e.what());
@@ -1118,9 +1119,15 @@ void PointCloudObjectDetection::initializeModel() {
 }
 
 void PointCloudObjectDetection::setupPublishers() {
+  Params params_snapshot;
+  {
+    std::lock_guard<std::mutex> model_lock(model_mutex_);
+    params_snapshot = params_;
+  }
+
   std::lock_guard<std::mutex> publishers_lock(publishers_mutex_);
   // create no-detection zone polygon publisher if enabled
-  if (params_.no_detection_zone_publish_polygon) {
+  if (params_snapshot.no_detection_zone_publish_polygon) {
     if (!no_detection_zone_pub_) {
       no_detection_zone_pub_ = create_publisher<geometry_msgs::msg::PolygonStamped>(kNoDetectionZoneTopic, 1);
       RCLCPP_INFO(this->get_logger(), "Publishing no-detection zone polygon on '%s'",
@@ -1131,7 +1138,7 @@ void PointCloudObjectDetection::setupPublishers() {
   }
 
   // create detection area polygon publisher if requested
-  if (params_.detection_area_publish_polygon) {
+  if (params_snapshot.detection_area_publish_polygon) {
     if (!detection_area_pub_) {
       detection_area_pub_ = create_publisher<geometry_msgs::msg::PolygonStamped>(kDetectionAreaTopic, 1);
       RCLCPP_INFO(this->get_logger(), "Publishing detection area polygon on '%s'",
@@ -1142,7 +1149,7 @@ void PointCloudObjectDetection::setupPublishers() {
   }
 
   // create model bounds polygon publisher if requested
-  if (params_.model_bounds_publish_polygon) {
+  if (params_snapshot.model_bounds_publish_polygon) {
     if (!model_bounds_pub_) {
       model_bounds_pub_ = create_publisher<geometry_msgs::msg::PolygonStamped>(kModelBoundsTopic, 1);
       RCLCPP_INFO(this->get_logger(), "Publishing model bounds polygon on '%s'", model_bounds_pub_->get_topic_name());
@@ -1152,7 +1159,7 @@ void PointCloudObjectDetection::setupPublishers() {
   }
 
   // create no-detection zone raw points publisher if enabled
-  if (params_.no_detection_zone_publish_points) {
+  if (params_snapshot.no_detection_zone_publish_points) {
     if (!no_detection_zone_points_publisher_) {
       std::string topic_name = this->get_node_topics_interface()->resolve_topic_name(kNoDetectionZonePointsTopic);
       no_detection_zone_points_publisher_ =
