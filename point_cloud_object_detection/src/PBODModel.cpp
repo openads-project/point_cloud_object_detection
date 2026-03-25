@@ -16,8 +16,8 @@ void PBODModel::validateInterface(const triton_cpp::TritonInterface& triton_inte
     try {
       (void)triton_interface.getInputShape(input_name);
     } catch (const std::invalid_argument& e) {
-      throw std::runtime_error("PBOD model is missing expected input tensor '" + std::string(input_name) + "': " +
-                               e.what());
+      throw std::runtime_error("PBOD model is missing expected input tensor '" + std::string(input_name) +
+                               "': " + e.what());
     }
   }
 
@@ -25,8 +25,8 @@ void PBODModel::validateInterface(const triton_cpp::TritonInterface& triton_inte
     try {
       (void)triton_interface.getOutputShape(output_name);
     } catch (const std::invalid_argument& e) {
-      throw std::runtime_error("PBOD model is missing expected output tensor '" + std::string(output_name) + "': " +
-                               e.what());
+      throw std::runtime_error("PBOD model is missing expected output tensor '" + std::string(output_name) +
+                               "': " + e.what());
     }
   }
 }
