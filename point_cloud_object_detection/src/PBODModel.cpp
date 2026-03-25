@@ -34,6 +34,7 @@ void PBODModel::validateInterface(const triton_cpp::TritonInterface& triton_inte
 PBODModel::PBODModel(triton_cpp::TritonInterface& triton_interface, const ModelConfig& model_config)
     : Model(triton_interface),
       model_config_{model_config},
+      postprocess_config_{},
       x_min_{model_config_.pillar_map_range[0][0]},
       x_max_{model_config_.pillar_map_range[0][1]},
       y_min_{model_config_.pillar_map_range[1][0]},
@@ -104,6 +105,11 @@ PBODModel::PBODModel(triton_cpp::TritonInterface& triton_interface, const ModelC
                                      {model_config_.pillar_map_range[1][0], model_config_.pillar_map_range[1][1]},
                                      {model_config_.pillar_map_range[2][0], model_config_.pillar_map_range[2][1]}}},
                                    model_config_.first_up_stride, stride);
+  postprocess_config_.class_names = model_config_.predicted_class_names;
+  postprocess_config_.score_thresholds.reserve(model_config_.nms_score_threshold.size());
+  for (double value : model_config_.nms_score_threshold) {
+    postprocess_config_.score_thresholds.push_back(static_cast<float>(value));
+  }
 }
 
 std::map<std::string, std::vector<int64_t>> PBODModel::getSpecialOutputShapes() {
@@ -133,10 +139,13 @@ void PBODModel::setupModelInput(const PointCloud& point_cloud) {
   const int64_t sentinel = static_cast<int64_t>(num_pillars_);
   pillar_ids_map.setConstant(sentinel);
 
-  for (int i = 0; i < num_pillars_; ++i) {
-    const std::size_t idx = static_cast<std::size_t>(i) * kPillarIndexDim;
-    pillar_indices_map(i, 0) = pillar_indices_[idx];
-    pillar_indices_map(i, 1) = pillar_indices_[idx + 1];
+  if (!pillar_indices_initialized_) {
+    for (int i = 0; i < num_pillars_; ++i) {
+      const std::size_t idx = static_cast<std::size_t>(i) * kPillarIndexDim;
+      pillar_indices_map(i, 0) = pillar_indices_[idx];
+      pillar_indices_map(i, 1) = pillar_indices_[idx + 1];
+    }
+    pillar_indices_initialized_ = true;
   }
 
   filtered_input_points_.clear();
@@ -325,14 +334,7 @@ std::vector<BoundingBox> PBODModel::modelOutputToBoxes() {
   view.num_classes = num_classes;
   view.reg_dim = kRegressionValuesPerClass;
 
-  pcod_common::PbodPostprocessConfig config;
-  config.class_names = model_config_.predicted_class_names;
-  config.score_thresholds.clear();
-  for (double value : model_config_.nms_score_threshold) {
-    config.score_thresholds.push_back(static_cast<float>(value));
-  }
-
-  return pcod_common::DecodePbod(view, pillar_grid_, config);
+  return pcod_common::DecodePbod(view, pillar_grid_, postprocess_config_);
 }
 
 }  // namespace point_cloud_object_detection

@@ -84,6 +84,7 @@ class PBODModel : public Model {
  private:
   const ModelConfig model_config_;
   pcod_common::PillarGrid pillar_grid_;
+  pcod_common::PbodPostprocessConfig postprocess_config_;
 
   // Cached range values for performance
   const float x_min_;
@@ -105,6 +106,7 @@ class PBODModel : public Model {
   const int preprocessed_feature_dim_;
   const int num_pillars_;
   std::vector<int64_t> pillar_indices_;
+  bool pillar_indices_initialized_ = false;
   // No-detection zone point filtering
   const bool remove_points_in_zone_;
   const float nd_x_min_;
