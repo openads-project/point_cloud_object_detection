@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <rclcpp/logging.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
 
 #include "Definitions.hpp"
 #include "Model.hpp"
@@ -71,6 +72,9 @@ class PBODModel : public Model {
   PBODModel(triton_cpp::TritonInterface& triton_interface, const ModelConfig& model_config);
 
   std::map<std::string, std::vector<int64_t>> getSpecialOutputShapes() override;
+  void prepareModelInputFromPointCloud2(const sensor_msgs::msg::PointCloud2& point_cloud_msg, uint32_t x_offset,
+                                        uint32_t y_offset, uint32_t z_offset, uint32_t feature_offset,
+                                        uint8_t feature_datatype, bool needs_swap);
   ~PBODModel() override = default;
   PBODModel(const PBODModel&) = delete;  // Rule of five
   PBODModel& operator=(const PBODModel&) = delete;
@@ -82,6 +86,16 @@ class PBODModel : public Model {
   std::vector<BoundingBox> modelOutputToBoxes() override;
 
  private:
+  struct PointRecord {
+    float x;
+    float y;
+    float z;
+    float intensity;
+  };
+
+  template <typename PointGetter>
+  void setupModelInputFromGetter(int n_points, PointGetter&& get_point);
+
   const ModelConfig model_config_;
   pcod_common::PillarGrid pillar_grid_;
   pcod_common::PbodPostprocessConfig postprocess_config_;
