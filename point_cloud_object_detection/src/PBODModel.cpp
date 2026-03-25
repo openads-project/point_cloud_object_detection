@@ -31,7 +31,7 @@ void PBODModel::validateInterface(const triton_cpp::TritonInterface& triton_inte
   }
 }
 
-PBODModel::PBODModel(triton_cpp::TritonInterface& triton_interface, ModelConfig& model_config)
+PBODModel::PBODModel(triton_cpp::TritonInterface& triton_interface, const ModelConfig& model_config)
     : Model(triton_interface),
       model_config_{model_config},
       x_min_{model_config_.pillar_map_range[0][0]},

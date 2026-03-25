@@ -68,7 +68,7 @@ class PBODModel : public Model {
 
   static void validateInterface(const triton_cpp::TritonInterface& triton_interface);
 
-  PBODModel(triton_cpp::TritonInterface& triton_interface, ModelConfig& model_config);
+  PBODModel(triton_cpp::TritonInterface& triton_interface, const ModelConfig& model_config);
 
   std::map<std::string, std::vector<int64_t>> getSpecialOutputShapes() override;
   ~PBODModel() override = default;
@@ -82,7 +82,7 @@ class PBODModel : public Model {
   std::vector<BoundingBox> modelOutputToBoxes() override;
 
  private:
-  ModelConfig& model_config_;
+  const ModelConfig model_config_;
   pcod_common::PillarGrid pillar_grid_;
 
   // Cached range values for performance
