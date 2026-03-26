@@ -1,6 +1,7 @@
 /**:
   ros__parameters:
     prediction.server_url: "triton-server:8001"
+    preprocessing.backend: "cpu"
     preprocessing.inference_frame: base_link
     point_cloud_transport: cloudini
 

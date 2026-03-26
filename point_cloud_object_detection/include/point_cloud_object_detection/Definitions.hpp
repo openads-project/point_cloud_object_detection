@@ -20,10 +20,12 @@ using pcod_common::ClassificationEntry;
 
 inline constexpr std::array<const char*, 2> kAllowedPointFeatureFields = {"intensity", "reflectivity"};
 inline constexpr std::array<const char*, 2> kSupportedManifestPrecisions = {"fp32", "fp16"};
+inline constexpr std::array<const char*, 2> kAllowedPreprocessingBackends = {"cpu", "cuda"};
 
 // model config
 struct ModelConfig {
   // Preprocessing
+  std::string preprocessing_backend = "cpu";
   std::string point_feature_normalization_type = "none";
   float point_feature_intensity_threshold = 0.0f;
   float point_feature_min_intensity = 0.0f;
@@ -83,6 +85,7 @@ struct ModelConfig {
 
 // parameters
 struct Params {
+  std::string preprocessing_backend = "cpu";
   std::string model_name;
   std::string model_version;
   std::string server_url;  // required

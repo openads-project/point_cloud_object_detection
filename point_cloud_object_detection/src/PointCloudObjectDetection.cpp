@@ -45,6 +45,11 @@ bool isAllowedPointFeatureField(const std::string& source) {
                      [&](const char* allowed) { return source == allowed; });
 }
 
+bool isAllowedPreprocessingBackend(const std::string& backend) {
+  return std::any_of(kAllowedPreprocessingBackends.begin(), kAllowedPreprocessingBackends.end(),
+                     [&](const char* allowed) { return backend == allowed; });
+}
+
 std::string allowedPointFeatureFieldsString() {
   std::ostringstream oss;
   for (std::size_t i = 0; i < kAllowedPointFeatureFields.size(); ++i) {
@@ -52,6 +57,17 @@ std::string allowedPointFeatureFieldsString() {
       oss << ", ";
     }
     oss << "'" << kAllowedPointFeatureFields[i] << "'";
+  }
+  return oss.str();
+}
+
+std::string allowedPreprocessingBackendsString() {
+  std::ostringstream oss;
+  for (std::size_t i = 0; i < kAllowedPreprocessingBackends.size(); ++i) {
+    if (i > 0) {
+      oss << ", ";
+    }
+    oss << "'" << kAllowedPreprocessingBackends[i] << "'";
   }
   return oss.str();
 }
@@ -445,6 +461,14 @@ void PointCloudObjectDetection::declareParameters() {
   const double cscu = pm::object_access::CONTINUOUS_STATE_COVARIANCE_UNKNOWN;
 
   // clang-format off
+  this->declareAndLoadParameter("preprocessing.backend", params_.preprocessing_backend,                     // name
+                                "Point preprocessing backend: 'cpu' or 'cuda'. If 'cuda' is selected but unavailable,"
+                                " the node falls back to CPU preprocessing.",
+                                true,                                                          // add_to_auto_reconfigurable_params
+                                false,                                                         // is_required
+                                false,                                                         // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                      // from_value, to_value, step_value
+                                "Must be one of: 'cpu', 'cuda'.");                             // additional_constraints
   this->declareAndLoadParameter("prediction.server_url", params_.server_url,                               // name
                                 "URL of the triton server, e.g. 134.130.20.221:8001",           // description
                                 false,                                                          // add_to_auto_reconfigurable_params
@@ -693,6 +717,7 @@ void PointCloudObjectDetection::syncModelRuntimeConfigFromParams() {
 
 void PointCloudObjectDetection::syncModelRuntimeConfigFromParams(ModelConfig& model_config,
                                                                  const Params& params) const {
+  model_config.preprocessing_backend = params.preprocessing_backend;
   if (!std::isnan(params.point_feature_intensity_threshold)) {
     model_config.point_feature_intensity_threshold = static_cast<float>(params.point_feature_intensity_threshold);
   }
@@ -766,6 +791,9 @@ void PointCloudObjectDetection::validateParamsOrThrow() const {
 
   if (!isAllowedPointFeatureField(params_.point_feature_field)) {
     fail("input.point_feature_field", "must be one of: " + allowedPointFeatureFieldsString());
+  }
+  if (!isAllowedPreprocessingBackend(params_.preprocessing_backend)) {
+    fail("preprocessing.backend", "must be one of: " + allowedPreprocessingBackendsString());
   }
   if (!std::isnan(params_.point_feature_intensity_threshold)) {
     if (!isFinite(params_.point_feature_intensity_threshold)) {
@@ -977,6 +1005,9 @@ void PointCloudObjectDetection::validateModelConfigOrThrow(const ModelConfig& mo
     throwParameterError(this->get_logger(), param, message);
   };
 
+  if (!isAllowedPreprocessingBackend(model_config.preprocessing_backend)) {
+    fail("preprocessing.backend", "must be one of: " + allowedPreprocessingBackendsString());
+  }
   if (!isFinite(model_config.x_min) || !isFinite(model_config.x_max)) {
     fail("x_min/x_max", "must be finite");
   }
@@ -1096,7 +1127,8 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
   bool model_change_on_runtime = false;
   bool publishers_changed = false;
   for (const auto& param : parameters) {
-    if (name_in(param.get_name(), {"prediction.triton_client_timeout_s", "prediction.use_shm"})) {
+    if (name_in(param.get_name(), {"prediction.triton_client_timeout_s", "prediction.use_shm",
+                                   "preprocessing.backend"})) {
       model_change_on_runtime = true;
     }
     if (name_in(param.get_name(),
@@ -1694,7 +1726,7 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
       if (can_use_direct_preprocess) {
         pbod_model->prepareModelInputFromPointCloud2(*prepared_input.msg, prepared_input.x_offset, prepared_input.y_offset,
                                                      prepared_input.z_offset, prepared_input.feature_offset,
-                                                     prepared_input.feature_datatype, prepared_input.needs_swap);
+                                                     prepared_input.feature_datatype, prepared_input.needs_swap, false);
         timestamps.push_back(std::chrono::high_resolution_clock::now());
         center_boxes = detection_model_->inferAndDecode(timestamps);
       } else {
@@ -1703,7 +1735,7 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
         }
         center_boxes = (*detection_model_)(point_cloud, timestamps);
       }
-      used_points = detection_model_->getFilteredInputPoints().size();
+      used_points = detection_model_->getFilteredInputPointCount();
     } catch (const std::exception& e) {
       RCLCPP_WARN(this->get_logger(), "Lost Triton connection for '%s:%s' on server '%s': %s. Attempting to reconnect.",
                   params_snapshot.model_name.c_str(), params_snapshot.model_version.c_str(),

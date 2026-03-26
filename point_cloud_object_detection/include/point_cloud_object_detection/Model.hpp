@@ -52,6 +52,7 @@ class Model {
    * @return const PointCloud& Reference to the filtered input points
    */
   const PointCloud& getFilteredInputPoints() const;
+  std::size_t getFilteredInputPointCount() const;
 
   virtual std::map<std::string, std::vector<int64_t>> getSpecialOutputShapes() { return {}; };
 
@@ -64,6 +65,7 @@ class Model {
  protected:
   triton_cpp::TritonInterface& triton_interface_;
   mutable PointCloud filtered_input_points_;  // Store points actually used as model input
+  std::size_t filtered_input_point_count_ = 0;
 
   virtual void setupModelInput(const PointCloud& point_cloud) = 0;
   virtual std::vector<BoundingBox> modelOutputToBoxes() = 0;

@@ -6,6 +6,8 @@
 
 namespace point_cloud_object_detection {
 
+using PointRecord = pcod_common::PillarPreprocessPoint;
+
 namespace {
 
 std::uint16_t byteSwap16(std::uint16_t value) { return static_cast<std::uint16_t>((value >> 8) | (value << 8)); }
@@ -80,6 +82,10 @@ float readPointFieldAsFloat(const std::uint8_t* src, std::uint8_t datatype, bool
   }
 }
 
+bool useCudaPreprocessing(const ModelConfig& model_config) {
+  return model_config.preprocessing_backend == "cuda";
+}
+
 }  // namespace
 
 void PBODModel::validateInterface(const triton_cpp::TritonInterface& triton_interface) {
@@ -134,6 +140,7 @@ PBODModel::PBODModel(triton_cpp::TritonInterface& triton_interface, const ModelC
       max_num_points_{model_config_.max_num_points},
       preprocessed_feature_dim_{kPreprocessedFeatureDim},
       num_pillars_{static_cast<int>(model_config_.pillar_map_size[0] * model_config_.pillar_map_size[1])},
+      pillar_id_sentinel_{static_cast<std::int64_t>(num_pillars_)},
       remove_points_in_zone_{model_config_.no_detection_zone_remove_points},
       nd_x_min_{static_cast<float>(model_config_.no_detection_zone_x_min)},
       nd_x_max_{static_cast<float>(model_config_.no_detection_zone_x_max)},
@@ -190,6 +197,18 @@ PBODModel::PBODModel(triton_cpp::TritonInterface& triton_interface, const ModelC
   for (double value : model_config_.nms_score_threshold) {
     postprocess_config_.score_thresholds.push_back(static_cast<float>(value));
   }
+  pillar_counts_.resize(static_cast<std::size_t>(num_pillars_), 0);
+  pillar_sum_.resize(static_cast<std::size_t>(num_pillars_) * kPointCoordinateDim, 0.0f);
+  pillar_sq_sum_.resize(static_cast<std::size_t>(num_pillars_) * kPointCoordinateDim, 0.0f);
+  pillar_mean_.resize(static_cast<std::size_t>(num_pillars_) * kPointCoordinateDim, 0.0f);
+  pillar_var_.resize(static_cast<std::size_t>(num_pillars_) * kPointCoordinateDim, 0.0f);
+  pillar_ids_raw_.resize(static_cast<std::size_t>(max_num_points_), -1);
+  pillar_ix_raw_.resize(static_cast<std::size_t>(max_num_points_), -1);
+  pillar_iy_raw_.resize(static_cast<std::size_t>(max_num_points_), -1);
+  tensor_reset_state_.active_point_rows.reserve(static_cast<std::size_t>(max_num_points_));
+  tensor_reset_state_.active_pillar_ids.reserve(static_cast<std::size_t>(num_pillars_));
+  active_pillar_ids_scratch_.reserve(static_cast<std::size_t>(num_pillars_));
+  selected_point_records_.reserve(static_cast<std::size_t>(max_num_points_));
 }
 
 std::map<std::string, std::vector<int64_t>> PBODModel::getSpecialOutputShapes() {
@@ -203,12 +222,13 @@ void PBODModel::setupModelInput(const PointCloud& point_cloud) {
   setupModelInputFromGetter(static_cast<int>(point_cloud.size()), [&](int i) {
     const auto& point = point_cloud[static_cast<std::size_t>(i)];
     return PointRecord{point.x, point.y, point.z, point.intensity};
-  });
+  }, true);
 }
 
 void PBODModel::prepareModelInputFromPointCloud2(const sensor_msgs::msg::PointCloud2& point_cloud_msg,
                                                  uint32_t x_offset, uint32_t y_offset, uint32_t z_offset,
-                                                 uint32_t feature_offset, uint8_t feature_datatype, bool needs_swap) {
+                                                 uint32_t feature_offset, uint8_t feature_datatype, bool needs_swap,
+                                                 bool materialize_filtered_points) {
   const std::size_t width = point_cloud_msg.width;
   const std::size_t row_step = static_cast<std::size_t>(point_cloud_msg.row_step);
   const std::size_t point_step = static_cast<std::size_t>(point_cloud_msg.point_step);
@@ -220,11 +240,11 @@ void PBODModel::prepareModelInputFromPointCloud2(const sensor_msgs::msg::PointCl
     return PointRecord{readFloat32At(point_ptr + x_offset, needs_swap), readFloat32At(point_ptr + y_offset, needs_swap),
                        readFloat32At(point_ptr + z_offset, needs_swap),
                        readPointFieldAsFloat(point_ptr + feature_offset, feature_datatype, needs_swap)};
-  });
+  }, materialize_filtered_points);
 }
 
 template <typename PointGetter>
-void PBODModel::setupModelInputFromGetter(int n_cloud_points, PointGetter&& get_point) {
+void PBODModel::setupModelInputFromGetter(int n_cloud_points, PointGetter&& get_point, bool materialize_filtered_points) {
   auto makePoint = [](const PointRecord& point_record) {
     Point point;
     point.x = point_record.x;
@@ -234,10 +254,6 @@ void PBODModel::setupModelInputFromGetter(int n_cloud_points, PointGetter&& get_
     return point;
   };
 
-  const int grid_y = static_cast<int>(model_config_.pillar_map_size[1]);
-  const float inv_voxel_x = 1.0f / voxel_x_;
-  const float inv_voxel_y = 1.0f / voxel_y_;
-
   auto point_features_map =
       triton_interface_.getInputTensor<float>(kInputNamePointFeatures, max_num_points_, preprocessed_feature_dim_);
   auto pillar_ids_map = triton_interface_.getInputTensor<int64_t>(kInputNamePillarIds, max_num_points_);
@@ -245,13 +261,6 @@ void PBODModel::setupModelInputFromGetter(int n_cloud_points, PointGetter&& get_
   auto pillar_masks_map = triton_interface_.getInputTensor<bool>(kInputNamePillarMasks, num_pillars_);
   auto pillar_indices_map =
       triton_interface_.getInputTensor<int64_t>(kInputNamePillarIndices, num_pillars_, kPillarIndexDim);
-
-  point_features_map.setZero();
-  valid_mask_map.setZero();
-  pillar_masks_map.setZero();
-
-  const int64_t sentinel = static_cast<int64_t>(num_pillars_);
-  pillar_ids_map.setConstant(sentinel);
 
   if (!pillar_indices_initialized_) {
     for (int i = 0; i < num_pillars_; ++i) {
@@ -262,8 +271,15 @@ void PBODModel::setupModelInputFromGetter(int n_cloud_points, PointGetter&& get_
     pillar_indices_initialized_ = true;
   }
 
-  filtered_input_points_.clear();
-  filtered_input_points_.reserve(std::min(n_cloud_points, max_num_points_));
+  selected_point_records_.clear();
+  selected_point_records_.reserve(std::min(n_cloud_points, max_num_points_));
+  filtered_input_point_count_ = 0;
+  if (materialize_filtered_points) {
+    filtered_input_points_.clear();
+    filtered_input_points_.reserve(std::min(n_cloud_points, max_num_points_));
+  } else {
+    filtered_input_points_.clear();
+  }
 
   if (n_cloud_points == 0) {
     RCLCPP_DEBUG(rclcpp::get_logger("PBODModel"), "Input point cloud is empty.");
@@ -280,22 +296,30 @@ void PBODModel::setupModelInputFromGetter(int n_cloud_points, PointGetter&& get_
     }
     ++valid_point_count;
     if (valid_point_count <= max_num_points_) {
-      filtered_input_points_.push_back(makePoint(point));
+      selected_point_records_.push_back(point);
+      if (materialize_filtered_points) {
+        filtered_input_points_.push_back(makePoint(point));
+      }
     } else {
       reservoir_dist.param(std::uniform_int_distribution<int>::param_type(1, valid_point_count));
       const int random_idx = reservoir_dist(gen);
       if (random_idx <= max_num_points_) {
-        filtered_input_points_[static_cast<std::size_t>(random_idx - 1)] = makePoint(point);
+        const std::size_t replace_idx = static_cast<std::size_t>(random_idx - 1);
+        selected_point_records_[replace_idx] = point;
+        if (materialize_filtered_points) {
+          filtered_input_points_[replace_idx] = makePoint(point);
+        }
       }
     }
   }
 
-  const int num_selected = static_cast<int>(filtered_input_points_.size());
+  const int num_selected = static_cast<int>(selected_point_records_.size());
+  filtered_input_point_count_ = static_cast<std::size_t>(num_selected);
 
   if (normalization_type_ == pcod_common::PointFeatureNormalizationType::kZScore) {
     double sum = 0.0;
     double sum_sq = 0.0;
-    for (const auto& point : filtered_input_points_) {
+    for (const auto& point : selected_point_records_) {
       const double value = static_cast<double>(point.intensity);
       sum += value;
       sum_sq += value * value;
@@ -307,79 +331,130 @@ void PBODModel::setupModelInputFromGetter(int n_cloud_points, PointGetter&& get_
     point_preprocessor_.SetZScoreStats(static_cast<float>(mean), static_cast<float>(stddev));
   }
 
-  std::vector<int32_t> pillar_counts(static_cast<std::size_t>(num_pillars_), 0);
-  std::vector<float> pillar_sum(static_cast<std::size_t>(num_pillars_) * kPointCoordinateDim, 0.0f);
-  std::vector<float> pillar_sq_sum(static_cast<std::size_t>(num_pillars_) * kPointCoordinateDim, 0.0f);
-  std::vector<int> pillar_ids_raw(static_cast<std::size_t>(num_selected), -1);
-  std::vector<int> pillar_ix_raw(static_cast<std::size_t>(num_selected), -1);
-  std::vector<int> pillar_iy_raw(static_cast<std::size_t>(num_selected), -1);
+  const auto resetAllTensors = [&]() {
+    point_features_map.setZero();
+    valid_mask_map.setZero();
+    pillar_masks_map.setZero();
+    pillar_ids_map.setConstant(pillar_id_sentinel_);
+  };
+
+  const auto resetSparseTensors = [&]() {
+    if (!tensor_reset_state_.initialized) {
+      resetAllTensors();
+      tensor_reset_state_.initialized = true;
+      tensor_reset_state_.active_point_rows.clear();
+      tensor_reset_state_.active_pillar_ids.clear();
+      return;
+    }
+
+    for (int row : tensor_reset_state_.active_point_rows) {
+      for (int feature_idx = 0; feature_idx < preprocessed_feature_dim_; ++feature_idx) {
+        point_features_map(row, feature_idx) = 0.0f;
+      }
+      valid_mask_map(row) = false;
+      pillar_ids_map(row) = pillar_id_sentinel_;
+    }
+    for (int pillar_id : tensor_reset_state_.active_pillar_ids) {
+      pillar_masks_map(pillar_id) = false;
+    }
+    tensor_reset_state_.active_point_rows.clear();
+    tensor_reset_state_.active_pillar_ids.clear();
+  };
+  resetSparseTensors();
+
+  if (useCudaPreprocessing(model_config_) &&
+      populateModelInputOnGpu(point_features_map.data(), pillar_ids_map.data(), valid_mask_map.data(),
+                              pillar_masks_map.data(), num_selected)) {
+    return;
+  }
+
+  populateModelInputOnCpu(point_features_map.data(), pillar_ids_map.data(), valid_mask_map.data(), pillar_masks_map.data(),
+                          num_selected);
+}
+
+void PBODModel::populateModelInputOnCpu(float* point_features, std::int64_t* pillar_ids, bool* valid_mask,
+                                        bool* pillar_masks, int num_selected) {
+  constexpr float kRadiusEpsilon = 1e-6f;
+  const float inv_voxel_x = 1.0f / voxel_x_;
+  const float inv_voxel_y = 1.0f / voxel_y_;
+  const int grid_y = static_cast<int>(model_config_.pillar_map_size[1]);
+  const float center_z = z_min_ + (z_max_ - z_min_) * 0.5f;
+
+  for (int pillar_id : active_pillar_ids_scratch_) {
+    const std::size_t sum_offset = static_cast<std::size_t>(pillar_id) * kPointCoordinateDim;
+    pillar_counts_[static_cast<std::size_t>(pillar_id)] = 0;
+    pillar_sum_[sum_offset + 0] = 0.0f;
+    pillar_sum_[sum_offset + 1] = 0.0f;
+    pillar_sum_[sum_offset + 2] = 0.0f;
+    pillar_sq_sum_[sum_offset + 0] = 0.0f;
+    pillar_sq_sum_[sum_offset + 1] = 0.0f;
+    pillar_sq_sum_[sum_offset + 2] = 0.0f;
+    pillar_mean_[sum_offset + 0] = 0.0f;
+    pillar_mean_[sum_offset + 1] = 0.0f;
+    pillar_mean_[sum_offset + 2] = 0.0f;
+    pillar_var_[sum_offset + 0] = 0.0f;
+    pillar_var_[sum_offset + 1] = 0.0f;
+    pillar_var_[sum_offset + 2] = 0.0f;
+  }
+  active_pillar_ids_scratch_.clear();
 
   for (int i = 0; i < num_selected; ++i) {
-    const auto& point = filtered_input_points_[static_cast<std::size_t>(i)];
-    // Points come from IsPointValid(), so x/y/z are already in model bounds.
+    const auto& point = selected_point_records_[static_cast<std::size_t>(i)];
     const int ix = static_cast<int>((point.x - x_min_) * inv_voxel_x);
     const int iy = static_cast<int>((point.y - y_min_) * inv_voxel_y);
     const int pillar_id = ix * grid_y + iy;
-    pillar_ids_raw[static_cast<std::size_t>(i)] = pillar_id;
-    pillar_ix_raw[static_cast<std::size_t>(i)] = ix;
-    pillar_iy_raw[static_cast<std::size_t>(i)] = iy;
+    pillar_ids_raw_[static_cast<std::size_t>(i)] = pillar_id;
+    pillar_ix_raw_[static_cast<std::size_t>(i)] = ix;
+    pillar_iy_raw_[static_cast<std::size_t>(i)] = iy;
 
     const std::size_t count_offset = static_cast<std::size_t>(pillar_id);
-    ++pillar_counts[count_offset];
-    if (pillar_counts[count_offset] == 1) {
-      pillar_masks_map(pillar_id) = true;
+    if (pillar_counts_[count_offset] == 0) {
+      active_pillar_ids_scratch_.push_back(pillar_id);
+      pillar_masks[pillar_id] = true;
+      tensor_reset_state_.active_pillar_ids.push_back(pillar_id);
     }
+    ++pillar_counts_[count_offset];
     const std::size_t sum_offset = count_offset * kPointCoordinateDim;
-    pillar_sum[sum_offset + 0] += point.x;
-    pillar_sum[sum_offset + 1] += point.y;
-    pillar_sum[sum_offset + 2] += point.z;
-    pillar_sq_sum[sum_offset + 0] += point.x * point.x;
-    pillar_sq_sum[sum_offset + 1] += point.y * point.y;
-    pillar_sq_sum[sum_offset + 2] += point.z * point.z;
+    pillar_sum_[sum_offset + 0] += point.x;
+    pillar_sum_[sum_offset + 1] += point.y;
+    pillar_sum_[sum_offset + 2] += point.z;
+    pillar_sq_sum_[sum_offset + 0] += point.x * point.x;
+    pillar_sq_sum_[sum_offset + 1] += point.y * point.y;
+    pillar_sq_sum_[sum_offset + 2] += point.z * point.z;
   }
 
-  std::vector<float> pillar_mean(static_cast<std::size_t>(num_pillars_) * kPointCoordinateDim, 0.0f);
-  std::vector<float> pillar_var(static_cast<std::size_t>(num_pillars_) * kPointCoordinateDim, 0.0f);
-  for (int i = 0; i < num_pillars_; ++i) {
-    const std::size_t count_offset = static_cast<std::size_t>(i);
-    const int32_t count = pillar_counts[count_offset];
-    if (count <= 0) {
-      continue;
-    }
+  for (int pillar_id : active_pillar_ids_scratch_) {
+    const std::size_t count_offset = static_cast<std::size_t>(pillar_id);
+    const int32_t count = pillar_counts_[count_offset];
     const std::size_t sum_offset = count_offset * kPointCoordinateDim;
     const float inv_count = 1.0f / static_cast<float>(count);
-    const float mean_x = pillar_sum[sum_offset + 0] * inv_count;
-    const float mean_y = pillar_sum[sum_offset + 1] * inv_count;
-    const float mean_z = pillar_sum[sum_offset + 2] * inv_count;
-    const float mean_x2 = pillar_sq_sum[sum_offset + 0] * inv_count;
-    const float mean_y2 = pillar_sq_sum[sum_offset + 1] * inv_count;
-    const float mean_z2 = pillar_sq_sum[sum_offset + 2] * inv_count;
-    pillar_mean[sum_offset + 0] = mean_x;
-    pillar_mean[sum_offset + 1] = mean_y;
-    pillar_mean[sum_offset + 2] = mean_z;
-    pillar_var[sum_offset + 0] = std::max(mean_x2 - mean_x * mean_x, 0.0f);
-    pillar_var[sum_offset + 1] = std::max(mean_y2 - mean_y * mean_y, 0.0f);
-    pillar_var[sum_offset + 2] = std::max(mean_z2 - mean_z * mean_z, 0.0f);
+    const float mean_x = pillar_sum_[sum_offset + 0] * inv_count;
+    const float mean_y = pillar_sum_[sum_offset + 1] * inv_count;
+    const float mean_z = pillar_sum_[sum_offset + 2] * inv_count;
+    const float mean_x2 = pillar_sq_sum_[sum_offset + 0] * inv_count;
+    const float mean_y2 = pillar_sq_sum_[sum_offset + 1] * inv_count;
+    const float mean_z2 = pillar_sq_sum_[sum_offset + 2] * inv_count;
+    pillar_mean_[sum_offset + 0] = mean_x;
+    pillar_mean_[sum_offset + 1] = mean_y;
+    pillar_mean_[sum_offset + 2] = mean_z;
+    pillar_var_[sum_offset + 0] = std::max(mean_x2 - mean_x * mean_x, 0.0f);
+    pillar_var_[sum_offset + 1] = std::max(mean_y2 - mean_y * mean_y, 0.0f);
+    pillar_var_[sum_offset + 2] = std::max(mean_z2 - mean_z * mean_z, 0.0f);
   }
 
-  constexpr float kRadiusEpsilon = 1e-6f;
-  const float center_z = z_min_ + (z_max_ - z_min_) * 0.5f;
+  tensor_reset_state_.active_point_rows.reserve(static_cast<std::size_t>(num_selected));
   for (int i = 0; i < num_selected; ++i) {
-    const int pillar_id = pillar_ids_raw[static_cast<std::size_t>(i)];
-    if (pillar_id < 0) {
-      continue;
-    }
-
+    const int pillar_id = pillar_ids_raw_[static_cast<std::size_t>(i)];
     const std::size_t sum_offset = static_cast<std::size_t>(pillar_id) * kPointCoordinateDim;
-    const auto& point = filtered_input_points_[static_cast<std::size_t>(i)];
-    const int ix = pillar_ix_raw[static_cast<std::size_t>(i)];
-    const int iy = pillar_iy_raw[static_cast<std::size_t>(i)];
+    const auto& point = selected_point_records_[static_cast<std::size_t>(i)];
+    const int ix = pillar_ix_raw_[static_cast<std::size_t>(i)];
+    const int iy = pillar_iy_raw_[static_cast<std::size_t>(i)];
 
     const float center_x = x_min_ + (static_cast<float>(ix) + 0.5f) * voxel_x_;
     const float center_y = y_min_ + (static_cast<float>(iy) + 0.5f) * voxel_y_;
-    const float mean_x = pillar_mean[sum_offset + 0];
-    const float mean_y = pillar_mean[sum_offset + 1];
-    const float mean_z = pillar_mean[sum_offset + 2];
+    const float mean_x = pillar_mean_[sum_offset + 0];
+    const float mean_y = pillar_mean_[sum_offset + 1];
+    const float mean_z = pillar_mean_[sum_offset + 2];
 
     const float f_cluster_x = point.x - mean_x;
     const float f_cluster_y = point.y - mean_y;
@@ -398,34 +473,93 @@ void PBODModel::setupModelInputFromGetter(int n_cloud_points, PointGetter&& get_
       sin_theta = point.y * inv_norm;
       cos_theta = point.x * inv_norm;
     }
-    const float var_x = pillar_var[sum_offset + 0];
-    const float var_y = pillar_var[sum_offset + 1];
-    const float var_z = pillar_var[sum_offset + 2];
-
     const float normalized_intensity = point_preprocessor_.NormalizeIntensity(point.intensity);
 
-    point_features_map(i, kFeatureX) = point.x;
-    point_features_map(i, kFeatureY) = point.y;
-    point_features_map(i, kFeatureZ) = point.z;
-    point_features_map(i, kFeatureRadius) = r;
-    point_features_map(i, kFeatureZRelative) = z_rel;
-    point_features_map(i, kFeatureInverseRadius) = inv_r;
-    point_features_map(i, kFeatureSinTheta) = sin_theta;
-    point_features_map(i, kFeatureCosTheta) = cos_theta;
-    point_features_map(i, kFeatureVarianceX) = var_x;
-    point_features_map(i, kFeatureVarianceY) = var_y;
-    point_features_map(i, kFeatureVarianceZ) = var_z;
-    point_features_map(i, kFeatureIntensity) = normalized_intensity;
-    point_features_map(i, kFeatureClusterOffsetX) = f_cluster_x;
-    point_features_map(i, kFeatureClusterOffsetY) = f_cluster_y;
-    point_features_map(i, kFeatureClusterOffsetZ) = f_cluster_z;
-    point_features_map(i, kFeatureCenterOffsetX) = f_center_x;
-    point_features_map(i, kFeatureCenterOffsetY) = f_center_y;
-    point_features_map(i, kFeatureCenterOffsetZ) = f_center_z;
+    float* feature_row = point_features + static_cast<std::size_t>(i) * static_cast<std::size_t>(preprocessed_feature_dim_);
+    feature_row[kFeatureX] = point.x;
+    feature_row[kFeatureY] = point.y;
+    feature_row[kFeatureZ] = point.z;
+    feature_row[kFeatureRadius] = r;
+    feature_row[kFeatureZRelative] = z_rel;
+    feature_row[kFeatureInverseRadius] = inv_r;
+    feature_row[kFeatureSinTheta] = sin_theta;
+    feature_row[kFeatureCosTheta] = cos_theta;
+    feature_row[kFeatureVarianceX] = pillar_var_[sum_offset + 0];
+    feature_row[kFeatureVarianceY] = pillar_var_[sum_offset + 1];
+    feature_row[kFeatureVarianceZ] = pillar_var_[sum_offset + 2];
+    feature_row[kFeatureIntensity] = normalized_intensity;
+    feature_row[kFeatureClusterOffsetX] = f_cluster_x;
+    feature_row[kFeatureClusterOffsetY] = f_cluster_y;
+    feature_row[kFeatureClusterOffsetZ] = f_cluster_z;
+    feature_row[kFeatureCenterOffsetX] = f_center_x;
+    feature_row[kFeatureCenterOffsetY] = f_center_y;
+    feature_row[kFeatureCenterOffsetZ] = f_center_z;
 
-    valid_mask_map(i) = true;
-    pillar_ids_map(i) = static_cast<int64_t>(pillar_id);
+    valid_mask[i] = true;
+    pillar_ids[i] = static_cast<std::int64_t>(pillar_id);
+    tensor_reset_state_.active_point_rows.push_back(i);
   }
+}
+
+bool PBODModel::populateModelInputOnGpu(float* point_features, std::int64_t* pillar_ids, bool* valid_mask,
+                                        bool* pillar_masks, int num_selected) {
+  pcod_common::PillarPreprocessCudaConfig config;
+  config.x_min = x_min_;
+  config.y_min = y_min_;
+  config.z_min = z_min_;
+  config.z_max = z_max_;
+  config.voxel_x = voxel_x_;
+  config.voxel_y = voxel_y_;
+  config.intensity_threshold = intensity_threshold_;
+  config.min_intensity = min_intensity_;
+  config.max_intensity = max_intensity_;
+  config.epsilon = norm_epsilon_;
+  config.center_z = z_min_ + (z_max_ - z_min_) * 0.5f;
+  config.grid_x = static_cast<std::int32_t>(model_config_.pillar_map_size[0]);
+  config.grid_y = static_cast<std::int32_t>(model_config_.pillar_map_size[1]);
+  config.num_pillars = num_pillars_;
+  config.max_num_points = max_num_points_;
+  config.feature_dim = preprocessed_feature_dim_;
+  config.normalization_type = normalization_type_;
+  config.zero_intensity = zero_intensity_;
+  config.z_score_mean = 0.0f;
+  config.z_score_std = 1.0f;
+
+  // Recompute z-score stats directly for the CUDA config without changing point_preprocessor_ semantics.
+  if (normalization_type_ == pcod_common::PointFeatureNormalizationType::kZScore) {
+    double sum = 0.0;
+    double sum_sq = 0.0;
+    for (const auto& point : selected_point_records_) {
+      const double value = static_cast<double>(point.intensity);
+      sum += value;
+      sum_sq += value * value;
+    }
+    const double count = static_cast<double>(std::max(1, num_selected));
+    const double mean = sum / count;
+    const double variance = std::max(0.0, sum_sq / count - mean * mean);
+    config.z_score_mean = static_cast<float>(mean);
+    config.z_score_std = std::max(static_cast<float>(std::sqrt(variance)), norm_epsilon_);
+  }
+
+  const pcod_common::PillarPreprocessCudaOutputs outputs{point_features, pillar_ids, valid_mask, pillar_masks};
+  std::string error_message;
+  if (!cuda_preprocess_context_.run(selected_point_records_.data(), num_selected, config, outputs, &error_message)) {
+    RCLCPP_WARN(rclcpp::get_logger("PBODModel"), "Falling back to CPU preprocessing: %s", error_message.c_str());
+    return false;
+  }
+
+  tensor_reset_state_.active_point_rows.resize(static_cast<std::size_t>(num_selected));
+  for (int i = 0; i < num_selected; ++i) {
+    tensor_reset_state_.active_point_rows[static_cast<std::size_t>(i)] = i;
+  }
+  tensor_reset_state_.active_pillar_ids.clear();
+  for (int pillar_id = 0; pillar_id < num_pillars_; ++pillar_id) {
+    if (pillar_masks[pillar_id]) {
+      tensor_reset_state_.active_pillar_ids.push_back(pillar_id);
+    }
+  }
+  active_pillar_ids_scratch_.clear();
+  return true;
 }
 
 std::vector<BoundingBox> PBODModel::modelOutputToBoxes() {
