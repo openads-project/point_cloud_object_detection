@@ -490,6 +490,15 @@ void PointCloudObjectDetection::declareParameters() {
                                 false,                                                          // read_only
                                 std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
                                 "");                                                            // additional_constraints
+  this->declareAndLoadParameter("prediction.cuda_input_shm", params_.cuda_input_shm,                     // name
+                                "If true, place Triton input tensors in CUDA shared memory when available."
+                                " This is independent of prediction.use_shm. If unavailable, the node falls back"
+                                " to the normal input transport.",
+                                true,                                                          // add_to_auto_reconfigurable_params
+                                false,                                                         // is_required
+                                false,                                                         // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                      // from_value, to_value, step_value
+                                "");                                                           // additional_constraints
   this->declareAndLoadParameter("preprocessing.inference_frame", params_.inference_frame,                     // name
                                 "Frame for inference",                                          // description
                                 true,                                                          // add_to_auto_reconfigurable_params
@@ -1128,6 +1137,7 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
   bool publishers_changed = false;
   for (const auto& param : parameters) {
     if (name_in(param.get_name(), {"prediction.triton_client_timeout_s", "prediction.use_shm",
+                                   "prediction.cuda_input_shm",
                                    "preprocessing.backend"})) {
       model_change_on_runtime = true;
     }
@@ -1241,7 +1251,8 @@ void PointCloudObjectDetection::initializeModel() {
     try {
       new_triton_interface = std::make_unique<triton_cpp::TritonInterface>(
           model_name, model_version, params_snapshot.server_url, params_snapshot.use_shm, false, false,
-          params_snapshot.triton_client_timeout_s);
+          params_snapshot.triton_client_timeout_s,
+          params_snapshot.cuda_input_shm && model_config_.preprocessing_backend == "cuda");
       break;
     } catch (const std::exception& e) {
       RCLCPP_WARN(this->get_logger(),

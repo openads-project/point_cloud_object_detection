@@ -254,21 +254,49 @@ void PBODModel::setupModelInputFromGetter(int n_cloud_points, PointGetter&& get_
     return point;
   };
 
-  auto point_features_map =
-      triton_interface_.getInputTensor<float>(kInputNamePointFeatures, max_num_points_, preprocessed_feature_dim_);
-  auto pillar_ids_map = triton_interface_.getInputTensor<int64_t>(kInputNamePillarIds, max_num_points_);
-  auto valid_mask_map = triton_interface_.getInputTensor<bool>(kInputNameValidMask, max_num_points_);
-  auto pillar_masks_map = triton_interface_.getInputTensor<bool>(kInputNamePillarMasks, num_pillars_);
-  auto pillar_indices_map =
-      triton_interface_.getInputTensor<int64_t>(kInputNamePillarIndices, num_pillars_, kPillarIndexDim);
+  const bool use_cuda_input_shm = useCudaPreprocessing(model_config_) && triton_interface_.usesCudaInputSharedMemory();
 
-  if (!pillar_indices_initialized_) {
-    for (int i = 0; i < num_pillars_; ++i) {
-      const std::size_t idx = static_cast<std::size_t>(i) * kPillarIndexDim;
-      pillar_indices_map(i, 0) = pillar_indices_[idx];
-      pillar_indices_map(i, 1) = pillar_indices_[idx + 1];
+  float* point_features_device = nullptr;
+  std::int64_t* pillar_ids_device = nullptr;
+  bool* valid_mask_device = nullptr;
+  bool* pillar_masks_device = nullptr;
+  float* point_features_host = nullptr;
+  std::int64_t* pillar_ids_host = nullptr;
+  bool* valid_mask_host = nullptr;
+  bool* pillar_masks_host = nullptr;
+
+  if (use_cuda_input_shm) {
+    point_features_device =
+        reinterpret_cast<float*>(triton_interface_.getInputTensorDevice(kInputNamePointFeatures).first);
+    pillar_ids_device = reinterpret_cast<std::int64_t*>(triton_interface_.getInputTensorDevice(kInputNamePillarIds).first);
+    valid_mask_device = reinterpret_cast<bool*>(triton_interface_.getInputTensorDevice(kInputNameValidMask).first);
+    pillar_masks_device = reinterpret_cast<bool*>(triton_interface_.getInputTensorDevice(kInputNamePillarMasks).first);
+    if (!pillar_indices_initialized_) {
+      triton_interface_.copyInputTensorToDevice(kInputNamePillarIndices, pillar_indices_.data(),
+                                                pillar_indices_.size() * sizeof(std::int64_t));
+      pillar_indices_initialized_ = true;
     }
-    pillar_indices_initialized_ = true;
+  } else {
+    auto point_features_map =
+        triton_interface_.getInputTensor<float>(kInputNamePointFeatures, max_num_points_, preprocessed_feature_dim_);
+    auto pillar_ids_map = triton_interface_.getInputTensor<int64_t>(kInputNamePillarIds, max_num_points_);
+    auto valid_mask_map = triton_interface_.getInputTensor<bool>(kInputNameValidMask, max_num_points_);
+    auto pillar_masks_map = triton_interface_.getInputTensor<bool>(kInputNamePillarMasks, num_pillars_);
+    auto pillar_indices_map =
+        triton_interface_.getInputTensor<int64_t>(kInputNamePillarIndices, num_pillars_, kPillarIndexDim);
+    point_features_host = point_features_map.data();
+    pillar_ids_host = pillar_ids_map.data();
+    valid_mask_host = valid_mask_map.data();
+    pillar_masks_host = pillar_masks_map.data();
+
+    if (!pillar_indices_initialized_) {
+      for (int i = 0; i < num_pillars_; ++i) {
+        const std::size_t idx = static_cast<std::size_t>(i) * kPillarIndexDim;
+        pillar_indices_map(i, 0) = pillar_indices_[idx];
+        pillar_indices_map(i, 1) = pillar_indices_[idx + 1];
+      }
+      pillar_indices_initialized_ = true;
+    }
   }
 
   selected_point_records_.clear();
@@ -283,7 +311,6 @@ void PBODModel::setupModelInputFromGetter(int n_cloud_points, PointGetter&& get_
 
   if (n_cloud_points == 0) {
     RCLCPP_DEBUG(rclcpp::get_logger("PBODModel"), "Input point cloud is empty.");
-    return;
   }
 
   static thread_local std::mt19937 gen(std::random_device{}());
@@ -331,45 +358,80 @@ void PBODModel::setupModelInputFromGetter(int n_cloud_points, PointGetter&& get_
     point_preprocessor_.SetZScoreStats(static_cast<float>(mean), static_cast<float>(stddev));
   }
 
-  const auto resetAllTensors = [&]() {
-    point_features_map.setZero();
-    valid_mask_map.setZero();
-    pillar_masks_map.setZero();
-    pillar_ids_map.setConstant(pillar_id_sentinel_);
-  };
+  if (!use_cuda_input_shm) {
+    const auto resetAllTensors = [&]() {
+      auto point_features_map =
+          triton_interface_.getInputTensor<float>(kInputNamePointFeatures, max_num_points_, preprocessed_feature_dim_);
+      auto pillar_ids_map = triton_interface_.getInputTensor<int64_t>(kInputNamePillarIds, max_num_points_);
+      auto valid_mask_map = triton_interface_.getInputTensor<bool>(kInputNameValidMask, max_num_points_);
+      auto pillar_masks_map = triton_interface_.getInputTensor<bool>(kInputNamePillarMasks, num_pillars_);
+      point_features_map.setZero();
+      valid_mask_map.setZero();
+      pillar_masks_map.setZero();
+      pillar_ids_map.setConstant(pillar_id_sentinel_);
+    };
 
-  const auto resetSparseTensors = [&]() {
-    if (!tensor_reset_state_.initialized) {
-      resetAllTensors();
-      tensor_reset_state_.initialized = true;
+    const auto resetSparseTensors = [&]() {
+      if (!tensor_reset_state_.initialized) {
+        resetAllTensors();
+        tensor_reset_state_.initialized = true;
+        tensor_reset_state_.active_point_rows.clear();
+        tensor_reset_state_.active_pillar_ids.clear();
+        return;
+      }
+
+      for (int row : tensor_reset_state_.active_point_rows) {
+        for (int feature_idx = 0; feature_idx < preprocessed_feature_dim_; ++feature_idx) {
+          point_features_host[static_cast<std::size_t>(row) * static_cast<std::size_t>(preprocessed_feature_dim_) +
+                              static_cast<std::size_t>(feature_idx)] = 0.0f;
+        }
+        valid_mask_host[row] = false;
+        pillar_ids_host[row] = pillar_id_sentinel_;
+      }
+      for (int pillar_id : tensor_reset_state_.active_pillar_ids) {
+        pillar_masks_host[pillar_id] = false;
+      }
       tensor_reset_state_.active_point_rows.clear();
       tensor_reset_state_.active_pillar_ids.clear();
+    };
+    resetSparseTensors();
+  } else {
+    tensor_reset_state_.active_point_rows.clear();
+    tensor_reset_state_.active_pillar_ids.clear();
+  }
+
+  if (use_cuda_input_shm) {
+    if (populateModelInputOnGpuToDevice(point_features_device, pillar_ids_device, valid_mask_device, pillar_masks_device,
+                                        num_selected)) {
       return;
     }
 
-    for (int row : tensor_reset_state_.active_point_rows) {
-      for (int feature_idx = 0; feature_idx < preprocessed_feature_dim_; ++feature_idx) {
-        point_features_map(row, feature_idx) = 0.0f;
-      }
-      valid_mask_map(row) = false;
-      pillar_ids_map(row) = pillar_id_sentinel_;
-    }
-    for (int pillar_id : tensor_reset_state_.active_pillar_ids) {
-      pillar_masks_map(pillar_id) = false;
-    }
-    tensor_reset_state_.active_point_rows.clear();
-    tensor_reset_state_.active_pillar_ids.clear();
-  };
-  resetSparseTensors();
-
-  if (useCudaPreprocessing(model_config_) &&
-      populateModelInputOnGpu(point_features_map.data(), pillar_ids_map.data(), valid_mask_map.data(),
-                              pillar_masks_map.data(), num_selected)) {
+    std::vector<float> staged_point_features(static_cast<std::size_t>(max_num_points_) *
+                                                 static_cast<std::size_t>(preprocessed_feature_dim_),
+                                             0.0f);
+    std::vector<std::int64_t> staged_pillar_ids(static_cast<std::size_t>(max_num_points_), pillar_id_sentinel_);
+    std::vector<std::uint8_t> staged_valid_mask(static_cast<std::size_t>(max_num_points_), 0);
+    std::vector<std::uint8_t> staged_pillar_masks(static_cast<std::size_t>(num_pillars_), 0);
+    populateModelInputOnCpu(staged_point_features.data(), staged_pillar_ids.data(),
+                            reinterpret_cast<bool*>(staged_valid_mask.data()),
+                            reinterpret_cast<bool*>(staged_pillar_masks.data()), num_selected);
+    triton_interface_.copyInputTensorToDevice(kInputNamePointFeatures, staged_point_features.data(),
+                                              staged_point_features.size() * sizeof(float));
+    triton_interface_.copyInputTensorToDevice(kInputNamePillarIds, staged_pillar_ids.data(),
+                                              staged_pillar_ids.size() * sizeof(std::int64_t));
+    triton_interface_.copyInputTensorToDevice(kInputNameValidMask, staged_valid_mask.data(),
+                                              staged_valid_mask.size() * sizeof(std::uint8_t));
+    triton_interface_.copyInputTensorToDevice(kInputNamePillarMasks, staged_pillar_masks.data(),
+                                              staged_pillar_masks.size() * sizeof(std::uint8_t));
     return;
   }
 
-  populateModelInputOnCpu(point_features_map.data(), pillar_ids_map.data(), valid_mask_map.data(), pillar_masks_map.data(),
-                          num_selected);
+  if (useCudaPreprocessing(model_config_) &&
+      populateModelInputOnGpu(point_features_host, pillar_ids_host, valid_mask_host, pillar_masks_host, num_selected)) {
+    return;
+  }
+
+  populateModelInputOnCpu(point_features_host, pillar_ids_host, valid_mask_host, pillar_masks_host, num_selected);
 }
 
 void PBODModel::populateModelInputOnCpu(float* point_features, std::int64_t* pillar_ids, bool* valid_mask,
@@ -559,6 +621,57 @@ bool PBODModel::populateModelInputOnGpu(float* point_features, std::int64_t* pil
     }
   }
   active_pillar_ids_scratch_.clear();
+  return true;
+}
+
+bool PBODModel::populateModelInputOnGpuToDevice(float* point_features, std::int64_t* pillar_ids, bool* valid_mask,
+                                                bool* pillar_masks, int num_selected) {
+  pcod_common::PillarPreprocessCudaConfig config;
+  config.x_min = x_min_;
+  config.y_min = y_min_;
+  config.z_min = z_min_;
+  config.z_max = z_max_;
+  config.voxel_x = voxel_x_;
+  config.voxel_y = voxel_y_;
+  config.intensity_threshold = intensity_threshold_;
+  config.min_intensity = min_intensity_;
+  config.max_intensity = max_intensity_;
+  config.epsilon = norm_epsilon_;
+  config.center_z = z_min_ + (z_max_ - z_min_) * 0.5f;
+  config.grid_x = static_cast<std::int32_t>(model_config_.pillar_map_size[0]);
+  config.grid_y = static_cast<std::int32_t>(model_config_.pillar_map_size[1]);
+  config.num_pillars = num_pillars_;
+  config.max_num_points = max_num_points_;
+  config.feature_dim = preprocessed_feature_dim_;
+  config.normalization_type = normalization_type_;
+  config.zero_intensity = zero_intensity_;
+  config.z_score_mean = 0.0f;
+  config.z_score_std = 1.0f;
+
+  if (normalization_type_ == pcod_common::PointFeatureNormalizationType::kZScore) {
+    double sum = 0.0;
+    double sum_sq = 0.0;
+    for (const auto& point : selected_point_records_) {
+      const double value = static_cast<double>(point.intensity);
+      sum += value;
+      sum_sq += value * value;
+    }
+    const double count = static_cast<double>(std::max(1, num_selected));
+    const double mean = sum / count;
+    const double variance = std::max(0.0, sum_sq / count - mean * mean);
+    config.z_score_mean = static_cast<float>(mean);
+    config.z_score_std = std::max(static_cast<float>(std::sqrt(variance)), norm_epsilon_);
+  }
+
+  const pcod_common::PillarPreprocessCudaDeviceOutputs outputs{point_features, pillar_ids, valid_mask, pillar_masks};
+  std::string error_message;
+  if (!cuda_preprocess_context_.runToDevice(selected_point_records_.data(), num_selected, config, outputs,
+                                            &error_message)) {
+    RCLCPP_WARN(rclcpp::get_logger("PBODModel"),
+                "Falling back from CUDA input shared memory path to host input transport: %s", error_message.c_str());
+    return false;
+  }
+
   return true;
 }
 
