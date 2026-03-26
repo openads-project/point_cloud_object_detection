@@ -20,4 +20,4 @@ repositories:
   triton_cpp:
     type: git
     url: https://gitlab.ika.rwth-aachen.de/fb-fi/ml/triton_cpp.git
-    version: fix/bug
+    version: v1.0.1
