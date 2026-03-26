@@ -1137,8 +1137,7 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
   bool publishers_changed = false;
   for (const auto& param : parameters) {
     if (name_in(param.get_name(), {"prediction.triton_client_timeout_s", "prediction.use_shm",
-                                   "prediction.cuda_input_shm",
-                                   "preprocessing.backend"})) {
+                                   "prediction.cuda_input_shm", "preprocessing.backend"})) {
       model_change_on_runtime = true;
     }
     if (name_in(param.get_name(),
@@ -1510,9 +1509,8 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
     auto header = msg->header;
     const PreparedPointCloudInput prepared_input =
         preparePointCloudInput(msg, model_config_snapshot, params_snapshot, *tf_buffer_, this->get_logger());
-    const bool need_point_cloud =
-        params_snapshot.no_detection_zone_publish_points && params_snapshot.no_detection_zone_enabled &&
-        no_detection_zone_points_publisher;
+    const bool need_point_cloud = params_snapshot.no_detection_zone_publish_points &&
+                                  params_snapshot.no_detection_zone_enabled && no_detection_zone_points_publisher;
     PointCloud point_cloud;
     if (need_point_cloud) {
       decodePreparedPointCloudToPcl(prepared_input, point_cloud);
@@ -1735,9 +1733,9 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
       auto* pbod_model = dynamic_cast<PBODModel*>(detection_model_.get());
       const bool can_use_direct_preprocess = pbod_model != nullptr && !need_point_cloud;
       if (can_use_direct_preprocess) {
-        pbod_model->prepareModelInputFromPointCloud2(*prepared_input.msg, prepared_input.x_offset, prepared_input.y_offset,
-                                                     prepared_input.z_offset, prepared_input.feature_offset,
-                                                     prepared_input.feature_datatype, prepared_input.needs_swap, false);
+        pbod_model->prepareModelInputFromPointCloud2(
+            *prepared_input.msg, prepared_input.x_offset, prepared_input.y_offset, prepared_input.z_offset,
+            prepared_input.feature_offset, prepared_input.feature_datatype, prepared_input.needs_swap, false);
         timestamps.push_back(std::chrono::high_resolution_clock::now());
         center_boxes = detection_model_->inferAndDecode(timestamps);
       } else {
