@@ -492,8 +492,9 @@ void PointCloudObjectDetection::declareParameters() {
                                 "");                                                            // additional_constraints
   this->declareAndLoadParameter("prediction.cuda_input_shm", params_.cuda_input_shm,                     // name
                                 "If true, place Triton input tensors in CUDA shared memory when available."
-                                " This is independent of prediction.use_shm. If unavailable, the node falls back"
-                                " to the normal input transport.",
+                                " This is only used when preprocessing.backend='cuda' and is independent of"
+                                " prediction.use_shm. If unavailable, the node falls back to the normal input"
+                                " transport.",
                                 true,                                                          // add_to_auto_reconfigurable_params
                                 false,                                                         // is_required
                                 false,                                                         // read_only
@@ -1243,6 +1244,13 @@ void PointCloudObjectDetection::initializeModel() {
   ModelConfig new_model_config = model_config_;
   std::unique_ptr<triton_cpp::TritonInterface> new_triton_interface;
   std::unique_ptr<Model> new_detection_model;
+  if (params_snapshot.cuda_input_shm && model_config_.preprocessing_backend != "cuda") {
+    RCLCPP_WARN(this->get_logger(),
+                "prediction.cuda_input_shm is enabled but preprocessing.backend='%s'. "
+                "CUDA input shared memory is only used with preprocessing.backend='cuda'; "
+                "continuing with the normal CPU input transport.",
+                model_config_.preprocessing_backend.c_str());
+  }
 
   // Retry Triton connection until the ROS context is shutting down.
   constexpr auto kRetryDelay = std::chrono::seconds(1);
