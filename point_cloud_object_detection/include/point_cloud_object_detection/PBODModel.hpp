@@ -75,8 +75,7 @@ class PBODModel : public Model {
   std::map<std::string, std::vector<int64_t>> getSpecialOutputShapes() override;
   void prepareModelInputFromPointCloud2(const sensor_msgs::msg::PointCloud2& point_cloud_msg, uint32_t x_offset,
                                         uint32_t y_offset, uint32_t z_offset, uint32_t feature_offset,
-                                        uint8_t feature_datatype, bool needs_swap,
-                                        bool materialize_filtered_points);
+                                        uint8_t feature_datatype, bool needs_swap, bool materialize_filtered_points);
   ~PBODModel() override = default;
   PBODModel(const PBODModel&) = delete;  // Rule of five
   PBODModel& operator=(const PBODModel&) = delete;

@@ -82,9 +82,7 @@ float readPointFieldAsFloat(const std::uint8_t* src, std::uint8_t datatype, bool
   }
 }
 
-bool useCudaPreprocessing(const ModelConfig& model_config) {
-  return model_config.preprocessing_backend == "cuda";
-}
+bool useCudaPreprocessing(const ModelConfig& model_config) { return model_config.preprocessing_backend == "cuda"; }
 
 }  // namespace
 
@@ -219,10 +217,13 @@ std::map<std::string, std::vector<int64_t>> PBODModel::getSpecialOutputShapes() 
 }
 
 void PBODModel::setupModelInput(const PointCloud& point_cloud) {
-  setupModelInputFromGetter(static_cast<int>(point_cloud.size()), [&](int i) {
-    const auto& point = point_cloud[static_cast<std::size_t>(i)];
-    return PointRecord{point.x, point.y, point.z, point.intensity};
-  }, true);
+  setupModelInputFromGetter(
+      static_cast<int>(point_cloud.size()),
+      [&](int i) {
+        const auto& point = point_cloud[static_cast<std::size_t>(i)];
+        return PointRecord{point.x, point.y, point.z, point.intensity};
+      },
+      true);
 }
 
 void PBODModel::prepareModelInputFromPointCloud2(const sensor_msgs::msg::PointCloud2& point_cloud_msg,
@@ -232,19 +233,24 @@ void PBODModel::prepareModelInputFromPointCloud2(const sensor_msgs::msg::PointCl
   const std::size_t width = point_cloud_msg.width;
   const std::size_t row_step = static_cast<std::size_t>(point_cloud_msg.row_step);
   const std::size_t point_step = static_cast<std::size_t>(point_cloud_msg.point_step);
-  setupModelInputFromGetter(static_cast<int>(point_cloud_msg.width * point_cloud_msg.height), [&](int i) {
-    const std::size_t index = static_cast<std::size_t>(i);
-    const std::size_t row = index / width;
-    const std::size_t col = index % width;
-    const std::uint8_t* point_ptr = point_cloud_msg.data.data() + row * row_step + col * point_step;
-    return PointRecord{readFloat32At(point_ptr + x_offset, needs_swap), readFloat32At(point_ptr + y_offset, needs_swap),
-                       readFloat32At(point_ptr + z_offset, needs_swap),
-                       readPointFieldAsFloat(point_ptr + feature_offset, feature_datatype, needs_swap)};
-  }, materialize_filtered_points);
+  setupModelInputFromGetter(
+      static_cast<int>(point_cloud_msg.width * point_cloud_msg.height),
+      [&](int i) {
+        const std::size_t index = static_cast<std::size_t>(i);
+        const std::size_t row = index / width;
+        const std::size_t col = index % width;
+        const std::uint8_t* point_ptr = point_cloud_msg.data.data() + row * row_step + col * point_step;
+        return PointRecord{readFloat32At(point_ptr + x_offset, needs_swap),
+                           readFloat32At(point_ptr + y_offset, needs_swap),
+                           readFloat32At(point_ptr + z_offset, needs_swap),
+                           readPointFieldAsFloat(point_ptr + feature_offset, feature_datatype, needs_swap)};
+      },
+      materialize_filtered_points);
 }
 
 template <typename PointGetter>
-void PBODModel::setupModelInputFromGetter(int n_cloud_points, PointGetter&& get_point, bool materialize_filtered_points) {
+void PBODModel::setupModelInputFromGetter(int n_cloud_points, PointGetter&& get_point,
+                                          bool materialize_filtered_points) {
   auto makePoint = [](const PointRecord& point_record) {
     Point point;
     point.x = point_record.x;
@@ -268,7 +274,8 @@ void PBODModel::setupModelInputFromGetter(int n_cloud_points, PointGetter&& get_
   if (use_cuda_input_shm) {
     point_features_device =
         reinterpret_cast<float*>(triton_interface_.getInputTensorDevice(kInputNamePointFeatures).first);
-    pillar_ids_device = reinterpret_cast<std::int64_t*>(triton_interface_.getInputTensorDevice(kInputNamePillarIds).first);
+    pillar_ids_device =
+        reinterpret_cast<std::int64_t*>(triton_interface_.getInputTensorDevice(kInputNamePillarIds).first);
     valid_mask_device = reinterpret_cast<bool*>(triton_interface_.getInputTensorDevice(kInputNameValidMask).first);
     pillar_masks_device = reinterpret_cast<bool*>(triton_interface_.getInputTensorDevice(kInputNamePillarMasks).first);
     if (!pillar_indices_initialized_) {
@@ -401,14 +408,13 @@ void PBODModel::setupModelInputFromGetter(int n_cloud_points, PointGetter&& get_
   }
 
   if (use_cuda_input_shm) {
-    if (populateModelInputOnGpuToDevice(point_features_device, pillar_ids_device, valid_mask_device, pillar_masks_device,
-                                        num_selected)) {
+    if (populateModelInputOnGpuToDevice(point_features_device, pillar_ids_device, valid_mask_device,
+                                        pillar_masks_device, num_selected)) {
       return;
     }
 
-    std::vector<float> staged_point_features(static_cast<std::size_t>(max_num_points_) *
-                                                 static_cast<std::size_t>(preprocessed_feature_dim_),
-                                             0.0f);
+    std::vector<float> staged_point_features(
+        static_cast<std::size_t>(max_num_points_) * static_cast<std::size_t>(preprocessed_feature_dim_), 0.0f);
     std::vector<std::int64_t> staged_pillar_ids(static_cast<std::size_t>(max_num_points_), pillar_id_sentinel_);
     std::vector<std::uint8_t> staged_valid_mask(static_cast<std::size_t>(max_num_points_), 0);
     std::vector<std::uint8_t> staged_pillar_masks(static_cast<std::size_t>(num_pillars_), 0);
@@ -537,7 +543,8 @@ void PBODModel::populateModelInputOnCpu(float* point_features, std::int64_t* pil
     }
     const float normalized_intensity = point_preprocessor_.NormalizeIntensity(point.intensity);
 
-    float* feature_row = point_features + static_cast<std::size_t>(i) * static_cast<std::size_t>(preprocessed_feature_dim_);
+    float* feature_row =
+        point_features + static_cast<std::size_t>(i) * static_cast<std::size_t>(preprocessed_feature_dim_);
     feature_row[kFeatureX] = point.x;
     feature_row[kFeatureY] = point.y;
     feature_row[kFeatureZ] = point.z;
