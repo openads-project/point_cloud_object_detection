@@ -91,6 +91,7 @@ struct Params {
   std::string server_url;  // required
   double triton_client_timeout_s = 2.0;
   bool use_shm = false;
+  bool cuda_input_shm = false;
 
   std::string inference_frame;  // required
   std::string output_frame = "";

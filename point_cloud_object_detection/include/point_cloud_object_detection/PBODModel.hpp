@@ -100,6 +100,8 @@ class PBODModel : public Model {
                                int num_selected);
   bool populateModelInputOnGpu(float* point_features, std::int64_t* pillar_ids, bool* valid_mask, bool* pillar_masks,
                                int num_selected);
+  bool populateModelInputOnGpuToDevice(float* point_features, std::int64_t* pillar_ids, bool* valid_mask,
+                                       bool* pillar_masks, int num_selected);
 
   const ModelConfig model_config_;
   pcod_common::PillarGrid pillar_grid_;
