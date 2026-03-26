@@ -18,6 +18,7 @@
 
 #include "pcod_common/pbod_postprocess.hpp"
 #include "pcod_common/pillar_grid.hpp"
+#include "pcod_common/pillar_preprocess_cuda.hpp"
 #include "pcod_common/point_preprocess.hpp"
 
 namespace point_cloud_object_detection {
@@ -74,7 +75,8 @@ class PBODModel : public Model {
   std::map<std::string, std::vector<int64_t>> getSpecialOutputShapes() override;
   void prepareModelInputFromPointCloud2(const sensor_msgs::msg::PointCloud2& point_cloud_msg, uint32_t x_offset,
                                         uint32_t y_offset, uint32_t z_offset, uint32_t feature_offset,
-                                        uint8_t feature_datatype, bool needs_swap);
+                                        uint8_t feature_datatype, bool needs_swap,
+                                        bool materialize_filtered_points);
   ~PBODModel() override = default;
   PBODModel(const PBODModel&) = delete;  // Rule of five
   PBODModel& operator=(const PBODModel&) = delete;
@@ -86,15 +88,18 @@ class PBODModel : public Model {
   std::vector<BoundingBox> modelOutputToBoxes() override;
 
  private:
-  struct PointRecord {
-    float x;
-    float y;
-    float z;
-    float intensity;
+  struct TensorResetState {
+    std::vector<int> active_point_rows;
+    std::vector<int> active_pillar_ids;
+    bool initialized = false;
   };
 
   template <typename PointGetter>
-  void setupModelInputFromGetter(int n_points, PointGetter&& get_point);
+  void setupModelInputFromGetter(int n_points, PointGetter&& get_point, bool materialize_filtered_points);
+  void populateModelInputOnCpu(float* point_features, std::int64_t* pillar_ids, bool* valid_mask, bool* pillar_masks,
+                               int num_selected);
+  bool populateModelInputOnGpu(float* point_features, std::int64_t* pillar_ids, bool* valid_mask, bool* pillar_masks,
+                               int num_selected);
 
   const ModelConfig model_config_;
   pcod_common::PillarGrid pillar_grid_;
@@ -119,8 +124,20 @@ class PBODModel : public Model {
   const int max_num_points_;
   const int preprocessed_feature_dim_;
   const int num_pillars_;
+  const std::int64_t pillar_id_sentinel_;
   std::vector<int64_t> pillar_indices_;
   bool pillar_indices_initialized_ = false;
+  TensorResetState tensor_reset_state_;
+  std::vector<int32_t> pillar_counts_;
+  std::vector<float> pillar_sum_;
+  std::vector<float> pillar_sq_sum_;
+  std::vector<float> pillar_mean_;
+  std::vector<float> pillar_var_;
+  std::vector<int> pillar_ids_raw_;
+  std::vector<int> pillar_ix_raw_;
+  std::vector<int> pillar_iy_raw_;
+  std::vector<int> active_pillar_ids_scratch_;
+  std::vector<pcod_common::PillarPreprocessPoint> selected_point_records_;
   // No-detection zone point filtering
   const bool remove_points_in_zone_;
   const float nd_x_min_;
@@ -136,6 +153,7 @@ class PBODModel : public Model {
   const float da_bearing_rad_;
   const float da_fov_rad_;
   pcod_common::PointPreprocessor point_preprocessor_;
+  pcod_common::PillarPreprocessCudaContext cuda_preprocess_context_;
 };
 
 }  // namespace point_cloud_object_detection

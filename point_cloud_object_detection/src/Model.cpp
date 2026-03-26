@@ -26,4 +26,6 @@ std::vector<BoundingBox> Model::inferAndDecode(
 
 const PointCloud& Model::getFilteredInputPoints() const { return filtered_input_points_; }
 
+std::size_t Model::getFilteredInputPointCount() const { return filtered_input_point_count_; }
+
 }  // namespace point_cloud_object_detection
