@@ -173,6 +173,12 @@ PBODModel::PBODModel(triton_cpp::TritonInterface& triton_interface, const ModelC
                            da_radius_,
                            da_bearing_rad_,
                            da_fov_rad_}) {
+  if (useCudaPreprocessing(model_config_) && !cuda_preprocess_context_.isAvailable()) {
+    throw std::runtime_error(
+        "CUDA preprocessing was requested via preprocessing.backend='cuda', but CUDA preprocessing support is not "
+        "available in this build/runtime");
+  }
+
   const int stride = model_config_.stride.empty() ? 1 : static_cast<int>(model_config_.stride[0]);
   pillar_indices_.resize(static_cast<std::size_t>(num_pillars_) * kPillarIndexDim);
   const int grid_x = static_cast<int>(model_config_.pillar_map_size[0]);
@@ -412,29 +418,18 @@ void PBODModel::setupModelInputFromGetter(int n_cloud_points, PointGetter&& get_
                                         pillar_masks_device, num_selected)) {
       return;
     }
-
-    std::vector<float> staged_point_features(
-        static_cast<std::size_t>(max_num_points_) * static_cast<std::size_t>(preprocessed_feature_dim_), 0.0f);
-    std::vector<std::int64_t> staged_pillar_ids(static_cast<std::size_t>(max_num_points_), pillar_id_sentinel_);
-    std::vector<std::uint8_t> staged_valid_mask(static_cast<std::size_t>(max_num_points_), 0);
-    std::vector<std::uint8_t> staged_pillar_masks(static_cast<std::size_t>(num_pillars_), 0);
-    populateModelInputOnCpu(staged_point_features.data(), staged_pillar_ids.data(),
-                            reinterpret_cast<bool*>(staged_valid_mask.data()),
-                            reinterpret_cast<bool*>(staged_pillar_masks.data()), num_selected);
-    triton_interface_.copyInputTensorToDevice(kInputNamePointFeatures, staged_point_features.data(),
-                                              staged_point_features.size() * sizeof(float));
-    triton_interface_.copyInputTensorToDevice(kInputNamePillarIds, staged_pillar_ids.data(),
-                                              staged_pillar_ids.size() * sizeof(std::int64_t));
-    triton_interface_.copyInputTensorToDevice(kInputNameValidMask, staged_valid_mask.data(),
-                                              staged_valid_mask.size() * sizeof(std::uint8_t));
-    triton_interface_.copyInputTensorToDevice(kInputNamePillarMasks, staged_pillar_masks.data(),
-                                              staged_pillar_masks.size() * sizeof(std::uint8_t));
-    return;
+    throw std::runtime_error(
+        "Failed to populate PBOD input tensors via CUDA shared memory after prediction.cuda_input_shm was enabled");
   }
 
   if (useCudaPreprocessing(model_config_) &&
       populateModelInputOnGpu(point_features_host, pillar_ids_host, valid_mask_host, pillar_masks_host, num_selected)) {
     return;
+  }
+
+  if (useCudaPreprocessing(model_config_)) {
+    throw std::runtime_error(
+        "Failed to populate PBOD input tensors via CUDA preprocessing after preprocessing.backend='cuda' was enabled");
   }
 
   populateModelInputOnCpu(point_features_host, pillar_ids_host, valid_mask_host, pillar_masks_host, num_selected);
@@ -613,7 +608,7 @@ bool PBODModel::populateModelInputOnGpu(float* point_features, std::int64_t* pil
   const pcod_common::PillarPreprocessCudaOutputs outputs{point_features, pillar_ids, valid_mask, pillar_masks};
   std::string error_message;
   if (!cuda_preprocess_context_.run(selected_point_records_.data(), num_selected, config, outputs, &error_message)) {
-    RCLCPP_WARN(rclcpp::get_logger("PBODModel"), "Falling back to CPU preprocessing: %s", error_message.c_str());
+    RCLCPP_ERROR(rclcpp::get_logger("PBODModel"), "CUDA preprocessing failed: %s", error_message.c_str());
     return false;
   }
 
@@ -674,8 +669,8 @@ bool PBODModel::populateModelInputOnGpuToDevice(float* point_features, std::int6
   std::string error_message;
   if (!cuda_preprocess_context_.runToDevice(selected_point_records_.data(), num_selected, config, outputs,
                                             &error_message)) {
-    RCLCPP_WARN(rclcpp::get_logger("PBODModel"),
-                "Falling back from CUDA input shared memory path to host input transport: %s", error_message.c_str());
+    RCLCPP_ERROR(rclcpp::get_logger("PBODModel"), "CUDA input shared memory preprocessing failed: %s",
+                 error_message.c_str());
     return false;
   }
 
