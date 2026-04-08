@@ -15,7 +15,6 @@ if [ "$ARCH" = "amd64" ]; then
 
     apt-get update
     apt-get install -y --no-install-recommends cuda-toolkit-12-8
-    rm -rf /var/lib/apt/lists/*
 
     echo 'export PATH=/usr/local/cuda-12.8/bin:$PATH' >> /etc/bash.bashrc
     echo 'export LD_LIBRARY_PATH=/usr/local/cuda-12.8/lib64:$LD_LIBRARY_PATH' >> /etc/bash.bashrc
