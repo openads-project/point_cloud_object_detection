@@ -569,7 +569,9 @@ bool PBODModel::populateModelInputOnGpu(float* point_features, std::int64_t* pil
                                         bool* pillar_masks, int num_selected) {
   pcod_common::PillarPreprocessCudaConfig config;
   config.x_min = x_min_;
+  config.x_max = x_max_;
   config.y_min = y_min_;
+  config.y_max = y_max_;
   config.z_min = z_min_;
   config.z_max = z_max_;
   config.voxel_x = voxel_x_;
@@ -630,7 +632,9 @@ bool PBODModel::populateModelInputOnGpuToDevice(float* point_features, std::int6
                                                 bool* pillar_masks, int num_selected) {
   pcod_common::PillarPreprocessCudaConfig config;
   config.x_min = x_min_;
+  config.x_max = x_max_;
   config.y_min = y_min_;
+  config.y_max = y_max_;
   config.z_min = z_min_;
   config.z_max = z_max_;
   config.voxel_x = voxel_x_;
