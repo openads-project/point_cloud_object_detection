@@ -93,23 +93,19 @@ struct Params {
   bool use_shm = false;
   bool cuda_input_shm = false;
 
-  std::string inference_frame;  // optional; if empty, use the incoming point cloud frame
-  std::string output_frame = "";
+  std::string inference_frame;  // required
+  std::string output_frame;     // required
 
   int64_t sensor_id = 0;
 
   std::vector<double> variance = std::vector<double>(12, -1.0);  // CONTINUOUS_STATE_COVARIANCE_UNKNOWN sentinel
   double output_class_score_threshold = 0.0;
 
-  // Optional manifest overrides
-  // If NaN, use model-manifest value.
-  double nms_iou_threshold = std::numeric_limits<double>::quiet_NaN();
-  // If < 0, use model-manifest value.
-  int64_t nms_max_num_objects = -1;
-  // If empty, use model-manifest value.
+  // Manifest-backed defaults, overridable via ROS parameters.
+  double nms_iou_threshold = 0.0;
+  int64_t nms_max_num_objects = 0;
   std::vector<double> nms_score_threshold;
-  // If NaN, use model-manifest value.
-  double point_feature_intensity_threshold = std::numeric_limits<double>::quiet_NaN();
+  double point_feature_intensity_threshold = 0.0;
 
   std::string point_feature_field = "intensity";
 

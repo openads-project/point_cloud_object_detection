@@ -67,6 +67,7 @@ class PointCloudObjectDetection : public rclcpp::Node {
    * @brief Loads all ROS parameters for the node itself
    */
   void loadParameters();
+  void loadManifestBackedParameterDefaults();
   /**
    * @brief Synchronize model runtime options from the loaded node parameters
    */
