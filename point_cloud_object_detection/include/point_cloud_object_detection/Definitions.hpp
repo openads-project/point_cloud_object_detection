@@ -1,5 +1,9 @@
 #pragma once
 
+#include <array>
+#include <cstdint>
+#include <limits>
+
 #include <tf2/transform_datatypes.h>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
@@ -8,133 +12,27 @@
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <tf2_sensor_msgs/tf2_sensor_msgs.hpp>
 
+#include "pcod_common/bounding_box.hpp"
+
 namespace point_cloud_object_detection {
-struct Anchor {
-  float height;
-  float width;
-  float length;
-  float z_center;
-  float yaw;
-};
+using pcod_common::BoundingBox;
+using pcod_common::ClassificationEntry;
 
-/**
- * @brief One entry in a vector of possible classifications
- * 
- */
-struct ClassificationEntry {
-  std::size_t class_idx;
-  float score;  // We don't call it probability, as it is not necessarily normalized
-};
-
-struct BoundingBoxVertex {
-  // Coordinates of the vertex
-  float x, y;
-
-  BoundingBoxVertex(float x = 0, float y = 0) : x(x), y(y) {}
-
-  BoundingBoxVertex operator+(const BoundingBoxVertex& v) const { return BoundingBoxVertex(x + v.x, y + v.y); }
-
-  BoundingBoxVertex operator-(const BoundingBoxVertex& v) const { return BoundingBoxVertex(x - v.x, y - v.y); }
-
-  // Cross product of the vectors to two vertices, aka signed area of the parallelogram spanned by the two vectors
-  float cross(const BoundingBoxVertex& v) const { return x * v.y - y * v.x; }
-};
-
-/**
- * @brief A class representing a line in 2D space as ax + by + c = 0
- * 
- * All methods are defined in the class definition, so they are inlined.
- */
-struct Line {
-  // Coefficients of the line
-  float a, b, c;
-
-  /**
-   * @brief Constructs a Line linking two vertices
-   * 
-   * @param v1 Vertex 1
-   * @param v2 Vertex 2
-   */
-  Line(const BoundingBoxVertex& v1, const BoundingBoxVertex& v2) {
-    a = v2.y - v1.y;
-    b = v1.x - v2.x;
-    c = v2.cross(v1);
-  }
-
-  /**
-   * @brief Computes the signed and scaled distance of a point to the line
-   * 
-   * @param p The point
-   * @return float The signed and scaled distance
-   */
-  float operator()(const BoundingBoxVertex& p) const { return a * p.x + b * p.y + c; }
-
-  /**
-   * @brief Computes the point where two lines intersect
-   * 
-   * @param other 
-   * @return BoundingBoxVertex 
-   */
-  BoundingBoxVertex intersection(const Line& other) const {
-    float w = a * other.b - b * other.a;
-    return BoundingBoxVertex((b * other.c - c * other.b) / w, (c * other.a - a * other.c) / w);
-  }
-};
-
-/**
- * @brief A BoundingBox, or Object, in 3D space with classification and existence probability
- * 
- */
-struct BoundingBox {
-  // Cartesian coordinates to describe the bounding box center in the x, y plane
-  std::array<float, 2> center;
-  float z;
-  float length;
-  float width;
-  float height;
-  float yaw;
-  float existence_probability;
-  // As the classification is usually uncertain, multiple hypotheses can be stored here wih their respective probability.
-  std::vector<ClassificationEntry> classification;
-  // Some models also predict a velocity, other don't.
-  bool has_velocity = false;
-  float v_x = 0.;
-  float v_y = 0.;
-
-  /**
-   * @brief Calculates wether this BoundinfBox overlaps with another one with an IoU of at least the given threshold
-   * 
-   * @param other second BoundingBox
-   * @param iou_threshold threshold for the IoU
-   * @return IoU > iou_threshold 
-   */
-  bool overlaps(const BoundingBox& other, float iou_threshold) const;
-
-  /**
-   * @brief Computes the intersection area of two BoundingBoxes
-   * 
-   * @param other second BoundingBox
-   * @return the Area of the intersection, or 0 if there is no intersection
-   */
-  float intersection_area(const BoundingBox& other) const;
-
-  /**
-   * @brief Generates the vertices of the BoundingBox in 2D
-   * 
-   * @return std::vector<BoundingBoxVertex> vector of vertices
-   */
-  std::vector<BoundingBoxVertex> rectangle_vertices() const;
-};
+inline constexpr std::array<const char*, 2> kAllowedPointFeatureFields = {"intensity", "reflectivity"};
+inline constexpr std::array<const char*, 2> kSupportedManifestPrecisions = {"fp32", "fp16"};
 
 // model config
 struct ModelConfig {
   // Preprocessing
-  int intensity_threshold;
+  std::string point_feature_normalization_type = "none";
+  float point_feature_intensity_threshold = 0.0f;
+  float point_feature_min_intensity = 0.0f;
+  float point_feature_max_intensity = 0.0f;
+  float point_feature_norm_epsilon = 1e-6f;
 
   // Postprocessing
   std::vector<std::string> predicted_class_names;
   std::map<std::string, uint8_t> class_mapping_;
-  bool with_velocity;
 
   // Grid
   float x_min;
@@ -145,33 +43,19 @@ struct ModelConfig {
   float z_max;
   int x_grid_size;
   int y_grid_size;
+  float voxel_x = 0.0f;
+  float voxel_y = 0.0f;
+  float voxel_z = 0.0f;
 
   // NMS
   int nms_max_num_objects;
   float nms_iou_threshold;
   std::vector<double> nms_score_threshold;
 
-  // PP specific config
-  int max_pillars;
-  int max_points_per_pillar;
-  int n_features;
-  int downscaling;
-  float delta_x;
-  float delta_y;
-  std::string anchors_string;
-  std::vector<Anchor> anchor_boxes;
-  std::vector<double> anchor_diagonals;
-  float min_nms_score_threshold;
-
-  // PBOD specific config, also needed for TPOD as PBOD is its backbone
+  // PBOD specific config
   int max_num_points;
-  int num_point_features = 1;
-  std::string point_type = "PointXYZI";
   std::vector<int64_t> stride;
   int first_up_stride;
-
-  // TPOD specific config
-  float cls_threshold;
 
   std::vector<int64_t> pillar_map_size;
   std::vector<std::vector<float>> pillar_map_range;
@@ -201,19 +85,34 @@ struct ModelConfig {
 struct Params {
   std::string model_name;
   std::string model_version;
-  std::string server_url;
-  bool use_shm;
+  std::string server_url;  // required
+  double triton_client_timeout_s = 2.0;
+  bool use_shm = false;
 
-  std::string inference_frame;
-  std::string output_frame;
+  std::string inference_frame;  // required
+  std::string output_frame = "";
 
-  uint64_t sensor_id;
+  int64_t sensor_id = 0;
 
-  std::vector<double> variance;
-  double class_score_threshold;
+  std::vector<double> variance = std::vector<double>(12, -1.0);  // CONTINUOUS_STATE_COVARIANCE_UNKNOWN sentinel
+  double output_class_score_threshold = 0.0;
+
+  // Optional manifest overrides
+  // If NaN, use model-manifest value.
+  double nms_iou_threshold = std::numeric_limits<double>::quiet_NaN();
+  // If < 0, use model-manifest value.
+  int64_t nms_max_num_objects = -1;
+  // If empty, use model-manifest value.
+  std::vector<double> nms_score_threshold;
+  // If NaN, use model-manifest value.
+  double point_feature_intensity_threshold = std::numeric_limits<double>::quiet_NaN();
+
+  std::string point_feature_field = "intensity";
 
   // Optional no-detection rectangle (in inference_frame) where detections are not allowed
   bool no_detection_zone_enabled = false;
+  // If true, remove raw points in the no-detection zone from model input
+  bool no_detection_zone_remove_points = false;
   double no_detection_zone_x_min = 0.0;
   double no_detection_zone_x_max = 0.0;
   double no_detection_zone_y_min = 0.0;
