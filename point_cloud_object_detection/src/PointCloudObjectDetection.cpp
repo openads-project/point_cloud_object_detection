@@ -495,18 +495,19 @@ void PointCloudObjectDetection::declareParameters() {
                                 " This is only used when preprocessing.backend='cuda' and is independent of"
                                 " prediction.use_shm. If unavailable, the node falls back to the normal input"
                                 " transport.",
-                                true,                                                          // add_to_auto_reconfigurable_params
-                                false,                                                         // is_required
-                                false,                                                         // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                      // from_value, to_value, step_value
-                                "");                                                           // additional_constraints
-  this->declareAndLoadParameter("preprocessing.inference_frame", params_.inference_frame,                     // name
-                                "Frame for inference",                                          // description
-                                true,                                                          // add_to_auto_reconfigurable_params
-                                true,                                                           // is_required
+                                true,                                                           // add_to_auto_reconfigurable_params
+                                false,                                                          // is_required
                                 false,                                                          // read_only
                                 std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "Must be set.");                                                // additional_constraints
+                                "");                                                            // additional_constraints
+  this->declareAndLoadParameter("preprocessing.inference_frame", params_.inference_frame,       // name
+                                "Frame for inference. If unset, inference runs in the incoming"
+                                " point cloud frame.",                                          // description
+                                true,                                                           // add_to_auto_reconfigurable_params
+                                false,                                                          // is_required
+                                false,                                                          // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
+                                "If unset, the incoming point cloud frame is used.");           // additional_constraints
   this->declareAndLoadParameter("output.frame", params_.output_frame,                           // name
                                 "Frame for object list",                                        // description
                                 true,                                                          // add_to_auto_reconfigurable_params
