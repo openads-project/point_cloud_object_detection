@@ -33,7 +33,8 @@ All output topics are node-relative (start with `~`) and are always in the node'
 ## Multi-Instance Support
 - You can run multiple instances of this node, each with its own namespace and remapped topics.
 - All output topics can be uniquely named per node instance.
-- You **must** deactivate shared memory (SHM) for multiple instances, i.e., set `prediction.use_shm: False` in the [parameter file](point_cloud_object_detection/config/params.yml). 
+- Shared memory transport is supported for multi-instance deployments. `triton_cpp` uses per-client shared-memory region names and only unregisters the regions owned by that client instance, so one detection node does not clear another node's Triton registrations.
+- This applies both when multiple detection nodes share one Triton server and when each detection node talks to its own Triton server, as long as the underlying Triton shared-memory requirements are met.
 
 ## Launch File Usage
 The provided [launch file](point_cloud_object_detection/launch/point_cloud_object_detection.launch.py) supports launch arguments and topic remappings.
