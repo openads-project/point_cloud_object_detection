@@ -7,16 +7,6 @@ repositories:
     type: git
     url: https://github.com/ika-rwth-aachen/perception_interfaces.git
     version: v1.0.0
-  # remove once [https://github.com/ros2/ros2_tracing/issues/211] is solved in released version
-  ros2_tracing:
-    type: git
-    url: https://github.com/RaphvK/ros2_tracing.git
-    version: jazzy-ika
-  # remove once released: https://github.com/RaphvK/rmw_zenoh/pull/1
-  rmw_zenoh:
-    type: git
-    url: https://github.com/RaphvK/rmw_zenoh.git
-    version: jazzy-ika
   triton_cpp:
     type: git
     url: https://gitlab.ika.rwth-aachen.de/fb-fi/ml/triton_cpp.git

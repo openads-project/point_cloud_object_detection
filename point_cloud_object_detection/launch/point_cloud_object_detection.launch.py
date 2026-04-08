@@ -54,7 +54,7 @@ def generate_launch_description():
             default_value=os.path.join(
                 get_package_share_directory('point_cloud_object_detection'),
                 'model_manifests',
-                'model_manifest_karl.yml'),
+                'model_manifest.yml'),
             description='path to model_manifest.yml (absolute or package-relative)'),
         DeclareLaunchArgument(
             'log_level',

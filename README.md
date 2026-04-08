@@ -44,7 +44,7 @@ Example usage:
 ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py \
     namespace:=/perception \
     params:=/docker-ros/ws/src/target/point_cloud_object_detection/config/params.yml \
-    manifest_path:=/docker-ros/ws/src/target/point_cloud_object_detection/model_manifests/model_manifest_karl.yml \
+    manifest_path:=/docker-ros/ws/src/target/point_cloud_object_detection/model_manifests/model_manifest.yml \
     point_cloud_topic:=/my_lidar/points \
     object_list_topic:=/my_lidar/objects
 ```
@@ -56,7 +56,7 @@ ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py 
 | `name` | `string` | Node name (default: `point_cloud_object_detection`). |
 | `namespace` | `string` | Node namespace (default: empty). |
 | `params` | `string` | Path to parameter file (default: `point_cloud_object_detection/config/params.yml` from package share). |
-| `manifest_path` | `string` | Path to exported `model_manifest.yml` (default: `point_cloud_object_detection/model_manifests/model_manifest_karl.yml` from package share). |
+| `manifest_path` | `string` | Path to exported `model_manifest.yml` (default: `point_cloud_object_detection/model_manifests/model_manifest.yml` from package share). |
 | `log_level` | `string` | ROS log level (`debug|info|warn|error|fatal`, default: `info`). |
 | `use_sim_time` | `bool` | Use simulation clock (`true|false`, default: `false`). |
 | `trace` | `bool` | Enable tracing (`true|false`, default: `false`). |
@@ -157,7 +157,7 @@ ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py
 | Package | File | Source Path | Installed Path | Description |
 | --- | --- | --- | --- | --- |
 | `point_cloud_object_detection` | `params.yml` | `/docker-ros/ws/src/target/point_cloud_object_detection/config/params.yml` | `/docker-ros/ws/install/point_cloud_object_detection/share/point_cloud_object_detection/config/params.yml` | Default runtime parameter file used by launch. |
-| `point_cloud_object_detection` | `model_manifest_karl.yml` | `/docker-ros/ws/src/target/point_cloud_object_detection/model_manifests/model_manifest_karl.yml` | `/docker-ros/ws/install/point_cloud_object_detection/share/point_cloud_object_detection/model_manifests/model_manifest_karl.yml` | Model export manifest selected via launch argument `manifest_path`. |
+| `point_cloud_object_detection` | `model_manifest.yml` | `/docker-ros/ws/src/target/point_cloud_object_detection/model_manifests/model_manifest.yml` | `/docker-ros/ws/install/point_cloud_object_detection/share/point_cloud_object_detection/model_manifests/model_manifest.yml` | Model export manifest selected via launch argument `manifest_path`. |
 
 ## Point Cloud Input Fields
 
