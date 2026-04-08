@@ -104,10 +104,10 @@ endif()
 
 add_library(
   ${PROJECT_NAME}_lib SHARED
-  src/PointCloudObjectDetection.cpp
-  src/Utils.cpp
   src/Model.cpp
   src/PBODModel.cpp
+  src/PointCloudObjectDetection.cpp
+  src/Utils.cpp
 )
 
 target_include_directories(

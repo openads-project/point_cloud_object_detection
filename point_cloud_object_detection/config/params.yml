@@ -2,8 +2,8 @@
   ros__parameters:
     prediction.server_url: "triton-server:8001"
     preprocessing.backend: "cpu"
-    preprocessing.inference_frame: base_link
-    point_cloud_transport: cloudini
+    # preprocessing.inference_frame: base_link
+    point_cloud_transport: raw
 
     # Optional parameters (aligned with header defaults)
     prediction.triton_client_timeout_s: 2.0
