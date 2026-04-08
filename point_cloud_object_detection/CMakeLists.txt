@@ -11,6 +11,7 @@ find_package(ament_cmake REQUIRED)
 # manually. find_package(<dependency> REQUIRED)
 find_package(pcl_conversions REQUIRED)
 find_package(pcl_ros REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 find_package(point_cloud_transport REQUIRED)
 find_package(perception_msgs REQUIRED)
 find_package(perception_msgs_utils REQUIRED)
@@ -29,15 +30,18 @@ find_package(tf2_perception_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_sensor_msgs REQUIRED)
 
+set(PCOD_COMMON_BUILD_TESTS OFF CACHE BOOL "Disable pcod-common tests in this workspace" FORCE)
+add_subdirectory(pcod-common)
+if(TARGET pcod_common)
+  set_target_properties(pcod_common PROPERTIES POSITION_INDEPENDENT_CODE ON)
+endif()
+
 add_library(
   ${PROJECT_NAME}_lib SHARED
-  src/NonMaxSuppression.cpp
-  src/PointCloudObjectDetection.cpp
-  src/Utils.cpp
   src/Model.cpp
   src/PBODModel.cpp
-  src/PPModel.cpp
-  #src/TPODModel.cpp
+  src/PointCloudObjectDetection.cpp
+  src/Utils.cpp
 )
 
 target_include_directories(
@@ -45,13 +49,12 @@ target_include_directories(
                         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                         $<INSTALL_INTERFACE:include>
 )
-# target_include_directories(${PROJECT_NAME}_lib BEFORE
-#                         PUBLIC ${tensorflow_cpp_INCLUDE_DIRS})
 target_compile_features(
   ${PROJECT_NAME}_lib PUBLIC c_std_99 cxx_std_17) # Require C99 and C++17
 
 ament_target_dependencies(
   ${PROJECT_NAME}_lib
+  ament_index_cpp
   pcl_conversions
   pcl_ros
   perception_msgs
@@ -69,9 +72,23 @@ ament_target_dependencies(
   tf2_sensor_msgs
 )
 
+target_link_libraries(${PROJECT_NAME}_lib pcod_common)
+
 rclcpp_components_register_node(${PROJECT_NAME}_lib
   PLUGIN "point_cloud_object_detection::PointCloudObjectDetection"
   EXECUTABLE ${PROJECT_NAME})
+
+set(_triton_runtime_paths "/opt/tritonclient/lib;/opt/tritonclient/tritonserver/clients/lib")
+set_target_properties(${PROJECT_NAME}_lib PROPERTIES
+  BUILD_RPATH "${_triton_runtime_paths}"
+  INSTALL_RPATH "${_triton_runtime_paths}"
+  INSTALL_RPATH_USE_LINK_PATH TRUE
+)
+set_target_properties(${PROJECT_NAME} PROPERTIES
+  BUILD_RPATH "${_triton_runtime_paths}"
+  INSTALL_RPATH "${_triton_runtime_paths}"
+  INSTALL_RPATH_USE_LINK_PATH TRUE
+)
 
 install(TARGETS ${PROJECT_NAME}_lib
   ARCHIVE DESTINATION lib
@@ -83,18 +100,21 @@ install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})
 
 install(DIRECTORY config DESTINATION share/${PROJECT_NAME})
 
-install(DIRECTORY models DESTINATION share/${PROJECT_NAME})
-
-install(DIRECTORY scripts DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY model_manifests DESTINATION share/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
+  find_package(ament_cmake_clang_format REQUIRED)
+  find_package(ament_cmake_pep257 REQUIRED)
 
   set(ament_cmake_clang_format_CONFIG_FILE $ENV{WORKSPACE}/src/target/.vscode/format/.clang-format)
   set(ament_cmake_clang_tidy_CONFIG_FILE $ENV{WORKSPACE}/src/target/.vscode/lint/.clang-tidy)
   set(ament_cmake_flake8_CONFIG_FILE $ENV{WORKSPACE}/src/target/.vscode/lint/ament_flake8.ini)
+  set(AMENT_LINT_AUTO_EXCLUDE ament_cmake_clang_format ament_cmake_pep257)
 
   ament_lint_auto_find_test_dependencies()
+  ament_clang_format(include src)
+  ament_pep257(--exclude pcod-common)
 endif()
 
 ament_package()

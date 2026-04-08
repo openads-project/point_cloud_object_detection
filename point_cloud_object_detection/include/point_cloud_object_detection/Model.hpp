@@ -29,7 +29,7 @@ class Model {
    * @brief Construct a new Model object
    *
    */
-  Model(triton_cpp::TritonInterface &triton_interface);
+  Model(triton_cpp::TritonInterface& triton_interface);
 
   /**
    * @brief Execution of point cloud object detection including input tensor creation, inference and creation of bounding box vector from model output
@@ -40,83 +40,30 @@ class Model {
    * @return std::vector<BoundingBox>       Model output: Vector with predicted bounding boxes
    */
   std::vector<BoundingBox> operator()(
-      const PointCloud &point_cloud,
-      std::vector<std::chrono::time_point<std::chrono::high_resolution_clock>> &timestamps);
+      const PointCloud& point_cloud,
+      std::vector<std::chrono::time_point<std::chrono::high_resolution_clock>>& timestamps);
 
   /**
    * @brief Get the points that were actually used as input to the model after filtering
    * 
    * @return const PointCloud& Reference to the filtered input points
    */
-  const PointCloud &getFilteredInputPoints() const;
-
-  /**
-   * @brief Supply additional per-point feature channels (excluding XYZ and intensity) for the next inference call.
-   * @param feature_values Pointer to contiguous feature storage (row-major) or nullptr if unavailable.
-   * @param point_count Number of points represented in the buffer.
-   * @param feature_stride Number of additional feature values stored per point.
-   */
-  virtual void setAdditionalPointFeatures(const float * /*feature_values*/, std::size_t /*point_count*/,
-                                          std::size_t /*feature_stride*/) {}
+  const PointCloud& getFilteredInputPoints() const;
 
   virtual std::map<std::string, std::vector<int64_t>> getSpecialOutputShapes() { return {}; };
 
-  virtual ~Model() = default;     // Any method virtual -> destructor virtual
-  Model(const Model &) = delete;  // Rule of five
-  Model(Model &&) = delete;
-  Model &operator=(const Model &) = delete;
-  Model &operator=(Model &&) = delete;
+  virtual ~Model() = default;    // Any method virtual -> destructor virtual
+  Model(const Model&) = delete;  // Rule of five
+  Model(Model&&) = delete;
+  Model& operator=(const Model&) = delete;
+  Model& operator=(Model&&) = delete;
 
  protected:
-  triton_cpp::TritonInterface &triton_interface_;
+  triton_cpp::TritonInterface& triton_interface_;
   mutable PointCloud filtered_input_points_;  // Store points actually used as model input
 
-  virtual void setupModelInput(const PointCloud &point_cloud) = 0;
+  virtual void setupModelInput(const PointCloud& point_cloud) = 0;
   virtual std::vector<BoundingBox> modelOutputToBoxes() = 0;
 };
-
-// class TPODModel : public Model {
-//  public:
-//   TPODModel(ModelConfig &model_config, bool is_frozen_graph);
-
-//   SavedModelInputType getZeroedModelInputTensors() override;
-//   std::vector<std::string> getOutputNames() override;
-
-//  protected:
-//   void pointCloudToModelInput(const PointCloud &point_cloud, SavedModelInputType &model_input) override;
-//   std::vector<BoundingBox> modelOutputToBoxes(const SavedModelOutputType &model_output) override;
-
-//  public:
-//   const std::string SAVED_MODEL_INPUT_NAME_XYZ = "points_xyz";
-//   const std::string SAVED_MODEL_INPUT_NAME_FEATURE = "points_feature";
-//   const std::string SAVED_MODEL_INPUT_NAME_MASK = "points_mask";
-
-//   const std::string SAVED_MODEL_OUTPUT_NAME_CLS = "cls_logits";
-//   const std::string SAVED_MODEL_OUTPUT_NAME_REG = "reg_logits";
-
-//   const std::string FROZEN_GRAPH_INPUT_NAME_XYZ = "input_2";
-//   const std::string FROZEN_GRAPH_INPUT_NAME_FEATURE = "input";
-//   const std::string FROZEN_GRAPH_INPUT_NAME_MASK = "input_1";
-
-//   const std::string FROZEN_GRAPH_OUTPUT_NAME_CLS = "Identity_1";  // TODO (FTH) check
-//   const std::string FROZEN_GRAPH_OUTPUT_NAME_REG = "Identity_2";  // TODO (FTH) check
-
-//   virtual ~TPODModel() = default;         // Any method virtual -> destructor virtual
-//   TPODModel(const TPODModel &) = delete;  // Rule of five
-//   TPODModel &operator=(const TPODModel &) = delete;
-//   TPODModel(TPODModel &&) = delete;
-//   TPODModel &operator=(TPODModel &&) = delete;
-
-//  private:
-//   ModelConfig &model_config_;
-//   Eigen::MatrixXf pillar_map_xyz_;
-
-//   const std::string input_name_xyz_;
-//   const std::string input_name_feature_;
-//   const std::string input_name_mask_;
-
-//   const std::string output_name_cls_;
-//   const std::string output_name_reg_;
-// };
 
 }  // namespace point_cloud_object_detection
