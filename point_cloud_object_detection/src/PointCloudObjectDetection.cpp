@@ -464,11 +464,11 @@ void PointCloudObjectDetection::declareParameters() {
   this->declareAndLoadParameter("preprocessing.backend", params_.preprocessing_backend,                     // name
                                 "Point preprocessing backend: 'cpu' or 'cuda'. If 'cuda' is selected but unavailable,"
                                 " the node falls back to CPU preprocessing.",
-                                true,                                                          // add_to_auto_reconfigurable_params
-                                false,                                                         // is_required
-                                false,                                                         // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                      // from_value, to_value, step_value
-                                "Must be one of: 'cpu', 'cuda'.");                             // additional_constraints
+                                true,                                                           // add_to_auto_reconfigurable_params
+                                false,                                                          // is_required
+                                false,                                                          // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
+                                "Must be one of: 'cpu', 'cuda'.");                              // additional_constraints
   this->declareAndLoadParameter("prediction.server_url", params_.server_url,                               // name
                                 "URL of the triton server, e.g. 134.130.20.221:8001",           // description
                                 false,                                                          // add_to_auto_reconfigurable_params
@@ -478,14 +478,14 @@ void PointCloudObjectDetection::declareParameters() {
                                 "Must be set.");                                                // additional_constraints
   this->declareAndLoadParameter("prediction.triton_client_timeout_s", params_.triton_client_timeout_s,     // name
                                 "Client timeout for Triton requests in seconds (0.0 disables timeout)",
-                                true,                                                          // add_to_auto_reconfigurable_params
+                                true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
                                 0.0, kMaxTritonClientTimeoutS, std::nullopt,                    // from_value, to_value, step_value
                                 "Must be non-negative.");                                       // additional_constraints
   this->declareAndLoadParameter("prediction.use_shm", params_.use_shm,                                     // name
                                 "Whether or not to use shared memory for Triton",               // description
-                                true,                                                          // add_to_auto_reconfigurable_params
+                                true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
                                 std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
@@ -510,14 +510,15 @@ void PointCloudObjectDetection::declareParameters() {
                                 "If unset, the incoming point cloud frame is used.");           // additional_constraints
   this->declareAndLoadParameter("output.frame", params_.output_frame,                           // name
                                 "Frame for object list",                                        // description
-                                true,                                                          // add_to_auto_reconfigurable_params
+                                true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
                                 std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "If unset, object list is published in inference_frame.");      // additional_constraints
+                                "If unset, object list is published in inference_frame when set,"
+                                " otherwise in the incoming point cloud frame.");               // additional_constraints
   this->declareAndLoadParameter("output.sensor_id", params_.sensor_id,                                 // name
                                 "Sensor ID for object list",                                    // description
-                                true,                                                          // add_to_auto_reconfigurable_params
+                                true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
                                 static_cast<double>(kMinSensorId), static_cast<double>(kMaxSensorId),
@@ -526,16 +527,17 @@ void PointCloudObjectDetection::declareParameters() {
                                     std::to_string(kMaxSensorId) + "].");                       // additional_constraints
 
   this->declareAndLoadParameter(
-      "output.variances", params_.variance,                                                            // name
+      "output.variances", params_.variance,                                                     // name
       "Array with variances. Entries correspond to ISCACTR model defined in perception interfaces",
-      true,                                                                                    // add_to_auto_reconfigurable_params
+      true,                                                                                     // add_to_auto_reconfigurable_params
       false,                                                                                    // is_required
       false,                                                                                    // read_only
-      std::nullopt, std::nullopt, std::nullopt,                                                // from_value, to_value, step_value
+      std::nullopt, std::nullopt, std::nullopt,                                                 // from_value, to_value, step_value
       "");                                                                                      // additional_constraints
   sanitizeVarianceVector(params_.variance, cscu);
 
-  this->declareAndLoadParameter("postprocessing.class_score_threshold", params_.output_class_score_threshold, // name
+  this->declareAndLoadParameter("postprocessing.class_score_threshold",                         // name
+                                params_.output_class_score_threshold,
                                 "Output class score threshold",
                                 true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
@@ -556,14 +558,15 @@ void PointCloudObjectDetection::declareParameters() {
                                 false,                                                          // read_only
                                 std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
                                 "If set, must be zero or positive.");                           // additional_constraints
-  this->declareAndLoadParameter("postprocessing.nms.score_threshold", params_.nms_score_threshold,            // name
+  this->declareAndLoadParameter("postprocessing.nms.score_threshold",                           // name
+                                params_.nms_score_threshold,
                                 "NMS score threshold override (single value or per-class list); if unset, manifest value is used",
                                 true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
                                 std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
                                 "If set, must contain exactly one value or one value per predicted class; entries must be in [0.0, 1.0].");
-  this->declareAndLoadParameter("input.point_feature_field", params_.point_feature_field,          // name
+  this->declareAndLoadParameter("input.point_feature_field", params_.point_feature_field,       // name
                                 "Single-feature source: 'intensity' or 'reflectivity'",         // description
                                 true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
