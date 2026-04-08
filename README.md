@@ -79,6 +79,7 @@ At startup, invalid parameter values fail initialization. At runtime, invalid dy
 | `prediction.server_url` | `string` | Triton server host:port combination. | Required at startup. Read-only at runtime. |
 | `prediction.triton_client_timeout_s` | `double` | [**dynamic**] Client timeout for Triton requests in seconds (`0.0` disables timeout). | Must be in `[0.0, 300.0]`. |
 | `prediction.use_shm` | `bool` | Enable Triton shared-memory transport. | Requires client and Triton on the same host with a shared IPC namespace (e.g., Docker `ipc: host` or equivalent). |
+| `prediction.cuda_input_shm` | `bool` | Require Triton CUDA shared memory for input tensors. Only used when `preprocessing.backend='cuda'`. | If enabled and CUDA SHM is unavailable, node startup fails with an informative error. |
 
 **Input Parameters**
 

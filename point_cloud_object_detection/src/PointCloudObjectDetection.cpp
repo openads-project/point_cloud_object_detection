@@ -492,10 +492,9 @@ void PointCloudObjectDetection::declareParameters() {
                                 std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
                                 "");                                                            // additional_constraints
   this->declareAndLoadParameter("prediction.cuda_input_shm", params_.cuda_input_shm,                     // name
-                                "If true, place Triton input tensors in CUDA shared memory when available."
+                                "If true, require Triton input tensors to use CUDA shared memory."
                                 " This is only used when preprocessing.backend='cuda' and is independent of"
-                                " prediction.use_shm. If unavailable, the node falls back to the normal input"
-                                " transport.",
+                                " prediction.use_shm. If CUDA shared memory is unavailable, node startup fails.",
                                 true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
