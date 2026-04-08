@@ -93,7 +93,7 @@ struct Params {
   bool use_shm = false;
   bool cuda_input_shm = false;
 
-  std::string inference_frame;  // required
+  std::string inference_frame;  // optional; if empty, use the incoming point cloud frame
   std::string output_frame = "";
 
   int64_t sensor_id = 0;
