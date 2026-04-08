@@ -353,6 +353,7 @@ PointCloudObjectDetection::PointCloudObjectDetection(const rclcpp::NodeOptions& 
   if (manifest_path != nullptr) {
     model_manifest_path_ = manifest_path;
   }
+  loadManifestBackedParameterDefaults();
   declareParameters();
   loadParameters();
 
@@ -501,21 +502,19 @@ void PointCloudObjectDetection::declareParameters() {
                                 std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
                                 "");                                                            // additional_constraints
   this->declareAndLoadParameter("preprocessing.inference_frame", params_.inference_frame,       // name
-                                "Frame for inference. If unset, inference runs in the incoming"
-                                " point cloud frame.",                                          // description
+                                "Frame for inference",                                          // description
                                 true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
+                                true,                                                           // is_required
                                 false,                                                          // read_only
                                 std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "If unset, the incoming point cloud frame is used.");           // additional_constraints
+                                "Must be set.");                                                // additional_constraints
   this->declareAndLoadParameter("output.frame", params_.output_frame,                           // name
                                 "Frame for object list",                                        // description
                                 true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
+                                true,                                                           // is_required
                                 false,                                                          // read_only
                                 std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "If unset, object list is published in inference_frame when set,"
-                                " otherwise in the incoming point cloud frame.");               // additional_constraints
+                                "Must be set.");                                                // additional_constraints
   this->declareAndLoadParameter("output.sensor_id", params_.sensor_id,                                 // name
                                 "Sensor ID for object list",                                    // description
                                 true,                                                           // add_to_auto_reconfigurable_params
@@ -545,27 +544,30 @@ void PointCloudObjectDetection::declareParameters() {
                                 kMinClassScoreThreshold, kMaxClassScoreThreshold, std::nullopt, // from_value, to_value, step_value
                                 "Must be within [0.0, 1.0].");                                  // additional_constraints
   this->declareAndLoadParameter("postprocessing.nms.iou_threshold", params_.nms_iou_threshold,                // name
-                                "NMS IoU threshold override; if unset, value from model manifest is used",
+                                "NMS IoU threshold. Defaults to the value from the model manifest.",
                                 true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "If set, must be within [0.0, 1.0].");                          // additional_constraints
+                                kMinClassScoreThreshold, kMaxClassScoreThreshold, std::nullopt, // from_value, to_value, step_value
+                                "Must be within [0.0, 1.0].");                                  // additional_constraints
   this->declareAndLoadParameter("postprocessing.nms.max_num_objects", params_.nms_max_num_objects,            // name
-                                "Maximum number of objects after NMS override; if unset, value from model manifest is used",
+                                "Maximum number of objects after NMS. Defaults to the value from the model"
+                                " manifest.",
                                 true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "If set, must be zero or positive.");                           // additional_constraints
+                                0.0, static_cast<double>(std::numeric_limits<int32_t>::max()), std::nullopt,
+                                "Must be zero or positive.");                                   // additional_constraints
   this->declareAndLoadParameter("postprocessing.nms.score_threshold",                           // name
                                 params_.nms_score_threshold,
-                                "NMS score threshold override (single value or per-class list); if unset, manifest value is used",
+                                "NMS score threshold (single value or per-class list). Defaults to the value from"
+                                " the model manifest.",
                                 true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
                                 std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "If set, must contain exactly one value or one value per predicted class; entries must be in [0.0, 1.0].");
+                                "Must contain exactly one value or one value per predicted class; entries must be"
+                                " in [0.0, 1.0].");
   this->declareAndLoadParameter("input.point_feature_field", params_.point_feature_field,       // name
                                 "Single-feature source: 'intensity' or 'reflectivity'",         // description
                                 true,                                                           // add_to_auto_reconfigurable_params
@@ -575,12 +577,13 @@ void PointCloudObjectDetection::declareParameters() {
                                 "");                                                            // additional_constraints
   this->declareAndLoadParameter("preprocessing.point_feature.intensity_threshold",
                                 params_.point_feature_intensity_threshold,                      // name
-                                "Point-feature intensity-threshold override; if unset, value from model manifest is used",
+                                "Point-feature intensity threshold. Defaults to the value from the model"
+                                " manifest.",
                                 true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
                                 0.0, 1000000.0, std::nullopt,                                   // from_value, to_value, step_value
-                                "If set, must be greater than 0 when intensity_threshold normalization is used.");
+                                "Must be greater than 0 when intensity_threshold normalization is used.");
 
   this->declareAndLoadParameter("preprocessing.no_detection_zone.enabled", params_.no_detection_zone_enabled,
                                 "Enable rectangular no-detection zone in inference_frame",      // description
@@ -732,9 +735,7 @@ void PointCloudObjectDetection::syncModelRuntimeConfigFromParams() {
 void PointCloudObjectDetection::syncModelRuntimeConfigFromParams(ModelConfig& model_config,
                                                                  const Params& params) const {
   model_config.preprocessing_backend = params.preprocessing_backend;
-  if (!std::isnan(params.point_feature_intensity_threshold)) {
-    model_config.point_feature_intensity_threshold = static_cast<float>(params.point_feature_intensity_threshold);
-  }
+  model_config.point_feature_intensity_threshold = static_cast<float>(params.point_feature_intensity_threshold);
   model_config.no_detection_zone_remove_points = params.no_detection_zone_remove_points;
   model_config.no_detection_zone_x_min = params.no_detection_zone_x_min;
   model_config.no_detection_zone_x_max = params.no_detection_zone_x_max;
@@ -758,20 +759,16 @@ void PointCloudObjectDetection::syncNmsRuntimeConfigFromParams() {
 void PointCloudObjectDetection::syncNmsRuntimeConfigFromParams(ModelConfig& model_config,
                                                                pcod_common::NmsConfig& nms_config,
                                                                const Params& params) const {
-  if (!params.nms_score_threshold.empty()) {
-    std::vector<double> score_thresholds = params.nms_score_threshold;
+  std::vector<double> score_thresholds = params.nms_score_threshold;
+  if (!score_thresholds.empty()) {
     if (!updateNMSScoreThreshold(score_thresholds, model_config.predicted_class_names)) {
       throwParameterError(this->get_logger(), "postprocessing.nms.score_threshold",
                           "must contain exactly one value or one per predicted class");
     }
-    model_config.nms_score_threshold = score_thresholds;
   }
-  if (!std::isnan(params.nms_iou_threshold)) {
-    model_config.nms_iou_threshold = static_cast<float>(params.nms_iou_threshold);
-  }
-  if (params.nms_max_num_objects >= 0) {
-    model_config.nms_max_num_objects = static_cast<int>(params.nms_max_num_objects);
-  }
+  model_config.nms_score_threshold = std::move(score_thresholds);
+  model_config.nms_iou_threshold = static_cast<float>(params.nms_iou_threshold);
+  model_config.nms_max_num_objects = static_cast<int>(params.nms_max_num_objects);
 
   nms_config.iou_threshold = static_cast<float>(model_config.nms_iou_threshold);
   nms_config.max_detections = model_config.nms_max_num_objects;
@@ -782,6 +779,32 @@ void PointCloudObjectDetection::syncNmsRuntimeConfigFromParams(ModelConfig& mode
 }
 
 void PointCloudObjectDetection::loadParameters() { syncModelRuntimeConfigFromParams(); }
+
+void PointCloudObjectDetection::loadManifestBackedParameterDefaults() {
+  auto fail = [this](const std::string& param, const std::string& message) {
+    throwParameterError(this->get_logger(), param, message);
+  };
+
+  if (model_manifest_path_.empty()) {
+    fail("launch.manifest_path", std::string("must be set via launch argument (env ") + kManifestPathEnvVar + ")");
+  }
+
+  const std::string manifest_path = resolveModelManifestPath(model_manifest_path_);
+  if (!std::filesystem::exists(manifest_path)) {
+    fail("launch.manifest_path", "model_manifest.yml does not exist at the configured path");
+  }
+
+  const pcod_common::ModelManifest manifest = pcod_common::LoadModelManifest(manifest_path);
+  pcod_common::ValidateModelManifest(manifest);
+
+  params_.model_name = manifest.triton.model_name;
+  params_.model_version = manifest.triton.model_version;
+  params_.point_feature_intensity_threshold = manifest.preprocessing.point_features_normalization.intensity_threshold;
+  params_.nms_iou_threshold = manifest.postprocessing.nms_iou_threshold;
+  params_.nms_max_num_objects = manifest.postprocessing.max_detections;
+  params_.nms_score_threshold.assign(manifest.postprocessing.score_thresholds.begin(),
+                                     manifest.postprocessing.score_thresholds.end());
+}
 
 void PointCloudObjectDetection::validateParamsOrThrow() const {
   auto fail = [this](const std::string& param, const std::string& message) {
@@ -809,13 +832,11 @@ void PointCloudObjectDetection::validateParamsOrThrow() const {
   if (!isAllowedPreprocessingBackend(params_.preprocessing_backend)) {
     fail("preprocessing.backend", "must be one of: " + allowedPreprocessingBackendsString());
   }
-  if (!std::isnan(params_.point_feature_intensity_threshold)) {
-    if (!isFinite(params_.point_feature_intensity_threshold)) {
-      fail("preprocessing.point_feature.intensity_threshold", "must be finite when set");
-    }
-    if (params_.point_feature_intensity_threshold <= 0.0) {
-      fail("preprocessing.point_feature.intensity_threshold", "must be greater than 0 when set");
-    }
+  if (!isFinite(params_.point_feature_intensity_threshold)) {
+    fail("preprocessing.point_feature.intensity_threshold", "must be finite");
+  }
+  if (params_.point_feature_intensity_threshold <= 0.0) {
+    fail("preprocessing.point_feature.intensity_threshold", "must be greater than 0");
   }
   if (!isFinite(params_.output_class_score_threshold)) {
     fail("postprocessing.class_score_threshold", "must be finite");
@@ -829,16 +850,14 @@ void PointCloudObjectDetection::validateParamsOrThrow() const {
       fail("postprocessing.nms.score_threshold", "each entry must be within [0.0, 1.0]");
     }
   }
-  if (!std::isnan(params_.nms_iou_threshold)) {
-    if (!isFinite(params_.nms_iou_threshold)) {
-      fail("postprocessing.nms.iou_threshold", "must be finite when set");
-    }
-    if (params_.nms_iou_threshold < kMinClassScoreThreshold || params_.nms_iou_threshold > kMaxClassScoreThreshold) {
-      fail("postprocessing.nms.iou_threshold", "must be within [0.0, 1.0] when set");
-    }
+  if (!isFinite(params_.nms_iou_threshold)) {
+    fail("postprocessing.nms.iou_threshold", "must be finite");
   }
-  if (params_.nms_max_num_objects < -1) {
-    fail("postprocessing.nms.max_num_objects", "must be -1 (unset) or zero/positive");
+  if (params_.nms_iou_threshold < kMinClassScoreThreshold || params_.nms_iou_threshold > kMaxClassScoreThreshold) {
+    fail("postprocessing.nms.iou_threshold", "must be within [0.0, 1.0]");
+  }
+  if (params_.nms_max_num_objects < 0) {
+    fail("postprocessing.nms.max_num_objects", "must be zero or positive");
   }
   if (params_.server_url.empty()) {
     fail("prediction.server_url", "must be set to the Triton server address");
@@ -961,10 +980,9 @@ ModelConfig PointCloudObjectDetection::loadModelConfig(const Params& params, std
   model_config.voxel_y = manifest.preprocessing.voxel_y;
   model_config.voxel_z = manifest.preprocessing.voxel_z;
 
-  model_config.nms_iou_threshold = manifest.postprocessing.nms_iou_threshold;
-  model_config.nms_max_num_objects = manifest.postprocessing.max_detections;
-  model_config.nms_score_threshold.assign(manifest.postprocessing.score_thresholds.begin(),
-                                          manifest.postprocessing.score_thresholds.end());
+  model_config.nms_iou_threshold = static_cast<float>(params.nms_iou_threshold);
+  model_config.nms_max_num_objects = static_cast<int>(params.nms_max_num_objects);
+  model_config.nms_score_threshold.assign(params.nms_score_threshold.begin(), params.nms_score_threshold.end());
 
   model_config.max_num_points = manifest.preprocessing.max_num_points;
   model_config.stride.clear();
@@ -1349,7 +1367,7 @@ void PointCloudObjectDetection::setupPublishers() {
 void PointCloudObjectDetection::setup() {
   // Preload manifest-derived model config before any parameter-driven transport setup.
   // point_cloud_transport may set parameters during subscribe/advertise, and those callbacks
-  // validate NMS overrides against the predicted class list from the manifest.
+  // validate NMS settings against the predicted class list from the manifest.
   {
     std::lock_guard<std::mutex> model_lock(model_mutex_);
     refreshResolvedModelConfigLocked();
