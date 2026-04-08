@@ -463,8 +463,8 @@ void PointCloudObjectDetection::declareParameters() {
 
   // clang-format off
   this->declareAndLoadParameter("preprocessing.backend", params_.preprocessing_backend,                     // name
-                                "Point preprocessing backend: 'cpu' or 'cuda'. If 'cuda' is selected but unavailable,"
-                                " the node falls back to CPU preprocessing.",
+                                "Point preprocessing backend: 'cpu' or 'cuda'. If 'cuda' is selected, the node"
+                                " fails fast when CUDA preprocessing support is unavailable.",
                                 true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
@@ -1038,6 +1038,10 @@ void PointCloudObjectDetection::validateModelConfigOrThrow(const ModelConfig& mo
 
   if (!isAllowedPreprocessingBackend(model_config.preprocessing_backend)) {
     fail("preprocessing.backend", "must be one of: " + allowedPreprocessingBackendsString());
+  }
+  if (model_config.preprocessing_backend == "cuda" && !pcod_common::HasCudaPillarPreprocessSupport()) {
+    fail("preprocessing.backend",
+         "is set to 'cuda' but CUDA preprocessing support is not available in this build/runtime");
   }
   if (!isFinite(model_config.x_min) || !isFinite(model_config.x_max)) {
     fail("x_min/x_max", "must be finite");

@@ -79,7 +79,13 @@ At startup, invalid parameter values fail initialization. At runtime, invalid dy
 | `prediction.server_url` | `string` | Triton server host:port combination. | Required at startup. Read-only at runtime. |
 | `prediction.triton_client_timeout_s` | `double` | [**dynamic**] Client timeout for Triton requests in seconds (`0.0` disables timeout). | Must be in `[0.0, 300.0]`. |
 | `prediction.use_shm` | `bool` | Enable Triton shared-memory transport. | Requires client and Triton on the same host with a shared IPC namespace (e.g., Docker `ipc: host` or equivalent). |
-| `prediction.cuda_input_shm` | `bool` | Require Triton CUDA shared memory for input tensors. Only used when `preprocessing.backend='cuda'`. | If enabled and CUDA SHM is unavailable, node startup fails with an informative error. |
+| `prediction.cuda_input_shm` | `bool` | Require Triton CUDA shared memory for input tensors. Only used when `preprocessing.backend='cuda'`. | If enabled together with `preprocessing.backend='cuda'`, the node fails fast when CUDA SHM is unavailable or the CUDA-SHM path cannot be used. If `preprocessing.backend!='cuda'`, this setting is ignored with a warning. |
+
+**Transport Parameters**
+
+| Parameter | Type | Description | Constraints |
+| --- | --- | --- | --- |
+| `point_cloud_transport` | `string` | [**dynamic**] Transport hint used by the `point_cloud_transport` subscriber. | Must match an available point-cloud transport plugin. |
 
 **Input Parameters**
 
@@ -91,6 +97,7 @@ At startup, invalid parameter values fail initialization. At runtime, invalid dy
 
 | Parameter | Type | Description | Constraints |
 | --- | --- | --- | --- |
+| `preprocessing.backend` | `string` | [**dynamic**] Point preprocessing backend (`cpu` or `cuda`). | If set to `cuda`, the node fails fast when CUDA preprocessing support is unavailable or the CUDA path cannot be used. |
 | `preprocessing.inference_frame` | `string` | [**dynamic**] Frame used for preprocessing and geometric filtering. | Required. |
 | `preprocessing.no_detection_zone.enabled` | `bool` | Enable rectangular exclusion in `preprocessing.inference_frame`. | - |
 | `preprocessing.no_detection_zone.remove_points` | `bool` | Drop raw points that fall into the rectangle. | - |
@@ -124,7 +131,7 @@ At startup, invalid parameter values fail initialization. At runtime, invalid dy
 
 | Parameter | Type | Description | Constraints |
 | --- | --- | --- | --- |
-| `output.frame` | `string` | [**dynamic**] Frame reported in the output object list. | If unset, output uses `preprocessing.inference_frame`. |
+| `output.frame` | `string` | [**dynamic**] Frame reported in the output object list. | Required. |
 | `output.sensor_id` | `int` | [**dynamic**] Sensor identifier stored on every object. | Must be within `[0, 100000]`. |
 | `output.variances` | `double array` | [**dynamic**] Continuous-state covariance diagonal. | Exactly 12 entries; each entry must be ≥ 0.0 or `-1.0` (`CONTINUOUS_STATE_COVARIANCE_UNKNOWN`). |
 | `output.model_bounds.publish_polygon` | `bool` | Publish the xy bounds as `geometry_msgs/msg/PolygonStamped` on `~/model_bounds`. | - |

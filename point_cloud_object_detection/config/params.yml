@@ -8,6 +8,7 @@
     # Node/runtime parameters
     prediction.triton_client_timeout_s: 2.0
     prediction.use_shm: false
+    prediction.cuda_input_shm: false
     output.frame: base_link
     output.sensor_id: 0
 
