@@ -10,4 +10,4 @@ repositories:
   triton_cpp:
     type: git
     url: https://gitlab.ika.rwth-aachen.de/fb-fi/ml/triton_cpp.git
-    version: feature/cuda_shm
+    version: v1.1.0
