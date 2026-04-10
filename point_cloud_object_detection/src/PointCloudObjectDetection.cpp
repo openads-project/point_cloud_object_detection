@@ -1033,7 +1033,7 @@ ModelConfig PointCloudObjectDetection::loadModelConfig(const Params& params, std
   const std::string manifest_precision = boost::algorithm::to_lower_copy(manifest.artifact.precision);
   if (!isSupportedManifestPrecision(manifest_precision)) {
     throwParameterError(this->get_logger(), "prediction.model_repository",
-                        "manifest precision must be either 'fp32' or 'fp16'");
+                        "manifest precision must be one of 'fp32', 'fp16', or 'int8'");
   }
   const std::string manifest_device = boost::algorithm::to_lower_copy(manifest.artifact.device);
   if (manifest_device.rfind("cuda", 0) != 0) {

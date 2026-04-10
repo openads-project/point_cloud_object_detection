@@ -19,7 +19,7 @@ using pcod_common::BoundingBox;
 using pcod_common::ClassificationEntry;
 
 inline constexpr std::array<const char*, 2> kAllowedPointFeatureFields = {"intensity", "reflectivity"};
-inline constexpr std::array<const char*, 2> kSupportedManifestPrecisions = {"fp32", "fp16"};
+inline constexpr std::array<const char*, 3> kSupportedManifestPrecisions = {"fp32", "fp16", "int8"};
 inline constexpr std::array<const char*, 2> kAllowedPreprocessingBackends = {"cpu", "cuda"};
 
 // model config
