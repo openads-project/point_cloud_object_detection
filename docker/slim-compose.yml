@@ -4,8 +4,8 @@ services:
     # The default value keeps the compose file meaningful for manual/local use, too.
     image: ${POINT_CLOUD_OBJECT_DETECTION_IMAGE:-gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/perception/point_cloud_object_detection:latest_optimizations_ci-amd64}
     volumes:
-      - ../demo/models:/models:ro
-      - ./slim-probe.params.yml:/params.yml:ro
+      - ${CI_PROJECT_DIR:-..}/demo/models:/models:ro
+      - ${CI_PROJECT_DIR:-.}/docker/slim-probe.params.yml:/params.yml:ro
     command: >
       bash -lc "
       ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py
