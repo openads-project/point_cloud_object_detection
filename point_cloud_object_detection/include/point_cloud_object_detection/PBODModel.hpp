@@ -117,11 +117,10 @@ class PBODModel : public Model {
   const float voxel_y_;
   const float voxel_z_;
   const pcod_common::PointFeatureNormalizationType normalization_type_;
-  const float intensity_threshold_;
-  const float min_intensity_;
-  const float max_intensity_;
+  const float value_threshold_;
+  const float min_value_;
+  const float max_value_;
   const float norm_epsilon_;
-  const bool zero_intensity_;
   const int max_num_points_;
   const int preprocessed_feature_dim_;
   const int num_pillars_;

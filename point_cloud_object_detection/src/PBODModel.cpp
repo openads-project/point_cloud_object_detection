@@ -130,11 +130,10 @@ PBODModel::PBODModel(triton_cpp::TritonInterface& triton_interface, const ModelC
       voxel_z_{static_cast<float>(model_config_.voxel_z)},
       normalization_type_{
           pcod_common::ParsePointFeatureNormalizationType(model_config_.point_feature_normalization_type)},
-      intensity_threshold_{model_config_.point_feature_intensity_threshold},
-      min_intensity_{model_config_.point_feature_min_intensity},
-      max_intensity_{model_config_.point_feature_max_intensity},
+      value_threshold_{model_config_.point_feature_value_threshold},
+      min_value_{model_config_.point_feature_min_value},
+      max_value_{model_config_.point_feature_max_value},
       norm_epsilon_{model_config_.point_feature_norm_epsilon},
-      zero_intensity_{model_config_.zero_intensity},
       max_num_points_{model_config_.max_num_points},
       preprocessed_feature_dim_{kPreprocessedFeatureDim},
       num_pillars_{static_cast<int>(model_config_.pillar_map_size[0] * model_config_.pillar_map_size[1])},
@@ -157,11 +156,10 @@ PBODModel::PBODModel(triton_cpp::TritonInterface& triton_interface, const ModelC
                            z_min_,
                            z_max_,
                            normalization_type_,
-                           intensity_threshold_,
-                           min_intensity_,
-                           max_intensity_,
+                           value_threshold_,
+                           min_value_,
+                           max_value_,
                            norm_epsilon_,
-                           zero_intensity_,
                            remove_points_in_zone_,
                            nd_x_min_,
                            nd_x_max_,
@@ -536,7 +534,7 @@ void PBODModel::populateModelInputOnCpu(float* point_features, std::int64_t* pil
       sin_theta = point.y * inv_norm;
       cos_theta = point.x * inv_norm;
     }
-    const float normalized_intensity = point_preprocessor_.NormalizeIntensity(point.intensity);
+    const float normalized_point_feature = point_preprocessor_.NormalizePointFeature(point.intensity);
 
     float* feature_row =
         point_features + static_cast<std::size_t>(i) * static_cast<std::size_t>(preprocessed_feature_dim_);
@@ -551,7 +549,7 @@ void PBODModel::populateModelInputOnCpu(float* point_features, std::int64_t* pil
     feature_row[kFeatureVarianceX] = pillar_var_[sum_offset + 0];
     feature_row[kFeatureVarianceY] = pillar_var_[sum_offset + 1];
     feature_row[kFeatureVarianceZ] = pillar_var_[sum_offset + 2];
-    feature_row[kFeatureIntensity] = normalized_intensity;
+    feature_row[kFeatureIntensity] = normalized_point_feature;
     feature_row[kFeatureClusterOffsetX] = f_cluster_x;
     feature_row[kFeatureClusterOffsetY] = f_cluster_y;
     feature_row[kFeatureClusterOffsetZ] = f_cluster_z;
@@ -576,9 +574,9 @@ bool PBODModel::populateModelInputOnGpu(float* point_features, std::int64_t* pil
   config.z_max = z_max_;
   config.voxel_x = voxel_x_;
   config.voxel_y = voxel_y_;
-  config.intensity_threshold = intensity_threshold_;
-  config.min_intensity = min_intensity_;
-  config.max_intensity = max_intensity_;
+  config.value_threshold = value_threshold_;
+  config.min_value = min_value_;
+  config.max_value = max_value_;
   config.epsilon = norm_epsilon_;
   config.center_z = z_min_ + (z_max_ - z_min_) * 0.5f;
   config.grid_x = static_cast<std::int32_t>(model_config_.pillar_map_size[0]);
@@ -587,7 +585,6 @@ bool PBODModel::populateModelInputOnGpu(float* point_features, std::int64_t* pil
   config.max_num_points = max_num_points_;
   config.feature_dim = preprocessed_feature_dim_;
   config.normalization_type = normalization_type_;
-  config.zero_intensity = zero_intensity_;
   config.z_score_mean = 0.0f;
   config.z_score_std = 1.0f;
 
@@ -639,9 +636,9 @@ bool PBODModel::populateModelInputOnGpuToDevice(float* point_features, std::int6
   config.z_max = z_max_;
   config.voxel_x = voxel_x_;
   config.voxel_y = voxel_y_;
-  config.intensity_threshold = intensity_threshold_;
-  config.min_intensity = min_intensity_;
-  config.max_intensity = max_intensity_;
+  config.value_threshold = value_threshold_;
+  config.min_value = min_value_;
+  config.max_value = max_value_;
   config.epsilon = norm_epsilon_;
   config.center_z = z_min_ + (z_max_ - z_min_) * 0.5f;
   config.grid_x = static_cast<std::int32_t>(model_config_.pillar_map_size[0]);
@@ -650,7 +647,6 @@ bool PBODModel::populateModelInputOnGpuToDevice(float* point_features, std::int6
   config.max_num_points = max_num_points_;
   config.feature_dim = preprocessed_feature_dim_;
   config.normalization_type = normalization_type_;
-  config.zero_intensity = zero_intensity_;
   config.z_score_mean = 0.0f;
   config.z_score_std = 1.0f;
 

@@ -8,8 +8,10 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <memory>
+#include <regex>
 #include <sstream>
 #include <utility>
 
@@ -27,8 +29,6 @@
 namespace point_cloud_object_detection {
 
 namespace {
-
-constexpr char kManifestPathEnvVar[] = "POINT_CLOUD_OBJECT_DETECTION_MODEL_MANIFEST_PATH";
 
 [[noreturn]] void throwParameterError(const rclcpp::Logger& logger, const std::string& param_name,
                                       const std::string& details) {
@@ -77,7 +77,7 @@ bool isSupportedManifestPrecision(const std::string& precision) {
                      [&](const char* supported) { return precision == supported; });
 }
 
-std::string resolveModelManifestPath(const std::string& path) {
+std::string resolveModelRepositoryPath(const std::string& path) {
   if (path.empty()) {
     return path;
   }
@@ -86,6 +86,31 @@ std::string resolveModelManifestPath(const std::string& path) {
   }
   const auto share_dir = ament_index_cpp::get_package_share_directory("point_cloud_object_detection");
   return (std::filesystem::path(share_dir) / path).string();
+}
+
+std::string manifestPathFromRepository(const std::string& repository_path) {
+  if (repository_path.empty()) {
+    return repository_path;
+  }
+  return (std::filesystem::path(repository_path) / "model_manifest.yml").string();
+}
+
+std::string parseTritonModelNameFromConfig(const std::string& config_path) {
+  std::ifstream config_stream(config_path);
+  if (!config_stream) {
+    throw std::runtime_error("failed to open config.pbtxt");
+  }
+
+  static const std::regex kNamePattern(R"pbtxt(^\s*name\s*:\s*"([^"]+)"\s*$)pbtxt");
+  std::string line;
+  while (std::getline(config_stream, line)) {
+    std::smatch match;
+    if (std::regex_match(line, match, kNamePattern)) {
+      return match[1].str();
+    }
+  }
+
+  throw std::runtime_error("config.pbtxt does not define a top-level name field");
 }
 
 std::string resolvePrimaryFeatureField(const ModelConfig& model_config, const Params& params) {
@@ -349,10 +374,7 @@ const std::map<uint8_t, std::vector<std::string>> PointCloudObjectDetection::kPo
 
 PointCloudObjectDetection::PointCloudObjectDetection(const rclcpp::NodeOptions& options)
     : rclcpp::Node("point_cloud_object_detection", options) {
-  const char* manifest_path = std::getenv(kManifestPathEnvVar);
-  if (manifest_path != nullptr) {
-    model_manifest_path_ = manifest_path;
-  }
+  loadBootstrapParameters();
   loadManifestBackedParameterDefaults();
   declareParameters();
   loadParameters();
@@ -362,6 +384,25 @@ PointCloudObjectDetection::PointCloudObjectDetection(const rclcpp::NodeOptions& 
     setup();
     setup_timer_->cancel();
   });
+}
+
+void PointCloudObjectDetection::loadBootstrapParameters() {
+  rcl_interfaces::msg::ParameterDescriptor repository_desc;
+  repository_desc.description =
+      "Path to the exported Triton model repository bundle root (absolute or package-relative).";
+  repository_desc.additional_constraints =
+      "Must point to a directory containing model_manifest.yml and config.pbtxt.";
+  repository_desc.read_only = true;
+  this->declare_parameter("prediction.model_repository", params_.model_repository, repository_desc);
+  params_.model_repository = this->get_parameter("prediction.model_repository").as_string();
+
+  rcl_interfaces::msg::ParameterDescriptor version_desc;
+  version_desc.description =
+      "Requested Triton model version directory inside prediction.model_repository_path. If empty, the exported "
+      "default from model_manifest.yml is used.";
+  version_desc.read_only = true;
+  this->declare_parameter("prediction.model_version", params_.model_version, version_desc);
+  params_.model_version = this->get_parameter("prediction.model_version").as_string();
 }
 
 PointCloudObjectDetection::~PointCloudObjectDetection() {
@@ -536,22 +577,24 @@ void PointCloudObjectDetection::declareParameters() {
 
   this->declareAndLoadParameter("postprocessing.class_score_threshold",                         // name
                                 params_.output_class_score_threshold,
-                                "Output class score threshold",
+                                "Output class score threshold. Defaults to runtime_defaults.postprocessing."
+                                "class_score_threshold from the model manifest.",
                                 true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
                                 kMinClassScoreThreshold, kMaxClassScoreThreshold, std::nullopt, // from_value, to_value, step_value
                                 "Must be within [0.0, 1.0].");                                  // additional_constraints
   this->declareAndLoadParameter("postprocessing.nms.iou_threshold", params_.nms_iou_threshold,                // name
-                                "NMS IoU threshold. Defaults to the value from the model manifest.",
+                                "NMS IoU threshold. Defaults to runtime_defaults.postprocessing.nms."
+                                "iou_threshold from the model manifest.",
                                 true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
                                 kMinClassScoreThreshold, kMaxClassScoreThreshold, std::nullopt, // from_value, to_value, step_value
                                 "Must be within [0.0, 1.0].");                                  // additional_constraints
   this->declareAndLoadParameter("postprocessing.nms.max_num_objects", params_.nms_max_num_objects,            // name
-                                "Maximum number of objects after NMS. Defaults to the value from the model"
-                                " manifest.",
+                                "Maximum number of objects after NMS. Defaults to runtime_defaults.postprocessing"
+                                ".nms.max_num_objects from the model manifest.",
                                 true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
@@ -559,8 +602,8 @@ void PointCloudObjectDetection::declareParameters() {
                                 "Must be zero or positive.");                                   // additional_constraints
   this->declareAndLoadParameter("postprocessing.nms.score_threshold",                           // name
                                 params_.nms_score_threshold,
-                                "NMS score threshold (single value or per-class list). Defaults to the value from"
-                                " the model manifest.",
+                                "NMS score threshold (single value or per-class list). Defaults to runtime_defaults"
+                                ".postprocessing.nms.score_threshold from the model manifest.",
                                 true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
@@ -574,15 +617,15 @@ void PointCloudObjectDetection::declareParameters() {
                                 false,                                                          // read_only
                                 std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
                                 "");                                                            // additional_constraints
-  this->declareAndLoadParameter("preprocessing.point_feature.intensity_threshold",
-                                params_.point_feature_intensity_threshold,                      // name
-                                "Point-feature intensity threshold. Defaults to the value from the model"
-                                " manifest.",
+  this->declareAndLoadParameter("preprocessing.point_feature.value_threshold",
+                                params_.point_feature_value_threshold,                      // name
+                                "Point-feature value threshold. Defaults to runtime_defaults.preprocessing"
+                                ".point_feature.value_threshold from the model manifest.",
                                 true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
                                 0.0, 1000000.0, std::nullopt,                                   // from_value, to_value, step_value
-                                "Must be greater than 0 when intensity_threshold normalization is used.");
+                                "Must be greater than 0 when value_threshold normalization is used.");
 
   this->declareAndLoadParameter("preprocessing.no_detection_zone.enabled", params_.no_detection_zone_enabled,
                                 "Enable rectangular no-detection zone in inference_frame",      // description
@@ -734,7 +777,7 @@ void PointCloudObjectDetection::syncModelRuntimeConfigFromParams() {
 void PointCloudObjectDetection::syncModelRuntimeConfigFromParams(ModelConfig& model_config,
                                                                  const Params& params) const {
   model_config.preprocessing_backend = params.preprocessing_backend;
-  model_config.point_feature_intensity_threshold = static_cast<float>(params.point_feature_intensity_threshold);
+  model_config.point_feature_value_threshold = static_cast<float>(params.point_feature_value_threshold);
   model_config.no_detection_zone_remove_points = params.no_detection_zone_remove_points;
   model_config.no_detection_zone_x_min = params.no_detection_zone_x_min;
   model_config.no_detection_zone_x_max = params.no_detection_zone_x_max;
@@ -784,25 +827,55 @@ void PointCloudObjectDetection::loadManifestBackedParameterDefaults() {
     throwParameterError(this->get_logger(), param, message);
   };
 
-  if (model_manifest_path_.empty()) {
-    fail("launch.manifest_path", std::string("must be set via launch argument (env ") + kManifestPathEnvVar + ")");
+  if (params_.model_repository_path.empty()) {
+    fail("prediction.model_repository_path", "must be set to the exported Triton model repository path");
   }
 
-  const std::string manifest_path = resolveModelManifestPath(model_manifest_path_);
+  const std::string repository_path = resolveModelRepositoryPath(params_.model_repository_path);
+  if (!std::filesystem::exists(repository_path) || !std::filesystem::is_directory(repository_path)) {
+    fail("prediction.model_repository_path", "must point to an existing directory");
+  }
+
+  const std::string manifest_path = manifestPathFromRepository(repository_path);
   if (!std::filesystem::exists(manifest_path)) {
-    fail("launch.manifest_path", "model_manifest.yml does not exist at the configured path");
+    fail("prediction.model_repository_path", "model_manifest.yml does not exist inside the configured repository");
   }
 
   const pcod_common::ModelManifest manifest = pcod_common::LoadModelManifest(manifest_path);
   pcod_common::ValidateModelManifest(manifest);
 
-  params_.model_name = manifest.triton.model_name;
-  params_.model_version = manifest.triton.model_version;
-  params_.point_feature_intensity_threshold = manifest.preprocessing.point_features_normalization.intensity_threshold;
-  params_.nms_iou_threshold = manifest.postprocessing.nms_iou_threshold;
-  params_.nms_max_num_objects = manifest.postprocessing.max_detections;
-  params_.nms_score_threshold.assign(manifest.postprocessing.score_thresholds.begin(),
-                                     manifest.postprocessing.score_thresholds.end());
+  if (!manifest.artifact.triton.enabled) {
+    fail("prediction.model_repository", "repository manifest must describe a Triton export");
+  }
+  const std::filesystem::path config_path = std::filesystem::path(repository_path) / manifest.artifact.files.triton_config;
+  if (manifest.artifact.files.triton_config.empty() || !std::filesystem::exists(config_path)) {
+    fail("prediction.model_repository", "repository manifest must reference an existing config.pbtxt");
+  }
+
+  try {
+    params_.model_name = parseTritonModelNameFromConfig(config_path.string());
+  } catch (const std::exception& e) {
+    fail("prediction.model_repository", std::string("failed to parse config.pbtxt: ") + e.what());
+  }
+  if (params_.model_name != manifest.artifact.triton.model_name) {
+    fail("prediction.model_repository_path",
+         "config.pbtxt model name does not match artifact.triton.model_name in model_manifest.yml");
+  }
+
+  if (params_.model_version.empty()) {
+    params_.model_version = manifest.artifact.triton.model_version;
+  } else if (params_.model_version != manifest.artifact.triton.model_version) {
+    RCLCPP_WARN(this->get_logger(),
+                "prediction.model_version='%s' differs from manifest default '%s'; using the requested version.",
+                params_.model_version.c_str(), manifest.artifact.triton.model_version.c_str());
+  }
+  params_.point_feature_value_threshold =
+      manifest.runtime_defaults.preprocessing.point_feature.value_threshold;
+  params_.output_class_score_threshold = manifest.runtime_defaults.postprocessing.class_score_threshold;
+  params_.nms_iou_threshold = manifest.runtime_defaults.postprocessing.nms_iou_threshold;
+  params_.nms_max_num_objects = manifest.runtime_defaults.postprocessing.max_detections;
+  params_.nms_score_threshold.assign(manifest.runtime_defaults.postprocessing.nms_score_thresholds.begin(),
+                                     manifest.runtime_defaults.postprocessing.nms_score_thresholds.end());
 }
 
 void PointCloudObjectDetection::validateParamsOrThrow() const {
@@ -831,11 +904,8 @@ void PointCloudObjectDetection::validateParamsOrThrow() const {
   if (!isAllowedPreprocessingBackend(params_.preprocessing_backend)) {
     fail("preprocessing.backend", "must be one of: " + allowedPreprocessingBackendsString());
   }
-  if (!isFinite(params_.point_feature_intensity_threshold)) {
-    fail("preprocessing.point_feature.intensity_threshold", "must be finite");
-  }
-  if (params_.point_feature_intensity_threshold <= 0.0) {
-    fail("preprocessing.point_feature.intensity_threshold", "must be greater than 0");
+  if (!isFinite(params_.point_feature_value_threshold)) {
+    fail("preprocessing.point_feature.value_threshold", "must be finite");
   }
   if (!isFinite(params_.output_class_score_threshold)) {
     fail("postprocessing.class_score_threshold", "must be finite");
@@ -864,12 +934,23 @@ void PointCloudObjectDetection::validateParamsOrThrow() const {
   if (!isFinite(params_.triton_client_timeout_s)) {
     fail("prediction.triton_client_timeout_s", "must be finite");
   }
-  if (model_manifest_path_.empty()) {
-    fail("launch.manifest_path", std::string("must be set via launch argument (env ") + kManifestPathEnvVar + ")");
+  if (params_.model_repository_path.empty()) {
+    fail("prediction.model_repository_path", "must be set to the exported Triton model repository path");
   }
-  const std::string resolved_manifest_path = resolveModelManifestPath(model_manifest_path_);
+  const std::string resolved_repository_path = resolveModelRepositoryPath(params_.model_repository_path);
+  if (!std::filesystem::exists(resolved_repository_path) || !std::filesystem::is_directory(resolved_repository_path)) {
+    fail("prediction.model_repository_path", "must point to an existing directory");
+  }
+  const std::string resolved_manifest_path = manifestPathFromRepository(resolved_repository_path);
   if (!std::filesystem::exists(resolved_manifest_path)) {
-    fail("launch.manifest_path", "model_manifest.yml does not exist at the configured path");
+    fail("prediction.model_repository_path", "model_manifest.yml does not exist inside the configured repository");
+  }
+  if (params_.model_version.empty()) {
+    fail("prediction.model_version", "must not be empty after resolving repository defaults");
+  }
+  const std::filesystem::path version_path = std::filesystem::path(resolved_repository_path) / params_.model_version;
+  if (!std::filesystem::exists(version_path) || !std::filesystem::is_directory(version_path)) {
+    fail("prediction.model_version", "requested model version directory does not exist inside model_repository");
   }
 
   if (!isFinite(params_.no_detection_zone_x_min) || !isFinite(params_.no_detection_zone_x_max) ||
@@ -924,79 +1005,85 @@ bool PointCloudObjectDetection::updateNMSScoreThreshold(std::vector<double>& sco
 }
 
 ModelConfig PointCloudObjectDetection::loadModelConfig(const Params& params, std::string& model_name,
-                                                       std::string& model_version,
                                                        pcod_common::NmsConfig& nms_config) const {
-  const std::string manifest_path = resolveModelManifestPath(model_manifest_path_);
+  const std::string repository_path = "/models/" + params.model_repository;
+  const std::string manifest_path = manifestPathFromRepository(repository_path);
   pcod_common::ModelManifest manifest = pcod_common::LoadModelManifest(manifest_path);
   pcod_common::ValidateModelManifest(manifest);
   ModelConfig model_config;
 
-  const std::string manifest_precision = boost::algorithm::to_lower_copy(manifest.precision);
+  const std::string manifest_precision = boost::algorithm::to_lower_copy(manifest.artifact.precision);
   if (!isSupportedManifestPrecision(manifest_precision)) {
-    throwParameterError(this->get_logger(), "launch.manifest_path",
+    throwParameterError(this->get_logger(), "prediction.model_repository_path",
                         "manifest precision must be either 'fp32' or 'fp16'");
   }
-  if (!manifest.triton.precision.empty()) {
-    const std::string triton_precision = boost::algorithm::to_lower_copy(manifest.triton.precision);
-    if (!isSupportedManifestPrecision(triton_precision)) {
-      throwParameterError(this->get_logger(), "launch.manifest_path",
-                          "manifest triton.precision must be either 'fp32' or 'fp16'");
-    }
-    if (triton_precision != manifest_precision) {
-      throwParameterError(this->get_logger(), "launch.manifest_path",
-                          "manifest precision and triton.precision must match");
-    }
-  }
-  const std::string manifest_device = boost::algorithm::to_lower_copy(manifest.device);
+  const std::string manifest_device = boost::algorithm::to_lower_copy(manifest.artifact.device);
   if (manifest_device.rfind("cuda", 0) != 0) {
-    throwParameterError(this->get_logger(), "launch.manifest_path", "manifest device must start with 'cuda'");
+    throwParameterError(this->get_logger(), "prediction.model_repository", "manifest device must start with 'cuda'");
   }
-  if (manifest.triton.model_name.empty() || manifest.triton.model_version.empty()) {
-    throwParameterError(this->get_logger(), "launch.manifest_path",
-                        "manifest must define triton.model_name and triton.model_version");
+  if (!manifest.artifact.triton.enabled || manifest.artifact.triton.model_name.empty() ||
+      manifest.artifact.triton.model_version.empty()) {
+    throwParameterError(this->get_logger(), "prediction.model_repository_path",
+                        "manifest must define artifact.triton.model_name and artifact.triton.model_version");
   }
-  model_name = manifest.triton.model_name;
-  model_version = manifest.triton.model_version;
+  const std::filesystem::path config_path = std::filesystem::path(repository_path) / manifest.artifact.files.triton_config;
+  if (manifest.artifact.files.triton_config.empty() || !std::filesystem::exists(config_path)) {
+    throwParameterError(this->get_logger(), "prediction.model_repository_path",
+                        "manifest must reference an existing Triton config.pbtxt");
+  }
+  try {
+    model_name = parseTritonModelNameFromConfig(config_path.string());
+  } catch (const std::exception& e) {
+    throwParameterError(this->get_logger(), "prediction.model_repository_path",
+                        std::string("failed to parse config.pbtxt: ") + e.what());
+  }
+  if (model_name != manifest.artifact.triton.model_name) {
+    throwParameterError(this->get_logger(), "prediction.model_repository_path",
+                        "config.pbtxt model name does not match artifact.triton.model_name");
+  }
 
-  model_config.point_feature_normalization_type = manifest.preprocessing.point_features_normalization.type;
-  model_config.point_feature_intensity_threshold =
-      manifest.preprocessing.point_features_normalization.intensity_threshold;
-  model_config.point_feature_min_intensity = manifest.preprocessing.point_features_normalization.min_intensity;
-  model_config.point_feature_max_intensity = manifest.preprocessing.point_features_normalization.max_intensity;
-  model_config.point_feature_norm_epsilon = manifest.preprocessing.point_features_normalization.epsilon;
-  model_config.predicted_class_names = manifest.postprocessing.class_names;
+  model_config.point_feature_normalization_type =
+      manifest.frozen_contract.preprocessing.point_feature_normalization.type;
+  model_config.point_feature_value_threshold =
+      manifest.runtime_defaults.preprocessing.point_feature.value_threshold;
+  model_config.point_feature_min_value =
+      manifest.frozen_contract.preprocessing.point_feature_normalization.min_value;
+  model_config.point_feature_max_value =
+      manifest.frozen_contract.preprocessing.point_feature_normalization.max_value;
+  model_config.point_feature_norm_epsilon =
+      manifest.frozen_contract.preprocessing.point_feature_normalization.epsilon;
+  model_config.predicted_class_names = manifest.frozen_contract.postprocessing.class_names;
   model_config.class_mapping_.clear();
 
-  model_config.x_min = manifest.preprocessing.x_range[0];
-  model_config.x_max = manifest.preprocessing.x_range[1];
-  model_config.y_min = manifest.preprocessing.y_range[0];
-  model_config.y_max = manifest.preprocessing.y_range[1];
-  model_config.z_min = manifest.preprocessing.z_range[0];
-  model_config.z_max = manifest.preprocessing.z_range[1];
-  model_config.x_grid_size = manifest.postprocessing.grid_x;
-  model_config.y_grid_size = manifest.postprocessing.grid_y;
-  model_config.voxel_x = manifest.preprocessing.voxel_x;
-  model_config.voxel_y = manifest.preprocessing.voxel_y;
-  model_config.voxel_z = manifest.preprocessing.voxel_z;
+  model_config.x_min = manifest.frozen_contract.preprocessing.x_range[0];
+  model_config.x_max = manifest.frozen_contract.preprocessing.x_range[1];
+  model_config.y_min = manifest.frozen_contract.preprocessing.y_range[0];
+  model_config.y_max = manifest.frozen_contract.preprocessing.y_range[1];
+  model_config.z_min = manifest.frozen_contract.preprocessing.z_range[0];
+  model_config.z_max = manifest.frozen_contract.preprocessing.z_range[1];
+  model_config.x_grid_size = manifest.frozen_contract.postprocessing.grid_x;
+  model_config.y_grid_size = manifest.frozen_contract.postprocessing.grid_y;
+  model_config.voxel_x = manifest.frozen_contract.preprocessing.voxel_x;
+  model_config.voxel_y = manifest.frozen_contract.preprocessing.voxel_y;
+  model_config.voxel_z = manifest.frozen_contract.preprocessing.voxel_z;
 
   model_config.nms_iou_threshold = static_cast<float>(params.nms_iou_threshold);
   model_config.nms_max_num_objects = static_cast<int>(params.nms_max_num_objects);
   model_config.nms_score_threshold.assign(params.nms_score_threshold.begin(), params.nms_score_threshold.end());
 
-  model_config.max_num_points = manifest.preprocessing.max_num_points;
+  model_config.max_num_points = manifest.frozen_contract.preprocessing.max_num_points;
   model_config.stride.clear();
-  for (int stride : manifest.model.stride) {
+  for (int stride : manifest.frozen_contract.model.stride) {
     model_config.stride.push_back(stride);
   }
-  model_config.first_up_stride = manifest.model.first_up_stride;
+  model_config.first_up_stride = manifest.frozen_contract.model.first_up_stride;
 
-  model_config.pillar_map_size = {manifest.model.pillar_map_size[0], manifest.model.pillar_map_size[1]};
-  model_config.pillar_map_range = {{manifest.model.pillar_map_range[0][0], manifest.model.pillar_map_range[0][1]},
-                                   {manifest.model.pillar_map_range[1][0], manifest.model.pillar_map_range[1][1]},
-                                   {manifest.model.pillar_map_range[2][0], manifest.model.pillar_map_range[2][1]}};
-
-  model_config.mask_is_bool = manifest.model.mask_is_bool;
-  model_config.zero_intensity = manifest.model.zero_intensity;
+  model_config.pillar_map_size = {manifest.frozen_contract.model.pillar_map_size[0],
+                                  manifest.frozen_contract.model.pillar_map_size[1]};
+  model_config.pillar_map_range = {
+      {manifest.frozen_contract.model.pillar_map_range[0][0], manifest.frozen_contract.model.pillar_map_range[0][1]},
+      {manifest.frozen_contract.model.pillar_map_range[1][0], manifest.frozen_contract.model.pillar_map_range[1][1]},
+      {manifest.frozen_contract.model.pillar_map_range[2][0], manifest.frozen_contract.model.pillar_map_range[2][1]}};
 
   for (auto& name : model_config.predicted_class_names) {
     boost::algorithm::to_lower(name);
@@ -1102,9 +1189,9 @@ void PointCloudObjectDetection::validateModelConfigOrThrow(const ModelConfig& mo
   if (model_config.nms_max_num_objects < 0) {
     fail("postprocessing.nms.max_num_objects", "must be zero or positive");
   }
-  if (model_config.point_feature_normalization_type == "intensity_threshold" &&
-      model_config.point_feature_intensity_threshold <= 0.0f) {
-    fail("preprocessing.point_feature.intensity_threshold", "must be greater than 0");
+  if (model_config.point_feature_normalization_type == "value_threshold" &&
+      model_config.point_feature_value_threshold <= 0.0f) {
+    fail("preprocessing.point_feature.value_threshold", "must be greater than 0");
   }
 
   if (model_config.max_num_points <= 0) {
@@ -1248,11 +1335,9 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
 void PointCloudObjectDetection::refreshResolvedModelConfigLocked() {
   const Params params_snapshot = params_;
   std::string model_name;
-  std::string model_version;
   pcod_common::NmsConfig new_nms_config;
-  auto new_model_config = loadModelConfig(params_snapshot, model_name, model_version, new_nms_config);
+  auto new_model_config = loadModelConfig(params_snapshot, model_name, new_nms_config);
   params_.model_name = model_name;
-  params_.model_version = model_version;
   model_config_ = std::move(new_model_config);
   nms_config_ = std::move(new_nms_config);
 }
