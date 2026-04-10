@@ -34,25 +34,25 @@
     # postprocessing.nms.max_num_objects: 64
 
     # Rectangular no-detection zone in inference_frame
-    preprocessing.no_detection_zone.enabled: false
-    preprocessing.no_detection_zone.remove_points: false
+    preprocessing.no_detection_zone.enabled: true
+    preprocessing.no_detection_zone.remove_points: true
     preprocessing.no_detection_zone.x_min: 0.0
     preprocessing.no_detection_zone.x_max: 0.0
     preprocessing.no_detection_zone.y_min: 0.0
     preprocessing.no_detection_zone.y_max: 0.0
-    preprocessing.no_detection_zone.publish_polygon: false
-    preprocessing.no_detection_zone.publish_points: false
+    preprocessing.no_detection_zone.publish_polygon: true
+    preprocessing.no_detection_zone.publish_points: true
 
     # Circular-sector detection area in inference_frame
-    preprocessing.detection_area.enabled: false
+    preprocessing.detection_area.enabled: true
     preprocessing.detection_area.center_x: 0.0
     preprocessing.detection_area.center_y: 0.0
-    preprocessing.detection_area.radius: 0.0
+    preprocessing.detection_area.radius: 100.0
     preprocessing.detection_area.bearing_deg: 0.0
     preprocessing.detection_area.fov_deg: 360.0
-    preprocessing.detection_area.publish_polygon: false
+    preprocessing.detection_area.publish_polygon: true
     preprocessing.detection_area.num_segments: 32
-    preprocessing.detection_area.filter_detections: false
+    preprocessing.detection_area.filter_detections: true
     preprocessing.detection_area.filter_mode: "center"
 
     # Debug and visualization publishers
