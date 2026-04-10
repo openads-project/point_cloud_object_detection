@@ -82,7 +82,7 @@ struct ModelConfig {
 // parameters
 struct Params {
   std::string preprocessing_backend = "cpu";
-  std::string model_repository_path;
+  std::string model_repository;
   std::string model_name;
   std::string model_version;
   std::string server_url;  // required
