@@ -81,13 +81,12 @@ bool requiresModelReinitializationForParameter(const std::string& name) {
   return name == "prediction.triton_client_timeout_s" || name == "prediction.use_shm" ||
          name == "prediction.cuda_input_shm" || name == "preprocessing.backend" ||
          name == "preprocessing.point_feature.value_threshold" ||
-         name == "preprocessing.no_detection_zone.remove_points" ||
-         name == "preprocessing.no_detection_zone.x_min" || name == "preprocessing.no_detection_zone.x_max" ||
-         name == "preprocessing.no_detection_zone.y_min" || name == "preprocessing.no_detection_zone.y_max" ||
-         name == "preprocessing.detection_area.enabled" || name == "preprocessing.detection_area.center_x" ||
-         name == "preprocessing.detection_area.center_y" || name == "preprocessing.detection_area.radius" ||
-         name == "preprocessing.detection_area.bearing_deg" || name == "preprocessing.detection_area.fov_deg" ||
-         name == "preprocessing.detection_area.num_segments";
+         name == "preprocessing.no_detection_zone.remove_points" || name == "preprocessing.no_detection_zone.x_min" ||
+         name == "preprocessing.no_detection_zone.x_max" || name == "preprocessing.no_detection_zone.y_min" ||
+         name == "preprocessing.no_detection_zone.y_max" || name == "preprocessing.detection_area.enabled" ||
+         name == "preprocessing.detection_area.center_x" || name == "preprocessing.detection_area.center_y" ||
+         name == "preprocessing.detection_area.radius" || name == "preprocessing.detection_area.bearing_deg" ||
+         name == "preprocessing.detection_area.fov_deg" || name == "preprocessing.detection_area.num_segments";
 }
 
 std::string resolveModelRepositoryPath(const std::string& path) {
@@ -410,8 +409,7 @@ void PointCloudObjectDetection::loadBootstrapParameters() {
   rcl_interfaces::msg::ParameterDescriptor repository_desc;
   repository_desc.description =
       "Path to the exported Triton model repository bundle root (absolute or package-relative).";
-  repository_desc.additional_constraints =
-      "Must point to a directory containing model_manifest.yml and config.pbtxt.";
+  repository_desc.additional_constraints = "Must point to a directory containing model_manifest.yml and config.pbtxt.";
   repository_desc.read_only = true;
   this->declare_parameter("prediction.model_repository", params_.model_repository, repository_desc);
   params_.model_repository = this->get_parameter("prediction.model_repository").as_string();
@@ -867,7 +865,8 @@ void PointCloudObjectDetection::loadManifestBackedParameterDefaults() {
   if (!manifest.artifact.triton.enabled) {
     fail("prediction.model_repository", "repository manifest must describe a Triton export");
   }
-  const std::filesystem::path config_path = std::filesystem::path(repository_path) / manifest.artifact.files.triton_config;
+  const std::filesystem::path config_path =
+      std::filesystem::path(repository_path) / manifest.artifact.files.triton_config;
   if (manifest.artifact.files.triton_config.empty() || !std::filesystem::exists(config_path)) {
     fail("prediction.model_repository", "repository manifest must reference an existing config.pbtxt");
   }
@@ -889,8 +888,7 @@ void PointCloudObjectDetection::loadManifestBackedParameterDefaults() {
                 "prediction.model_version='%s' differs from manifest default '%s'; using the requested version.",
                 params_.model_version.c_str(), manifest.artifact.triton.model_version.c_str());
   }
-  params_.point_feature_value_threshold =
-      manifest.runtime_defaults.preprocessing.point_feature.value_threshold;
+  params_.point_feature_value_threshold = manifest.runtime_defaults.preprocessing.point_feature.value_threshold;
   params_.output_class_score_threshold = manifest.runtime_defaults.postprocessing.class_score_threshold;
   params_.nms_iou_threshold = manifest.runtime_defaults.postprocessing.nms_iou_threshold;
   params_.nms_max_num_objects = manifest.runtime_defaults.postprocessing.max_detections;
@@ -1046,7 +1044,8 @@ ModelConfig PointCloudObjectDetection::loadModelConfig(const Params& params, std
     throwParameterError(this->get_logger(), "prediction.model_repository",
                         "manifest must define artifact.triton.model_name and artifact.triton.model_version");
   }
-  const std::filesystem::path config_path = std::filesystem::path(repository_path) / manifest.artifact.files.triton_config;
+  const std::filesystem::path config_path =
+      std::filesystem::path(repository_path) / manifest.artifact.files.triton_config;
   if (manifest.artifact.files.triton_config.empty() || !std::filesystem::exists(config_path)) {
     throwParameterError(this->get_logger(), "prediction.model_repository",
                         "manifest must reference an existing Triton config.pbtxt");
@@ -1064,14 +1063,10 @@ ModelConfig PointCloudObjectDetection::loadModelConfig(const Params& params, std
 
   model_config.point_feature_normalization_type =
       manifest.frozen_contract.preprocessing.point_feature_normalization.type;
-  model_config.point_feature_value_threshold =
-      manifest.runtime_defaults.preprocessing.point_feature.value_threshold;
-  model_config.point_feature_min_value =
-      manifest.frozen_contract.preprocessing.point_feature_normalization.min_value;
-  model_config.point_feature_max_value =
-      manifest.frozen_contract.preprocessing.point_feature_normalization.max_value;
-  model_config.point_feature_norm_epsilon =
-      manifest.frozen_contract.preprocessing.point_feature_normalization.epsilon;
+  model_config.point_feature_value_threshold = manifest.runtime_defaults.preprocessing.point_feature.value_threshold;
+  model_config.point_feature_min_value = manifest.frozen_contract.preprocessing.point_feature_normalization.min_value;
+  model_config.point_feature_max_value = manifest.frozen_contract.preprocessing.point_feature_normalization.max_value;
+  model_config.point_feature_norm_epsilon = manifest.frozen_contract.preprocessing.point_feature_normalization.epsilon;
   model_config.predicted_class_names = manifest.frozen_contract.postprocessing.class_names;
   model_config.class_mapping_.clear();
 
