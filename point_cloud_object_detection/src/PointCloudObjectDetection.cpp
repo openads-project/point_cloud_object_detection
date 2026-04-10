@@ -77,6 +77,19 @@ bool isSupportedManifestPrecision(const std::string& precision) {
                      [&](const char* supported) { return precision == supported; });
 }
 
+bool requiresModelReinitializationForParameter(const std::string& name) {
+  return name == "prediction.triton_client_timeout_s" || name == "prediction.use_shm" ||
+         name == "prediction.cuda_input_shm" || name == "preprocessing.backend" ||
+         name == "preprocessing.point_feature.value_threshold" ||
+         name == "preprocessing.no_detection_zone.remove_points" ||
+         name == "preprocessing.no_detection_zone.x_min" || name == "preprocessing.no_detection_zone.x_max" ||
+         name == "preprocessing.no_detection_zone.y_min" || name == "preprocessing.no_detection_zone.y_max" ||
+         name == "preprocessing.detection_area.enabled" || name == "preprocessing.detection_area.center_x" ||
+         name == "preprocessing.detection_area.center_y" || name == "preprocessing.detection_area.radius" ||
+         name == "preprocessing.detection_area.bearing_deg" || name == "preprocessing.detection_area.fov_deg" ||
+         name == "preprocessing.detection_area.num_segments";
+}
+
 std::string resolveModelRepositoryPath(const std::string& path) {
   if (path.empty()) {
     return path;
@@ -1256,8 +1269,7 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
   bool model_change_on_runtime = false;
   bool publishers_changed = false;
   for (const auto& param : parameters) {
-    if (name_in(param.get_name(), {"prediction.triton_client_timeout_s", "prediction.use_shm",
-                                   "prediction.cuda_input_shm", "preprocessing.backend"})) {
+    if (requiresModelReinitializationForParameter(param.get_name())) {
       model_change_on_runtime = true;
     }
     if (name_in(param.get_name(),
