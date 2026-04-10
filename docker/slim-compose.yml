@@ -3,9 +3,6 @@ services:
     # Mint overrides this image in CI via --target-compose-svc-image ${FAT_IMAGE}.
     # The default value keeps the compose file meaningful for manual/local use, too.
     image: ${POINT_CLOUD_OBJECT_DETECTION_IMAGE:-gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/perception/point_cloud_object_detection:latest_optimizations_ci-amd64}
-    environment:
-      RMW_IMPLEMENTATION: rmw_fastrtps_cpp
-      ROS_DOMAIN_ID: 42
     volumes:
       - ../demo/models:/models:ro
       - ./slim-probe.params.yml:/params.yml:ro
