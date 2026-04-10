@@ -36,10 +36,10 @@
     # Rectangular no-detection zone in inference_frame
     preprocessing.no_detection_zone.enabled: true
     preprocessing.no_detection_zone.remove_points: true
-    preprocessing.no_detection_zone.x_min: 0.0
-    preprocessing.no_detection_zone.x_max: 0.0
-    preprocessing.no_detection_zone.y_min: 0.0
-    preprocessing.no_detection_zone.y_max: 0.0
+    preprocessing.no_detection_zone.x_min: -1.5
+    preprocessing.no_detection_zone.x_max: 4.2
+    preprocessing.no_detection_zone.y_min: -1.2
+    preprocessing.no_detection_zone.y_max: 1.2
     preprocessing.no_detection_zone.publish_polygon: true
     preprocessing.no_detection_zone.publish_points: true
 
@@ -47,7 +47,7 @@
     preprocessing.detection_area.enabled: true
     preprocessing.detection_area.center_x: 0.0
     preprocessing.detection_area.center_y: 0.0
-    preprocessing.detection_area.radius: 100.0
+    preprocessing.detection_area.radius: 90.0
     preprocessing.detection_area.bearing_deg: 0.0
     preprocessing.detection_area.fov_deg: 360.0
     preprocessing.detection_area.publish_polygon: true
@@ -56,4 +56,4 @@
     preprocessing.detection_area.filter_mode: "center"
 
     # Debug and visualization publishers
-    output.model_bounds.publish_polygon: false
+    output.model_bounds.publish_polygon: true
