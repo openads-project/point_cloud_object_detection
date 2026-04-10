@@ -1,0 +1,59 @@
+/**:
+  ros__parameters:
+
+    # Core node configuration
+    prediction.server_url: "127.0.0.1:8001"
+    prediction.model_repository: "point-cloud-object-detection"
+    prediction.model_version: "1"
+    preprocessing.backend: "cpu"
+    preprocessing.inference_frame: base_link
+    output.frame: base_link
+    output.sensor_id: 0
+    point_cloud_transport: raw
+    prediction.use_shm: false
+    prediction.cuda_input_shm: false
+    prediction.triton_client_timeout_s: 1.0
+
+    # Output filtering and object metadata
+    postprocessing.class_score_threshold: 0.0
+
+    # Object covariance defaults
+    # CONTINUOUS_STATE_COVARIANCE_UNKNOWN = -1.0
+    output.variances: [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0]
+
+    # Model input feature selection
+    input.point_feature_field: "intensity"
+
+    # Runtime overrides for exported manifest defaults.
+    # model_manifest.yml is the source of truth for the exported model contract.
+    # params.yml should only override intentionally tunable runtime behavior.
+    # preprocessing.point_feature.value_threshold: 5000.0
+    # postprocessing.class_score_threshold: 0.0
+    # postprocessing.nms.score_threshold: [0.1]
+    # postprocessing.nms.iou_threshold: 0.2
+    # postprocessing.nms.max_num_objects: 64
+
+    # Rectangular no-detection zone in inference_frame
+    preprocessing.no_detection_zone.enabled: false
+    preprocessing.no_detection_zone.remove_points: false
+    preprocessing.no_detection_zone.x_min: 0.0
+    preprocessing.no_detection_zone.x_max: 0.0
+    preprocessing.no_detection_zone.y_min: 0.0
+    preprocessing.no_detection_zone.y_max: 0.0
+    preprocessing.no_detection_zone.publish_polygon: false
+    preprocessing.no_detection_zone.publish_points: false
+
+    # Circular-sector detection area in inference_frame
+    preprocessing.detection_area.enabled: false
+    preprocessing.detection_area.center_x: 0.0
+    preprocessing.detection_area.center_y: 0.0
+    preprocessing.detection_area.radius: 0.0
+    preprocessing.detection_area.bearing_deg: 0.0
+    preprocessing.detection_area.fov_deg: 360.0
+    preprocessing.detection_area.publish_polygon: false
+    preprocessing.detection_area.num_segments: 32
+    preprocessing.detection_area.filter_detections: false
+    preprocessing.detection_area.filter_mode: "center"
+
+    # Debug and visualization publishers
+    output.model_bounds.publish_polygon: false
