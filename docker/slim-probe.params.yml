@@ -9,7 +9,7 @@
     preprocessing.inference_frame: base_link
     output.frame: base_link
     output.sensor_id: 0
-    point_cloud_transport: raw
+    point_cloud_transport: cloudini
     prediction.use_shm: false
     prediction.cuda_input_shm: false
     prediction.triton_client_timeout_s: 1.0
