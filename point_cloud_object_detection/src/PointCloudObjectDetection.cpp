@@ -81,11 +81,18 @@ std::string resolveModelRepositoryPath(const std::string& path) {
   if (path.empty()) {
     return path;
   }
-  if (std::filesystem::path(path).is_absolute()) {
+  const std::filesystem::path repository_path(path);
+  if (repository_path.is_absolute()) {
     return path;
   }
+
+  const std::filesystem::path models_dir = "/models";
+  if (std::filesystem::exists(models_dir / repository_path)) {
+    return (models_dir / repository_path).string();
+  }
+
   const auto share_dir = ament_index_cpp::get_package_share_directory("point_cloud_object_detection");
-  return (std::filesystem::path(share_dir) / path).string();
+  return (std::filesystem::path(share_dir) / repository_path).string();
 }
 
 std::string manifestPathFromRepository(const std::string& repository_path) {
@@ -398,7 +405,7 @@ void PointCloudObjectDetection::loadBootstrapParameters() {
 
   rcl_interfaces::msg::ParameterDescriptor version_desc;
   version_desc.description =
-      "Requested Triton model version directory inside prediction.model_repository_path. If empty, the exported "
+      "Requested Triton model version directory inside prediction.model_repository. If empty, the exported "
       "default from model_manifest.yml is used.";
   version_desc.read_only = true;
   this->declare_parameter("prediction.model_version", params_.model_version, version_desc);
@@ -827,18 +834,18 @@ void PointCloudObjectDetection::loadManifestBackedParameterDefaults() {
     throwParameterError(this->get_logger(), param, message);
   };
 
-  if (params_.model_repository_path.empty()) {
-    fail("prediction.model_repository_path", "must be set to the exported Triton model repository path");
+  if (params_.model_repository.empty()) {
+    fail("prediction.model_repository", "must be set to the exported Triton model repository path");
   }
 
-  const std::string repository_path = resolveModelRepositoryPath(params_.model_repository_path);
+  const std::string repository_path = resolveModelRepositoryPath(params_.model_repository);
   if (!std::filesystem::exists(repository_path) || !std::filesystem::is_directory(repository_path)) {
-    fail("prediction.model_repository_path", "must point to an existing directory");
+    fail("prediction.model_repository", "must point to an existing directory");
   }
 
   const std::string manifest_path = manifestPathFromRepository(repository_path);
   if (!std::filesystem::exists(manifest_path)) {
-    fail("prediction.model_repository_path", "model_manifest.yml does not exist inside the configured repository");
+    fail("prediction.model_repository", "model_manifest.yml does not exist inside the configured repository");
   }
 
   const pcod_common::ModelManifest manifest = pcod_common::LoadModelManifest(manifest_path);
@@ -858,7 +865,7 @@ void PointCloudObjectDetection::loadManifestBackedParameterDefaults() {
     fail("prediction.model_repository", std::string("failed to parse config.pbtxt: ") + e.what());
   }
   if (params_.model_name != manifest.artifact.triton.model_name) {
-    fail("prediction.model_repository_path",
+    fail("prediction.model_repository",
          "config.pbtxt model name does not match artifact.triton.model_name in model_manifest.yml");
   }
 
@@ -934,16 +941,16 @@ void PointCloudObjectDetection::validateParamsOrThrow() const {
   if (!isFinite(params_.triton_client_timeout_s)) {
     fail("prediction.triton_client_timeout_s", "must be finite");
   }
-  if (params_.model_repository_path.empty()) {
-    fail("prediction.model_repository_path", "must be set to the exported Triton model repository path");
+  if (params_.model_repository.empty()) {
+    fail("prediction.model_repository", "must be set to the exported Triton model repository path");
   }
-  const std::string resolved_repository_path = resolveModelRepositoryPath(params_.model_repository_path);
+  const std::string resolved_repository_path = resolveModelRepositoryPath(params_.model_repository);
   if (!std::filesystem::exists(resolved_repository_path) || !std::filesystem::is_directory(resolved_repository_path)) {
-    fail("prediction.model_repository_path", "must point to an existing directory");
+    fail("prediction.model_repository", "must point to an existing directory");
   }
   const std::string resolved_manifest_path = manifestPathFromRepository(resolved_repository_path);
   if (!std::filesystem::exists(resolved_manifest_path)) {
-    fail("prediction.model_repository_path", "model_manifest.yml does not exist inside the configured repository");
+    fail("prediction.model_repository", "model_manifest.yml does not exist inside the configured repository");
   }
   if (params_.model_version.empty()) {
     fail("prediction.model_version", "must not be empty after resolving repository defaults");
@@ -1006,7 +1013,7 @@ bool PointCloudObjectDetection::updateNMSScoreThreshold(std::vector<double>& sco
 
 ModelConfig PointCloudObjectDetection::loadModelConfig(const Params& params, std::string& model_name,
                                                        pcod_common::NmsConfig& nms_config) const {
-  const std::string repository_path = "/models/" + params.model_repository;
+  const std::string repository_path = resolveModelRepositoryPath(params.model_repository);
   const std::string manifest_path = manifestPathFromRepository(repository_path);
   pcod_common::ModelManifest manifest = pcod_common::LoadModelManifest(manifest_path);
   pcod_common::ValidateModelManifest(manifest);
@@ -1014,7 +1021,7 @@ ModelConfig PointCloudObjectDetection::loadModelConfig(const Params& params, std
 
   const std::string manifest_precision = boost::algorithm::to_lower_copy(manifest.artifact.precision);
   if (!isSupportedManifestPrecision(manifest_precision)) {
-    throwParameterError(this->get_logger(), "prediction.model_repository_path",
+    throwParameterError(this->get_logger(), "prediction.model_repository",
                         "manifest precision must be either 'fp32' or 'fp16'");
   }
   const std::string manifest_device = boost::algorithm::to_lower_copy(manifest.artifact.device);
@@ -1023,22 +1030,22 @@ ModelConfig PointCloudObjectDetection::loadModelConfig(const Params& params, std
   }
   if (!manifest.artifact.triton.enabled || manifest.artifact.triton.model_name.empty() ||
       manifest.artifact.triton.model_version.empty()) {
-    throwParameterError(this->get_logger(), "prediction.model_repository_path",
+    throwParameterError(this->get_logger(), "prediction.model_repository",
                         "manifest must define artifact.triton.model_name and artifact.triton.model_version");
   }
   const std::filesystem::path config_path = std::filesystem::path(repository_path) / manifest.artifact.files.triton_config;
   if (manifest.artifact.files.triton_config.empty() || !std::filesystem::exists(config_path)) {
-    throwParameterError(this->get_logger(), "prediction.model_repository_path",
+    throwParameterError(this->get_logger(), "prediction.model_repository",
                         "manifest must reference an existing Triton config.pbtxt");
   }
   try {
     model_name = parseTritonModelNameFromConfig(config_path.string());
   } catch (const std::exception& e) {
-    throwParameterError(this->get_logger(), "prediction.model_repository_path",
+    throwParameterError(this->get_logger(), "prediction.model_repository",
                         std::string("failed to parse config.pbtxt: ") + e.what());
   }
   if (model_name != manifest.artifact.triton.model_name) {
-    throwParameterError(this->get_logger(), "prediction.model_repository_path",
+    throwParameterError(this->get_logger(), "prediction.model_repository",
                         "config.pbtxt model name does not match artifact.triton.model_name");
   }
 
