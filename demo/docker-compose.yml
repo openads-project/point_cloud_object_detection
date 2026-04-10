@@ -1,6 +1,5 @@
 x-ros-common-env: &ros_common_env
   RMW_IMPLEMENTATION: rmw_fastrtps_cpp
-  ROS_DOMAIN_ID: 42
 
 x-gpu-reservation: &gpu_reservation
   resources:
@@ -17,18 +16,9 @@ services:
       <<: *gpu_reservation
     ipc: shareable
     shm_size: "1gb"
-    ulimits:
-      memlock:
-        soft: 4294967296
-        hard: 4294967296
-      nofile:
-        soft: 65536
-        hard: 65536
     environment:
       <<: *ros_common_env
       CUDA_VISIBLE_DEVICES: "0"
-      NVIDIA_DRIVER_CAPABILITIES: all
-      NVIDIA_VISIBLE_DEVICES: all
     volumes:
       - ./models:/models:ro
     command: >
@@ -46,7 +36,7 @@ services:
       start_period: 10s
 
   point-cloud-object-detection:
-    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/perception/point_cloud_object_detection:latest_optimizations_ci-amd64
+    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/perception/point_cloud_object_detection:latest-slim_optimizations_ci-amd64
     depends_on:
       triton-server:
         condition: service_healthy
@@ -75,9 +65,7 @@ services:
   pcd-publisher:
     build:
       context: ./pcd-publisher
-    depends_on:
-      point-cloud-object-detection:
-        condition: service_started
+    depends_on: [point-cloud-object-detection]
     environment:
       <<: *ros_common_env
       PCD_DIR: /data
@@ -91,9 +79,7 @@ services:
 
   rviz:
     image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/monitoring/ros-monitoring:v1.0.0
-    depends_on:
-      point-cloud-object-detection:
-        condition: service_started
+    depends_on: [point-cloud-object-detection]
     environment:
       <<: *ros_common_env
       DISPLAY: ${DISPLAY}
@@ -109,9 +95,7 @@ services:
 
   ros-parameter-gui:
     image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/monitoring/ros-monitoring:v1.0.0
-    depends_on:
-      point-cloud-object-detection:
-        condition: service_started
+    depends_on: [point-cloud-object-detection]
     environment:
       <<: *ros_common_env
       DISPLAY: ${DISPLAY}
