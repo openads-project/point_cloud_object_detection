@@ -53,7 +53,6 @@ services:
       bash -lc "
       ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py
       params:=/params.yml
-      namespace:=/demo
       name:=point_cloud_object_detection
       point_cloud_topic:=/demo/points
       object_list_topic:=/demo/objects
@@ -91,7 +90,7 @@ services:
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - ./rviz/config.rviz:/root/.rviz2/config.rviz
-    command: bash -lc "rviz2 -d /root/.rviz2/config.rviz"
+    command: bash -lc "rviz2 -d /root/.rviz2/config.rviz --ros-args -r __node:=rviz"
 
   ros-parameter-gui:
     image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/monitoring/ros-monitoring:v1.0.0
@@ -102,4 +101,4 @@ services:
       QT_X11_NO_MITSHM: "1"
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
-    command: bash -lc "rqt --standalone rqt_reconfigure"
+    command: bash -lc "rqt --standalone rqt_reconfigure --ros-args -r __node:=ros_parameter_gui"
