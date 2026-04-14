@@ -77,10 +77,14 @@ bool isSupportedManifestPrecision(const std::string& precision) {
                      [&](const char* supported) { return precision == supported; });
 }
 
+// Keep this list aligned with any runtime parameter that is cached inside PBODModel.
+// If a parameter influences model-side cached state, either add it here for reinit
+// or update the live model instance explicitly in the parameter callback.
 bool requiresModelReinitializationForParameter(const std::string& name) {
   return name == "prediction.triton_client_timeout_s" || name == "prediction.use_shm" ||
          name == "prediction.cuda_input_shm" || name == "preprocessing.backend" ||
          name == "preprocessing.point_feature.value_threshold" ||
+         name == "postprocessing.nms.score_threshold" ||
          name == "preprocessing.no_detection_zone.remove_points" || name == "preprocessing.no_detection_zone.x_min" ||
          name == "preprocessing.no_detection_zone.x_max" || name == "preprocessing.no_detection_zone.y_min" ||
          name == "preprocessing.no_detection_zone.y_max" || name == "preprocessing.detection_area.enabled" ||
