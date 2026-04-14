@@ -126,7 +126,7 @@ At startup, invalid parameter values fail initialization. At runtime, invalid dy
 | Parameter | Type | Description | Constraints |
 | --- | --- | --- | --- |
 | `postprocessing.class_score_threshold` | `double` | [**dynamic**] Minimum class score kept in the output list. | Defaults to `runtime_defaults.postprocessing.class_score_threshold` from `model_manifest.yml`; must be within `[0.0, 1.0]`. |
-| `postprocessing.nms.score_threshold` | `double array` | [**dynamic**] Optional NMS score threshold override. | If unset, uses `runtime_defaults.postprocessing.nms.score_threshold` from `model_manifest.yml`; if set, must contain exactly one value or one per predicted class, and all entries must be within `[0.0, 1.0]`. |
+| `postprocessing.nms.score_threshold` | `double array` | [**dynamic**] Score threshold used for candidate filtering and NMS. | If unset, uses `runtime_defaults.postprocessing.nms.score_threshold` from `model_manifest.yml`; if set, must contain exactly one value or one per predicted class, and all entries must be within `[0.0, 1.0]`. |
 | `postprocessing.nms.iou_threshold` | `double` | [**dynamic**] Optional NMS IoU threshold override. | If unset, uses `runtime_defaults.postprocessing.nms.iou_threshold` from `model_manifest.yml`; if set, must be within `[0.0, 1.0]`. |
 | `postprocessing.nms.max_num_objects` | `int` | [**dynamic**] Optional maximum number of objects after NMS. | If unset, uses `runtime_defaults.postprocessing.nms.max_num_objects` from `model_manifest.yml`; if set, must be zero or positive. |
 
