@@ -18,6 +18,8 @@
 #include <boost/algorithm/string/case_conv.hpp>
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
+#include <grid_map_core/GridMap.hpp>
+#include <grid_map_ros/GridMapRosConverter.hpp>
 #include <rclcpp/logging.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
 #include <sensor_msgs/msg/point_field.hpp>
@@ -177,6 +179,51 @@ const char* pointFieldDatatypeToString(uint8_t datatype) {
 bool isHostLittleEndian() {
   const std::uint16_t value = 1;
   return *reinterpret_cast<const std::uint8_t*>(&value) == 1;
+}
+
+std::optional<grid_map_msgs::msg::GridMap> buildAuxiliaryGridMapMessage(const AuxiliaryGridMap& grid_map_output,
+                                                                        const ModelConfig& model_config,
+                                                                        const std_msgs::msg::Header& header,
+                                                                        const std::string& frame_id) {
+  if (grid_map_output.grid_x <= 0 || grid_map_output.grid_y <= 0) {
+    return std::nullopt;
+  }
+  if (grid_map_output.values.size() !=
+      static_cast<std::size_t>(grid_map_output.grid_x * grid_map_output.grid_y)) {
+    return std::nullopt;
+  }
+
+  const double x_length = static_cast<double>(model_config.x_max) - static_cast<double>(model_config.x_min);
+  const double y_length = static_cast<double>(model_config.y_max) - static_cast<double>(model_config.y_min);
+  if (!(x_length > 0.0) || !(y_length > 0.0)) {
+    return std::nullopt;
+  }
+
+  const double resolution_x = x_length / static_cast<double>(grid_map_output.grid_x);
+  const double resolution_y = y_length / static_cast<double>(grid_map_output.grid_y);
+  if (std::fabs(resolution_x - resolution_y) > 1e-6) {
+    return std::nullopt;
+  }
+
+  grid_map::GridMap map({grid_map_output.layer});
+  map.setFrameId(frame_id);
+  map.setTimestamp(rclcpp::Time(header.stamp).nanoseconds());
+  map.setGeometry(grid_map::Length(x_length, y_length),
+                  resolution_x,
+                  grid_map::Position((static_cast<double>(model_config.x_min) + static_cast<double>(model_config.x_max)) * 0.5,
+                                     (static_cast<double>(model_config.y_min) + static_cast<double>(model_config.y_max)) * 0.5));
+  for (int ix = 0; ix < grid_map_output.grid_x; ++ix) {
+    for (int iy = 0; iy < grid_map_output.grid_y; ++iy) {
+      const std::size_t flat_index = static_cast<std::size_t>(ix * grid_map_output.grid_y + iy);
+      map.at(grid_map_output.layer, grid_map::Index(ix, iy)) = grid_map_output.values[flat_index];
+    }
+  }
+
+  grid_map_msgs::msg::GridMap message;
+  grid_map::GridMapRosConverter::toMessage(map, message);
+  message.info.header = header;
+  message.info.header.frame_id = frame_id;
+  return message;
 }
 
 std::uint16_t byteSwap16(std::uint16_t value) { return static_cast<std::uint16_t>((value >> 8) | (value << 8)); }
@@ -381,6 +428,8 @@ const std::string PointCloudObjectDetection::kNoDetectionZoneTopic = "~/no_detec
 const std::string PointCloudObjectDetection::kNoDetectionZonePointsTopic = "~/no_detection_zone_points";
 const std::string PointCloudObjectDetection::kDetectionAreaTopic = "~/detection_area";
 const std::string PointCloudObjectDetection::kModelBoundsTopic = "~/model_bounds";
+const std::string PointCloudObjectDetection::kDensityGridMapTopic = "~/density_grid_map";
+const std::string PointCloudObjectDetection::kOccupancyGridMapTopic = "~/occupancy_grid_map";
 const std::map<uint8_t, std::vector<std::string>> PointCloudObjectDetection::kPossibleClassNames{
     {pm::msg::ObjectClassification::CAR, {"car", "vehicle", "van", "karl_car"}},
     {pm::msg::ObjectClassification::PEDESTRIAN, {"pedestrian", "human", "man", "woman", "person", "karl_pedestrian"}},
@@ -786,6 +835,20 @@ void PointCloudObjectDetection::declareParameters() {
                                 false,                                                          // read_only
                                 std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
                                 "");                                                            // additional_constraints
+  this->declareAndLoadParameter("output.grid_maps.publish_density", params_.publish_density_grid_map,
+                                "Publish decoded density logits as grid_map_msgs/GridMap",
+                                true,                                                           // add_to_auto_reconfigurable_params
+                                false,                                                          // is_required
+                                false,                                                          // read_only
+                                std::nullopt, std::nullopt, std::nullopt,
+                                "");
+  this->declareAndLoadParameter("output.grid_maps.publish_occupancy", params_.publish_occupancy_grid_map,
+                                "Publish decoded occupancy logits as grid_map_msgs/GridMap",
+                                true,                                                           // add_to_auto_reconfigurable_params
+                                false,                                                          // is_required
+                                false,                                                          // read_only
+                                std::nullopt, std::nullopt, std::nullopt,
+                                "");
 
   validateParamsOrThrow();
   // clang-format on
@@ -1272,7 +1335,8 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
     }
     if (name_in(param.get_name(),
                 {"preprocessing.no_detection_zone.publish_polygon", "preprocessing.detection_area.publish_polygon",
-                 "preprocessing.no_detection_zone.publish_points", "output.model_bounds.publish_polygon"})) {
+                 "preprocessing.no_detection_zone.publish_points", "output.model_bounds.publish_polygon",
+                 "output.grid_maps.publish_density", "output.grid_maps.publish_occupancy"})) {
       publishers_changed = true;
     }
   }
@@ -1455,6 +1519,25 @@ void PointCloudObjectDetection::setupPublishers() {
     model_bounds_pub_.reset();
   }
 
+  if (params_snapshot.publish_density_grid_map) {
+    if (!density_grid_map_pub_) {
+      density_grid_map_pub_ = create_publisher<grid_map_msgs::msg::GridMap>(kDensityGridMapTopic, 1);
+      RCLCPP_INFO(this->get_logger(), "Publishing density grid map on '%s'", density_grid_map_pub_->get_topic_name());
+    }
+  } else {
+    density_grid_map_pub_.reset();
+  }
+
+  if (params_snapshot.publish_occupancy_grid_map) {
+    if (!occupancy_grid_map_pub_) {
+      occupancy_grid_map_pub_ = create_publisher<grid_map_msgs::msg::GridMap>(kOccupancyGridMapTopic, 1);
+      RCLCPP_INFO(this->get_logger(), "Publishing occupancy grid map on '%s'",
+                  occupancy_grid_map_pub_->get_topic_name());
+    }
+  } else {
+    occupancy_grid_map_pub_.reset();
+  }
+
   // create no-detection zone raw points publisher if enabled
   if (params_snapshot.no_detection_zone_publish_points) {
     if (!no_detection_zone_points_publisher_) {
@@ -1628,12 +1711,16 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
     rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr no_detection_zone_pub;
     rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr detection_area_pub;
     rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr model_bounds_pub;
+    rclcpp::Publisher<grid_map_msgs::msg::GridMap>::SharedPtr density_grid_map_pub;
+    rclcpp::Publisher<grid_map_msgs::msg::GridMap>::SharedPtr occupancy_grid_map_pub;
     std::shared_ptr<point_cloud_transport::Publisher> no_detection_zone_points_publisher;
     {
       std::lock_guard<std::mutex> publishers_lock(publishers_mutex_);
       no_detection_zone_pub = no_detection_zone_pub_;
       detection_area_pub = detection_area_pub_;
       model_bounds_pub = model_bounds_pub_;
+      density_grid_map_pub = density_grid_map_pub_;
+      occupancy_grid_map_pub = occupancy_grid_map_pub_;
       no_detection_zone_points_publisher = no_detection_zone_points_publisher_;
     }
 
@@ -1859,6 +1946,8 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
     // 4=after output decode, 5=after NMS, 6=after geometric filtering, 7=after msg conversion, 8=after publish.
     // Index 2 and 3 are appended by the model implementation itself.
     std::vector<BoundingBox> center_boxes;
+    std::optional<AuxiliaryGridMap> density_grid_map;
+    std::optional<AuxiliaryGridMap> occupancy_grid_map;
     std::size_t used_points = 0;
     try {
       std::lock_guard<std::mutex> model_lock(model_mutex_);
@@ -1880,6 +1969,8 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
         center_boxes = (*detection_model_)(point_cloud, timestamps);
       }
       used_points = detection_model_->getFilteredInputPointCount();
+      density_grid_map = detection_model_->getDensityGridMap();
+      occupancy_grid_map = detection_model_->getOccupancyGridMap();
     } catch (const std::exception& e) {
       RCLCPP_WARN(this->get_logger(), "Lost Triton connection for '%s:%s' on server '%s': %s. Attempting to reconnect.",
                   params_snapshot.model_name.c_str(), params_snapshot.model_version.c_str(),
@@ -1895,6 +1986,29 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
       return;
     }
     timestamps.push_back(std::chrono::high_resolution_clock::now());  // index: 4, after output tensor creation
+
+    const std::string grid_map_frame =
+        params_snapshot.inference_frame.empty() ? header.frame_id : params_snapshot.inference_frame;
+    if (params_snapshot.publish_density_grid_map && density_grid_map_pub && density_grid_map.has_value()) {
+      if (auto density_message =
+              buildAuxiliaryGridMapMessage(*density_grid_map, model_config_snapshot, header, grid_map_frame);
+          density_message.has_value()) {
+        density_grid_map_pub->publish(std::move(*density_message));
+      } else {
+        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                             "Failed to build density grid map message from model output.");
+      }
+    }
+    if (params_snapshot.publish_occupancy_grid_map && occupancy_grid_map_pub && occupancy_grid_map.has_value()) {
+      if (auto occupancy_message =
+              buildAuxiliaryGridMapMessage(*occupancy_grid_map, model_config_snapshot, header, grid_map_frame);
+          occupancy_message.has_value()) {
+        occupancy_grid_map_pub->publish(std::move(*occupancy_message));
+      } else {
+        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                             "Failed to build occupancy grid map message from model output.");
+      }
+    }
 
     const std::size_t boxes_before_nms = center_boxes.size();
 

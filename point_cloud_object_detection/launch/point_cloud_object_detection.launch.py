@@ -34,6 +34,12 @@ def generate_launch_description():
         DeclareLaunchArgument('model_bounds_topic',
                               default_value='~/model_bounds',
                               description='model bounds polygon topic remap'),
+        DeclareLaunchArgument('density_grid_map_topic',
+                              default_value='~/density_grid_map',
+                              description='density grid map topic remap'),
+        DeclareLaunchArgument('occupancy_grid_map_topic',
+                              default_value='~/occupancy_grid_map',
+                              description='occupancy grid map topic remap'),
     ]
 
     args = [

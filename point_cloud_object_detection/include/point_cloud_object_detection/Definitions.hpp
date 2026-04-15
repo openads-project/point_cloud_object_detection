@@ -135,6 +135,10 @@ struct Params {
 
   // Model bounds polygon publication (XY rectangle from x_min/x_max/y_min/y_max)
   bool model_bounds_publish_polygon = false;
+
+  // Auxiliary grid-map publications
+  bool publish_density_grid_map = false;
+  bool publish_occupancy_grid_map = false;
 };
 
 }  // namespace point_cloud_object_detection

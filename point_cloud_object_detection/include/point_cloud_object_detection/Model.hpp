@@ -8,7 +8,9 @@
 #include <cstddef>
 #include <iostream>
 #include <numeric>
+#include <optional>
 #include <random>
+#include <string>
 #include <vector>
 
 #include "point_cloud_object_detection/Definitions.hpp"
@@ -18,6 +20,13 @@
 namespace point_cloud_object_detection {
 // namespace acronyms
 namespace tc = triton::client;
+
+struct AuxiliaryGridMap {
+  std::string layer;
+  std::vector<float> values;
+  int grid_x = 0;
+  int grid_y = 0;
+};
 
 /**
  * @brief Virtual class representing any model architecture's pre- and post-processing
@@ -55,6 +64,8 @@ class Model {
   std::size_t getFilteredInputPointCount() const;
 
   virtual std::map<std::string, std::vector<int64_t>> getSpecialOutputShapes() { return {}; };
+  virtual const std::optional<AuxiliaryGridMap>& getDensityGridMap() const { return density_grid_map_; }
+  virtual const std::optional<AuxiliaryGridMap>& getOccupancyGridMap() const { return occupancy_grid_map_; }
 
   virtual ~Model() = default;    // Any method virtual -> destructor virtual
   Model(const Model&) = delete;  // Rule of five
@@ -66,6 +77,8 @@ class Model {
   triton_cpp::TritonInterface& triton_interface_;
   mutable PointCloud filtered_input_points_;  // Store points actually used as model input
   std::size_t filtered_input_point_count_ = 0;
+  std::optional<AuxiliaryGridMap> density_grid_map_;
+  std::optional<AuxiliaryGridMap> occupancy_grid_map_;
 
   virtual void setupModelInput(const PointCloud& point_cloud) = 0;
   virtual std::vector<BoundingBox> modelOutputToBoxes() = 0;
