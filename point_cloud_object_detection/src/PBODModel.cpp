@@ -732,8 +732,8 @@ std::vector<BoundingBox> PBODModel::modelOutputToBoxes() {
     for (int ix = 0; ix < pillar_grid_.grid_x; ++ix) {
       for (int iy = 0; iy < pillar_grid_.grid_y; ++iy) {
         const std::size_t flat_index = static_cast<std::size_t>(ix * pillar_grid_.grid_y + iy);
-        density_grid_map_->values[flat_index] = densityTransform(sigmoid(density_logits(ix)));
-        occupancy_grid_map_->values[flat_index] = sigmoid(occupancy_logits(ix));
+        density_grid_map_->values[flat_index] = densityTransform(sigmoid(density_logits(flat_index)));
+        occupancy_grid_map_->values[flat_index] = sigmoid(occupancy_logits(flat_index));
       }
     }
   }

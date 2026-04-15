@@ -27,7 +27,7 @@ From this directory:
 docker compose up
 ```
 
-The detection node consumes `/demo/points` and publishes detections on `/demo/objects`. The demo compose file bind-mounts the local model repository and parameter file into the containers, so demo assets are taken from this directory at runtime.
+The detection node consumes `/demo/points` and publishes detections on `/demo/objects`. It also publishes grid maps on `/demo/density_grid_map`, `/demo/occupancy_grid_map`, and optionally `/demo/combined_grid_map`.
 
 ## Interacting Through `rqt`
 

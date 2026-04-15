@@ -57,3 +57,7 @@
 
     # Debug and visualization publishers
     output.model_bounds.publish_polygon: true
+    output.grid_maps.publish_density: true
+    output.grid_maps.publish_occupancy: true
+    output.grid_maps.publish_combined: true
+    output.grid_maps.message_type: "occupancy_grid"
