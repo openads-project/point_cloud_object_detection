@@ -7,6 +7,12 @@ variables:
   RMW_IMPLEMENTATION: rmw_zenoh_cpp
   ENABLE_RECURSIVE_VCS_IMPORT: 'false'
   COMMAND: ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py
+  ADDITIONAL_SLIM_BUILD_ARGS: >-
+    --compose-file ${CI_PROJECT_DIR}/docker/slim-compose.yml
+    --compose-workdir ${CI_PROJECT_DIR}
+    --target-compose-svc point-cloud-object-detection
+    --target-compose-svc-image ${FAT_IMAGE}
+    --dep-exclude-compose-svc-all
   ENABLE_INDUSTRIAL_CI: 'true'
   TARGET: dev,run
   TARGET_CMAKE_ARGS : '-DCMAKE_EXPORT_COMPILE_COMMANDS=1'

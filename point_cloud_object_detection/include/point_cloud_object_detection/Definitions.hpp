@@ -19,15 +19,17 @@ using pcod_common::BoundingBox;
 using pcod_common::ClassificationEntry;
 
 inline constexpr std::array<const char*, 2> kAllowedPointFeatureFields = {"intensity", "reflectivity"};
-inline constexpr std::array<const char*, 2> kSupportedManifestPrecisions = {"fp32", "fp16"};
+inline constexpr std::array<const char*, 3> kSupportedManifestPrecisions = {"fp32", "fp16", "int8"};
+inline constexpr std::array<const char*, 2> kAllowedPreprocessingBackends = {"cpu", "cuda"};
 
 // model config
 struct ModelConfig {
   // Preprocessing
+  std::string preprocessing_backend = "cpu";
   std::string point_feature_normalization_type = "none";
-  float point_feature_intensity_threshold = 0.0f;
-  float point_feature_min_intensity = 0.0f;
-  float point_feature_max_intensity = 0.0f;
+  float point_feature_value_threshold = 0.0f;
+  float point_feature_min_value = 0.0f;
+  float point_feature_max_value = 0.0f;
   float point_feature_norm_epsilon = 1e-6f;
 
   // Postprocessing
@@ -60,10 +62,6 @@ struct ModelConfig {
   std::vector<int64_t> pillar_map_size;
   std::vector<std::vector<float>> pillar_map_range;
 
-  // Legacy compatibility
-  bool mask_is_bool;
-  bool zero_intensity;
-
   // No-detection zone point filtering (in inference_frame)
   bool no_detection_zone_remove_points = false;  // If true, drop raw points in the zone from model input
   double no_detection_zone_x_min = 0.0;
@@ -83,30 +81,28 @@ struct ModelConfig {
 
 // parameters
 struct Params {
+  std::string preprocessing_backend = "cpu";
+  std::string model_repository;
   std::string model_name;
   std::string model_version;
   std::string server_url;  // required
   double triton_client_timeout_s = 2.0;
   bool use_shm = false;
+  bool cuda_input_shm = false;
 
   std::string inference_frame;  // required
-  std::string output_frame = "";
+  std::string output_frame;     // required
 
   int64_t sensor_id = 0;
 
   std::vector<double> variance = std::vector<double>(12, -1.0);  // CONTINUOUS_STATE_COVARIANCE_UNKNOWN sentinel
-  double output_class_score_threshold = 0.0;
 
-  // Optional manifest overrides
-  // If NaN, use model-manifest value.
-  double nms_iou_threshold = std::numeric_limits<double>::quiet_NaN();
-  // If < 0, use model-manifest value.
-  int64_t nms_max_num_objects = -1;
-  // If empty, use model-manifest value.
+  // Exported runtime defaults from model_manifest.yml, overridable via ROS parameters.
+  double nms_iou_threshold = 0.0;
+  int64_t nms_max_num_objects = 0;
   std::vector<double> nms_score_threshold;
-  // If NaN, use model-manifest value.
-  double point_feature_intensity_threshold = std::numeric_limits<double>::quiet_NaN();
-
+  double output_class_score_threshold = 0.0;
+  double point_feature_value_threshold = 0.0;
   std::string point_feature_field = "intensity";
 
   // Optional no-detection rectangle (in inference_frame) where detections are not allowed

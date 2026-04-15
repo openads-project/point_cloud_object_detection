@@ -10,6 +10,11 @@ std::vector<BoundingBox> Model::operator()(
   setupModelInput(point_cloud);
   timestamps.push_back(std::chrono::high_resolution_clock::now());  // after input tensor creation, before inference
 
+  return inferAndDecode(timestamps);
+}
+
+std::vector<BoundingBox> Model::inferAndDecode(
+    std::vector<std::chrono::time_point<std::chrono::high_resolution_clock>>& timestamps) {
   // inference
   triton_interface_.infer();
   timestamps.push_back(std::chrono::high_resolution_clock::now());  // after inference
@@ -20,5 +25,7 @@ std::vector<BoundingBox> Model::operator()(
 }
 
 const PointCloud& Model::getFilteredInputPoints() const { return filtered_input_points_; }
+
+std::size_t Model::getFilteredInputPointCount() const { return filtered_input_point_count_; }
 
 }  // namespace point_cloud_object_detection

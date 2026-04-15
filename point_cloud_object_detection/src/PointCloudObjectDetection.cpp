@@ -8,8 +8,10 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <memory>
+#include <regex>
 #include <sstream>
 #include <utility>
 
@@ -28,8 +30,6 @@ namespace point_cloud_object_detection {
 
 namespace {
 
-constexpr char kManifestPathEnvVar[] = "POINT_CLOUD_OBJECT_DETECTION_MODEL_MANIFEST_PATH";
-
 [[noreturn]] void throwParameterError(const rclcpp::Logger& logger, const std::string& param_name,
                                       const std::string& details) {
   RCLCPP_FATAL(logger, "Invalid parameter '%s': %s", param_name.c_str(), details.c_str());
@@ -45,6 +45,11 @@ bool isAllowedPointFeatureField(const std::string& source) {
                      [&](const char* allowed) { return source == allowed; });
 }
 
+bool isAllowedPreprocessingBackend(const std::string& backend) {
+  return std::any_of(kAllowedPreprocessingBackends.begin(), kAllowedPreprocessingBackends.end(),
+                     [&](const char* allowed) { return backend == allowed; });
+}
+
 std::string allowedPointFeatureFieldsString() {
   std::ostringstream oss;
   for (std::size_t i = 0; i < kAllowedPointFeatureFields.size(); ++i) {
@@ -56,20 +61,78 @@ std::string allowedPointFeatureFieldsString() {
   return oss.str();
 }
 
+std::string allowedPreprocessingBackendsString() {
+  std::ostringstream oss;
+  for (std::size_t i = 0; i < kAllowedPreprocessingBackends.size(); ++i) {
+    if (i > 0) {
+      oss << ", ";
+    }
+    oss << "'" << kAllowedPreprocessingBackends[i] << "'";
+  }
+  return oss.str();
+}
+
 bool isSupportedManifestPrecision(const std::string& precision) {
   return std::any_of(kSupportedManifestPrecisions.begin(), kSupportedManifestPrecisions.end(),
                      [&](const char* supported) { return precision == supported; });
 }
 
-std::string resolveModelManifestPath(const std::string& path) {
+// Keep this list aligned with any runtime parameter that is cached inside PBODModel.
+// If a parameter influences model-side cached state, either add it here for reinit
+// or update the live model instance explicitly in the parameter callback.
+bool requiresModelReinitializationForParameter(const std::string& name) {
+  return name == "prediction.triton_client_timeout_s" || name == "prediction.use_shm" ||
+         name == "prediction.cuda_input_shm" || name == "preprocessing.backend" ||
+         name == "preprocessing.point_feature.value_threshold" || name == "postprocessing.nms.score_threshold" ||
+         name == "preprocessing.no_detection_zone.remove_points" || name == "preprocessing.no_detection_zone.x_min" ||
+         name == "preprocessing.no_detection_zone.x_max" || name == "preprocessing.no_detection_zone.y_min" ||
+         name == "preprocessing.no_detection_zone.y_max" || name == "preprocessing.detection_area.enabled" ||
+         name == "preprocessing.detection_area.center_x" || name == "preprocessing.detection_area.center_y" ||
+         name == "preprocessing.detection_area.radius" || name == "preprocessing.detection_area.bearing_deg" ||
+         name == "preprocessing.detection_area.fov_deg" || name == "preprocessing.detection_area.num_segments";
+}
+
+std::string resolveModelRepositoryPath(const std::string& path) {
   if (path.empty()) {
     return path;
   }
-  if (std::filesystem::path(path).is_absolute()) {
+  const std::filesystem::path repository_path(path);
+  if (repository_path.is_absolute()) {
     return path;
   }
+
+  const std::filesystem::path models_dir = "/models";
+  if (std::filesystem::exists(models_dir / repository_path)) {
+    return (models_dir / repository_path).string();
+  }
+
   const auto share_dir = ament_index_cpp::get_package_share_directory("point_cloud_object_detection");
-  return (std::filesystem::path(share_dir) / path).string();
+  return (std::filesystem::path(share_dir) / repository_path).string();
+}
+
+std::string manifestPathFromRepository(const std::string& repository_path) {
+  if (repository_path.empty()) {
+    return repository_path;
+  }
+  return (std::filesystem::path(repository_path) / "model_manifest.yml").string();
+}
+
+std::string parseTritonModelNameFromConfig(const std::string& config_path) {
+  std::ifstream config_stream(config_path);
+  if (!config_stream) {
+    throw std::runtime_error("failed to open config.pbtxt");
+  }
+
+  static const std::regex kNamePattern(R"pbtxt(^\s*name\s*:\s*"([^"]+)"\s*$)pbtxt");
+  std::string line;
+  while (std::getline(config_stream, line)) {
+    std::smatch match;
+    if (std::regex_match(line, match, kNamePattern)) {
+      return match[1].str();
+    }
+  }
+
+  throw std::runtime_error("config.pbtxt does not define a top-level name field");
 }
 
 std::string resolvePrimaryFeatureField(const ModelConfig& model_config, const Params& params) {
@@ -189,6 +252,126 @@ float readPointFieldAsFloat(const std::uint8_t* src, std::uint8_t datatype, bool
   }
 }
 
+struct PreparedPointCloudInput {
+  sensor_msgs::msg::PointCloud2::ConstSharedPtr msg;
+  sensor_msgs::msg::PointCloud2::SharedPtr transformed_owner;
+  uint32_t x_offset = 0;
+  uint32_t y_offset = 0;
+  uint32_t z_offset = 0;
+  uint32_t feature_offset = 0;
+  uint8_t feature_datatype = sensor_msgs::msg::PointField::FLOAT32;
+  bool needs_swap = false;
+  std::size_t total_points = 0;
+};
+
+PreparedPointCloudInput preparePointCloudInput(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg,
+                                               const ModelConfig& model_config, const Params& params,
+                                               tf2_ros::Buffer& tf_buffer, const rclcpp::Logger& logger) {
+  PreparedPointCloudInput prepared;
+  prepared.msg = msg;
+
+  if (!params.inference_frame.empty() && msg->header.frame_id != params.inference_frame) {
+    prepared.transformed_owner = std::make_shared<sensor_msgs::msg::PointCloud2>();
+    try {
+      tf_buffer.transform(*msg, *prepared.transformed_owner, params.inference_frame);
+      prepared.msg = prepared.transformed_owner;
+    } catch (tf2::TransformException& e) {
+      RCLCPP_ERROR(logger,
+                   "Cannot tranform Pointcloud: Transformation from its frame (%s) to inference_frame "
+                   "(%s) not found: %s",
+                   msg->header.frame_id.c_str(), params.inference_frame.c_str(), e.what());
+      throw;
+    }
+  }
+
+  auto findField = [&](const std::string& name) -> const sensor_msgs::msg::PointField* {
+    for (const auto& field : prepared.msg->fields) {
+      if (field.name == name) {
+        return &field;
+      }
+    }
+    return nullptr;
+  };
+
+  const std::string primary_feature_field = resolvePrimaryFeatureField(model_config, params);
+  const auto* x_field = findField("x");
+  const auto* y_field = findField("y");
+  const auto* z_field = findField("z");
+  const auto* primary_feature = findField(primary_feature_field);
+
+  if (!x_field || !y_field || !z_field) {
+    RCLCPP_FATAL(logger, "Point fields 'x', 'y', 'z' are required in PointCloud2 input");
+    throw std::runtime_error("Missing required PointCloud2 coordinate fields");
+  }
+  if (!primary_feature) {
+    RCLCPP_FATAL(logger, "Point field '%s' is required for primary feature extraction", primary_feature_field.c_str());
+    throw std::runtime_error("Missing required PointCloud2 field: " + primary_feature_field);
+  }
+
+  using PF = sensor_msgs::msg::PointField;
+  if (x_field->datatype != PF::FLOAT32 || y_field->datatype != PF::FLOAT32 || z_field->datatype != PF::FLOAT32) {
+    RCLCPP_FATAL(logger, "Point fields 'x', 'y', 'z' must be FLOAT32");
+    throw std::runtime_error("Unsupported PointCloud2 datatype for x/y/z fields");
+  }
+
+  switch (primary_feature->datatype) {
+    case PF::FLOAT32:
+      break;
+    case PF::FLOAT64:
+    case PF::UINT16:
+    case PF::UINT8:
+    case PF::INT16:
+    case PF::INT8:
+    case PF::UINT32:
+    case PF::INT32:
+      RCLCPP_WARN_ONCE(logger, "Converting PointCloud2 field '%s' from %s to FLOAT32", primary_feature_field.c_str(),
+                       pointFieldDatatypeToString(primary_feature->datatype));
+      break;
+    default:
+      RCLCPP_FATAL(logger,
+                   "Point field '%s' has unsupported datatype %u (%s). Supported: INT8, UINT8, INT16, UINT16, "
+                   "INT32, UINT32, FLOAT32, FLOAT64",
+                   primary_feature_field.c_str(), primary_feature->datatype,
+                   pointFieldDatatypeToString(primary_feature->datatype));
+      throw std::runtime_error("Unsupported PointCloud2 datatype for field: " + primary_feature_field);
+  }
+
+  prepared.x_offset = x_field->offset;
+  prepared.y_offset = y_field->offset;
+  prepared.z_offset = z_field->offset;
+  prepared.feature_offset = primary_feature->offset;
+  prepared.feature_datatype = primary_feature->datatype;
+  prepared.needs_swap = prepared.msg->is_bigendian == isHostLittleEndian();
+  prepared.total_points = static_cast<std::size_t>(prepared.msg->width) * prepared.msg->height;
+  return prepared;
+}
+
+void decodePreparedPointCloudToPcl(const PreparedPointCloudInput& prepared, PointCloud& point_cloud) {
+  const auto& msg_ref = *prepared.msg;
+  point_cloud.clear();
+  pcl_conversions::toPCL(msg_ref.header, point_cloud.header);
+  point_cloud.width = msg_ref.width;
+  point_cloud.height = msg_ref.height;
+  point_cloud.is_dense = msg_ref.is_dense;
+  point_cloud.points.resize(prepared.total_points);
+
+  std::size_t out_idx = 0;
+  const std::size_t row_step = static_cast<std::size_t>(msg_ref.row_step);
+  const std::size_t point_step = static_cast<std::size_t>(msg_ref.point_step);
+  for (std::size_t row = 0; row < msg_ref.height; ++row) {
+    const std::uint8_t* row_ptr = msg_ref.data.data() + row * row_step;
+    for (std::size_t col = 0; col < msg_ref.width; ++col) {
+      const std::uint8_t* point_ptr = row_ptr + col * point_step;
+      auto& dst = point_cloud.points[out_idx++];
+      dst.x = readFloat32At(point_ptr + prepared.x_offset, prepared.needs_swap);
+      dst.y = readFloat32At(point_ptr + prepared.y_offset, prepared.needs_swap);
+      dst.z = readFloat32At(point_ptr + prepared.z_offset, prepared.needs_swap);
+      dst.intensity =
+          readPointFieldAsFloat(point_ptr + prepared.feature_offset, prepared.feature_datatype, prepared.needs_swap);
+    }
+  }
+}
+
 }  // namespace
 
 // constants
@@ -213,10 +396,8 @@ const std::map<uint8_t, std::vector<std::string>> PointCloudObjectDetection::kPo
 
 PointCloudObjectDetection::PointCloudObjectDetection(const rclcpp::NodeOptions& options)
     : rclcpp::Node("point_cloud_object_detection", options) {
-  const char* manifest_path = std::getenv(kManifestPathEnvVar);
-  if (manifest_path != nullptr) {
-    model_manifest_path_ = manifest_path;
-  }
+  loadBootstrapParameters();
+  loadManifestBackedParameterDefaults();
   declareParameters();
   loadParameters();
 
@@ -225,6 +406,24 @@ PointCloudObjectDetection::PointCloudObjectDetection(const rclcpp::NodeOptions& 
     setup();
     setup_timer_->cancel();
   });
+}
+
+void PointCloudObjectDetection::loadBootstrapParameters() {
+  rcl_interfaces::msg::ParameterDescriptor repository_desc;
+  repository_desc.description =
+      "Path to the exported Triton model repository bundle root (absolute or package-relative).";
+  repository_desc.additional_constraints = "Must point to a directory containing model_manifest.yml and config.pbtxt.";
+  repository_desc.read_only = true;
+  this->declare_parameter("prediction.model_repository", params_.model_repository, repository_desc);
+  params_.model_repository = this->get_parameter("prediction.model_repository").as_string();
+
+  rcl_interfaces::msg::ParameterDescriptor version_desc;
+  version_desc.description =
+      "Requested Triton model version directory inside prediction.model_repository. If empty, the exported "
+      "default from model_manifest.yml is used.";
+  version_desc.read_only = true;
+  this->declare_parameter("prediction.model_version", params_.model_version, version_desc);
+  params_.model_version = this->get_parameter("prediction.model_version").as_string();
 }
 
 PointCloudObjectDetection::~PointCloudObjectDetection() {
@@ -325,6 +524,14 @@ void PointCloudObjectDetection::declareParameters() {
   const double cscu = pm::object_access::CONTINUOUS_STATE_COVARIANCE_UNKNOWN;
 
   // clang-format off
+  this->declareAndLoadParameter("preprocessing.backend", params_.preprocessing_backend,                     // name
+                                "Point preprocessing backend: 'cpu' or 'cuda'. If 'cuda' is selected, the node"
+                                " fails fast when CUDA preprocessing support is unavailable.",
+                                true,                                                           // add_to_auto_reconfigurable_params
+                                false,                                                          // is_required
+                                false,                                                          // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
+                                "Must be one of: 'cpu', 'cuda'.");                              // additional_constraints
   this->declareAndLoadParameter("prediction.server_url", params_.server_url,                               // name
                                 "URL of the triton server, e.g. 134.130.20.221:8001",           // description
                                 false,                                                          // add_to_auto_reconfigurable_params
@@ -334,35 +541,44 @@ void PointCloudObjectDetection::declareParameters() {
                                 "Must be set.");                                                // additional_constraints
   this->declareAndLoadParameter("prediction.triton_client_timeout_s", params_.triton_client_timeout_s,     // name
                                 "Client timeout for Triton requests in seconds (0.0 disables timeout)",
-                                true,                                                          // add_to_auto_reconfigurable_params
+                                true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
                                 0.0, kMaxTritonClientTimeoutS, std::nullopt,                    // from_value, to_value, step_value
                                 "Must be non-negative.");                                       // additional_constraints
   this->declareAndLoadParameter("prediction.use_shm", params_.use_shm,                                     // name
                                 "Whether or not to use shared memory for Triton",               // description
-                                true,                                                          // add_to_auto_reconfigurable_params
+                                true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
                                 std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
                                 "");                                                            // additional_constraints
-  this->declareAndLoadParameter("preprocessing.inference_frame", params_.inference_frame,                     // name
+  this->declareAndLoadParameter("prediction.cuda_input_shm", params_.cuda_input_shm,                     // name
+                                "If true, require Triton input tensors to use CUDA shared memory."
+                                " This is only used when preprocessing.backend='cuda' and is independent of"
+                                " prediction.use_shm. If CUDA shared memory is unavailable, node startup fails.",
+                                true,                                                           // add_to_auto_reconfigurable_params
+                                false,                                                          // is_required
+                                false,                                                          // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
+                                "");                                                            // additional_constraints
+  this->declareAndLoadParameter("preprocessing.inference_frame", params_.inference_frame,       // name
                                 "Frame for inference",                                          // description
-                                true,                                                          // add_to_auto_reconfigurable_params
+                                true,                                                           // add_to_auto_reconfigurable_params
                                 true,                                                           // is_required
                                 false,                                                          // read_only
                                 std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
                                 "Must be set.");                                                // additional_constraints
   this->declareAndLoadParameter("output.frame", params_.output_frame,                           // name
                                 "Frame for object list",                                        // description
-                                true,                                                          // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
+                                true,                                                           // add_to_auto_reconfigurable_params
+                                true,                                                           // is_required
                                 false,                                                          // read_only
                                 std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "If unset, object list is published in inference_frame.");      // additional_constraints
+                                "Must be set.");                                                // additional_constraints
   this->declareAndLoadParameter("output.sensor_id", params_.sensor_id,                                 // name
                                 "Sensor ID for object list",                                    // description
-                                true,                                                          // add_to_auto_reconfigurable_params
+                                true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
                                 static_cast<double>(kMinSensorId), static_cast<double>(kMaxSensorId),
@@ -371,58 +587,66 @@ void PointCloudObjectDetection::declareParameters() {
                                     std::to_string(kMaxSensorId) + "].");                       // additional_constraints
 
   this->declareAndLoadParameter(
-      "output.variances", params_.variance,                                                            // name
+      "output.variances", params_.variance,                                                     // name
       "Array with variances. Entries correspond to ISCACTR model defined in perception interfaces",
-      true,                                                                                    // add_to_auto_reconfigurable_params
+      true,                                                                                     // add_to_auto_reconfigurable_params
       false,                                                                                    // is_required
       false,                                                                                    // read_only
-      std::nullopt, std::nullopt, std::nullopt,                                                // from_value, to_value, step_value
+      std::nullopt, std::nullopt, std::nullopt,                                                 // from_value, to_value, step_value
       "");                                                                                      // additional_constraints
   sanitizeVarianceVector(params_.variance, cscu);
 
-  this->declareAndLoadParameter("postprocessing.class_score_threshold", params_.output_class_score_threshold, // name
-                                "Output class score threshold",
+  this->declareAndLoadParameter("postprocessing.class_score_threshold",                         // name
+                                params_.output_class_score_threshold,
+                                "Output class score threshold. Defaults to runtime_defaults.postprocessing."
+                                "class_score_threshold from the model manifest.",
                                 true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
                                 kMinClassScoreThreshold, kMaxClassScoreThreshold, std::nullopt, // from_value, to_value, step_value
                                 "Must be within [0.0, 1.0].");                                  // additional_constraints
   this->declareAndLoadParameter("postprocessing.nms.iou_threshold", params_.nms_iou_threshold,                // name
-                                "NMS IoU threshold override; if unset, value from model manifest is used",
+                                "NMS IoU threshold. Defaults to runtime_defaults.postprocessing.nms."
+                                "iou_threshold from the model manifest.",
                                 true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "If set, must be within [0.0, 1.0].");                          // additional_constraints
+                                kMinClassScoreThreshold, kMaxClassScoreThreshold, std::nullopt, // from_value, to_value, step_value
+                                "Must be within [0.0, 1.0].");                                  // additional_constraints
   this->declareAndLoadParameter("postprocessing.nms.max_num_objects", params_.nms_max_num_objects,            // name
-                                "Maximum number of objects after NMS override; if unset, value from model manifest is used",
+                                "Maximum number of objects after NMS. Defaults to runtime_defaults.postprocessing"
+                                ".nms.max_num_objects from the model manifest.",
+                                true,                                                           // add_to_auto_reconfigurable_params
+                                false,                                                          // is_required
+                                false,                                                          // read_only
+                                0.0, static_cast<double>(std::numeric_limits<int32_t>::max()), std::nullopt,
+                                "Must be zero or positive.");                                   // additional_constraints
+  this->declareAndLoadParameter("postprocessing.nms.score_threshold",                           // name
+                                params_.nms_score_threshold,
+                                "NMS score threshold (single value or per-class list). Defaults to runtime_defaults"
+                                ".postprocessing.nms.score_threshold from the model manifest.",
                                 true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
                                 std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "If set, must be zero or positive.");                           // additional_constraints
-  this->declareAndLoadParameter("postprocessing.nms.score_threshold", params_.nms_score_threshold,            // name
-                                "NMS score threshold override (single value or per-class list); if unset, manifest value is used",
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "If set, must contain exactly one value or one value per predicted class; entries must be in [0.0, 1.0].");
-  this->declareAndLoadParameter("input.point_feature_field", params_.point_feature_field,          // name
+                                "Must contain exactly one value or one value per predicted class; entries must be"
+                                " in [0.0, 1.0].");
+  this->declareAndLoadParameter("input.point_feature_field", params_.point_feature_field,       // name
                                 "Single-feature source: 'intensity' or 'reflectivity'",         // description
                                 true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
                                 std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
                                 "");                                                            // additional_constraints
-  this->declareAndLoadParameter("preprocessing.point_feature.intensity_threshold",
-                                params_.point_feature_intensity_threshold,                      // name
-                                "Point-feature intensity-threshold override; if unset, value from model manifest is used",
+  this->declareAndLoadParameter("preprocessing.point_feature.value_threshold",
+                                params_.point_feature_value_threshold,                      // name
+                                "Point-feature value threshold. Defaults to runtime_defaults.preprocessing"
+                                ".point_feature.value_threshold from the model manifest.",
                                 true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
                                 0.0, 1000000.0, std::nullopt,                                   // from_value, to_value, step_value
-                                "If set, must be greater than 0 when intensity_threshold normalization is used.");
+                                "Must be greater than 0 when value_threshold normalization is used.");
 
   this->declareAndLoadParameter("preprocessing.no_detection_zone.enabled", params_.no_detection_zone_enabled,
                                 "Enable rectangular no-detection zone in inference_frame",      // description
@@ -573,9 +797,8 @@ void PointCloudObjectDetection::syncModelRuntimeConfigFromParams() {
 
 void PointCloudObjectDetection::syncModelRuntimeConfigFromParams(ModelConfig& model_config,
                                                                  const Params& params) const {
-  if (!std::isnan(params.point_feature_intensity_threshold)) {
-    model_config.point_feature_intensity_threshold = static_cast<float>(params.point_feature_intensity_threshold);
-  }
+  model_config.preprocessing_backend = params.preprocessing_backend;
+  model_config.point_feature_value_threshold = static_cast<float>(params.point_feature_value_threshold);
   model_config.no_detection_zone_remove_points = params.no_detection_zone_remove_points;
   model_config.no_detection_zone_x_min = params.no_detection_zone_x_min;
   model_config.no_detection_zone_x_max = params.no_detection_zone_x_max;
@@ -599,20 +822,16 @@ void PointCloudObjectDetection::syncNmsRuntimeConfigFromParams() {
 void PointCloudObjectDetection::syncNmsRuntimeConfigFromParams(ModelConfig& model_config,
                                                                pcod_common::NmsConfig& nms_config,
                                                                const Params& params) const {
-  if (!params.nms_score_threshold.empty()) {
-    std::vector<double> score_thresholds = params.nms_score_threshold;
+  std::vector<double> score_thresholds = params.nms_score_threshold;
+  if (!score_thresholds.empty()) {
     if (!updateNMSScoreThreshold(score_thresholds, model_config.predicted_class_names)) {
       throwParameterError(this->get_logger(), "postprocessing.nms.score_threshold",
                           "must contain exactly one value or one per predicted class");
     }
-    model_config.nms_score_threshold = score_thresholds;
   }
-  if (!std::isnan(params.nms_iou_threshold)) {
-    model_config.nms_iou_threshold = static_cast<float>(params.nms_iou_threshold);
-  }
-  if (params.nms_max_num_objects >= 0) {
-    model_config.nms_max_num_objects = static_cast<int>(params.nms_max_num_objects);
-  }
+  model_config.nms_score_threshold = std::move(score_thresholds);
+  model_config.nms_iou_threshold = static_cast<float>(params.nms_iou_threshold);
+  model_config.nms_max_num_objects = static_cast<int>(params.nms_max_num_objects);
 
   nms_config.iou_threshold = static_cast<float>(model_config.nms_iou_threshold);
   nms_config.max_detections = model_config.nms_max_num_objects;
@@ -623,6 +842,62 @@ void PointCloudObjectDetection::syncNmsRuntimeConfigFromParams(ModelConfig& mode
 }
 
 void PointCloudObjectDetection::loadParameters() { syncModelRuntimeConfigFromParams(); }
+
+void PointCloudObjectDetection::loadManifestBackedParameterDefaults() {
+  auto fail = [this](const std::string& param, const std::string& message) {
+    throwParameterError(this->get_logger(), param, message);
+  };
+
+  if (params_.model_repository.empty()) {
+    fail("prediction.model_repository", "must be set to the exported Triton model repository path");
+  }
+
+  const std::string repository_path = resolveModelRepositoryPath(params_.model_repository);
+  if (!std::filesystem::exists(repository_path) || !std::filesystem::is_directory(repository_path)) {
+    fail("prediction.model_repository", "must point to an existing directory");
+  }
+
+  const std::string manifest_path = manifestPathFromRepository(repository_path);
+  if (!std::filesystem::exists(manifest_path)) {
+    fail("prediction.model_repository", "model_manifest.yml does not exist inside the configured repository");
+  }
+
+  const pcod_common::ModelManifest manifest = pcod_common::LoadModelManifest(manifest_path);
+  pcod_common::ValidateModelManifest(manifest);
+
+  if (!manifest.artifact.triton.enabled) {
+    fail("prediction.model_repository", "repository manifest must describe a Triton export");
+  }
+  const std::filesystem::path config_path =
+      std::filesystem::path(repository_path) / manifest.artifact.files.triton_config;
+  if (manifest.artifact.files.triton_config.empty() || !std::filesystem::exists(config_path)) {
+    fail("prediction.model_repository", "repository manifest must reference an existing config.pbtxt");
+  }
+
+  try {
+    params_.model_name = parseTritonModelNameFromConfig(config_path.string());
+  } catch (const std::exception& e) {
+    fail("prediction.model_repository", std::string("failed to parse config.pbtxt: ") + e.what());
+  }
+  if (params_.model_name != manifest.artifact.triton.model_name) {
+    fail("prediction.model_repository",
+         "config.pbtxt model name does not match artifact.triton.model_name in model_manifest.yml");
+  }
+
+  if (params_.model_version.empty()) {
+    params_.model_version = manifest.artifact.triton.model_version;
+  } else if (params_.model_version != manifest.artifact.triton.model_version) {
+    RCLCPP_WARN(this->get_logger(),
+                "prediction.model_version='%s' differs from manifest default '%s'; using the requested version.",
+                params_.model_version.c_str(), manifest.artifact.triton.model_version.c_str());
+  }
+  params_.point_feature_value_threshold = manifest.runtime_defaults.preprocessing.point_feature.value_threshold;
+  params_.output_class_score_threshold = manifest.runtime_defaults.postprocessing.class_score_threshold;
+  params_.nms_iou_threshold = manifest.runtime_defaults.postprocessing.nms_iou_threshold;
+  params_.nms_max_num_objects = manifest.runtime_defaults.postprocessing.max_detections;
+  params_.nms_score_threshold.assign(manifest.runtime_defaults.postprocessing.nms_score_thresholds.begin(),
+                                     manifest.runtime_defaults.postprocessing.nms_score_thresholds.end());
+}
 
 void PointCloudObjectDetection::validateParamsOrThrow() const {
   auto fail = [this](const std::string& param, const std::string& message) {
@@ -647,13 +922,11 @@ void PointCloudObjectDetection::validateParamsOrThrow() const {
   if (!isAllowedPointFeatureField(params_.point_feature_field)) {
     fail("input.point_feature_field", "must be one of: " + allowedPointFeatureFieldsString());
   }
-  if (!std::isnan(params_.point_feature_intensity_threshold)) {
-    if (!isFinite(params_.point_feature_intensity_threshold)) {
-      fail("preprocessing.point_feature.intensity_threshold", "must be finite when set");
-    }
-    if (params_.point_feature_intensity_threshold <= 0.0) {
-      fail("preprocessing.point_feature.intensity_threshold", "must be greater than 0 when set");
-    }
+  if (!isAllowedPreprocessingBackend(params_.preprocessing_backend)) {
+    fail("preprocessing.backend", "must be one of: " + allowedPreprocessingBackendsString());
+  }
+  if (!isFinite(params_.point_feature_value_threshold)) {
+    fail("preprocessing.point_feature.value_threshold", "must be finite");
   }
   if (!isFinite(params_.output_class_score_threshold)) {
     fail("postprocessing.class_score_threshold", "must be finite");
@@ -667,16 +940,14 @@ void PointCloudObjectDetection::validateParamsOrThrow() const {
       fail("postprocessing.nms.score_threshold", "each entry must be within [0.0, 1.0]");
     }
   }
-  if (!std::isnan(params_.nms_iou_threshold)) {
-    if (!isFinite(params_.nms_iou_threshold)) {
-      fail("postprocessing.nms.iou_threshold", "must be finite when set");
-    }
-    if (params_.nms_iou_threshold < kMinClassScoreThreshold || params_.nms_iou_threshold > kMaxClassScoreThreshold) {
-      fail("postprocessing.nms.iou_threshold", "must be within [0.0, 1.0] when set");
-    }
+  if (!isFinite(params_.nms_iou_threshold)) {
+    fail("postprocessing.nms.iou_threshold", "must be finite");
   }
-  if (params_.nms_max_num_objects < -1) {
-    fail("postprocessing.nms.max_num_objects", "must be -1 (unset) or zero/positive");
+  if (params_.nms_iou_threshold < kMinClassScoreThreshold || params_.nms_iou_threshold > kMaxClassScoreThreshold) {
+    fail("postprocessing.nms.iou_threshold", "must be within [0.0, 1.0]");
+  }
+  if (params_.nms_max_num_objects < 0) {
+    fail("postprocessing.nms.max_num_objects", "must be zero or positive");
   }
   if (params_.server_url.empty()) {
     fail("prediction.server_url", "must be set to the Triton server address");
@@ -684,12 +955,23 @@ void PointCloudObjectDetection::validateParamsOrThrow() const {
   if (!isFinite(params_.triton_client_timeout_s)) {
     fail("prediction.triton_client_timeout_s", "must be finite");
   }
-  if (model_manifest_path_.empty()) {
-    fail("launch.manifest_path", std::string("must be set via launch argument (env ") + kManifestPathEnvVar + ")");
+  if (params_.model_repository.empty()) {
+    fail("prediction.model_repository", "must be set to the exported Triton model repository path");
   }
-  const std::string resolved_manifest_path = resolveModelManifestPath(model_manifest_path_);
+  const std::string resolved_repository_path = resolveModelRepositoryPath(params_.model_repository);
+  if (!std::filesystem::exists(resolved_repository_path) || !std::filesystem::is_directory(resolved_repository_path)) {
+    fail("prediction.model_repository", "must point to an existing directory");
+  }
+  const std::string resolved_manifest_path = manifestPathFromRepository(resolved_repository_path);
   if (!std::filesystem::exists(resolved_manifest_path)) {
-    fail("launch.manifest_path", "model_manifest.yml does not exist at the configured path");
+    fail("prediction.model_repository", "model_manifest.yml does not exist inside the configured repository");
+  }
+  if (params_.model_version.empty()) {
+    fail("prediction.model_version", "must not be empty after resolving repository defaults");
+  }
+  const std::filesystem::path version_path = std::filesystem::path(resolved_repository_path) / params_.model_version;
+  if (!std::filesystem::exists(version_path) || !std::filesystem::is_directory(version_path)) {
+    fail("prediction.model_version", "requested model version directory does not exist inside model_repository");
   }
 
   if (!isFinite(params_.no_detection_zone_x_min) || !isFinite(params_.no_detection_zone_x_max) ||
@@ -744,80 +1026,82 @@ bool PointCloudObjectDetection::updateNMSScoreThreshold(std::vector<double>& sco
 }
 
 ModelConfig PointCloudObjectDetection::loadModelConfig(const Params& params, std::string& model_name,
-                                                       std::string& model_version,
                                                        pcod_common::NmsConfig& nms_config) const {
-  const std::string manifest_path = resolveModelManifestPath(model_manifest_path_);
+  const std::string repository_path = resolveModelRepositoryPath(params.model_repository);
+  const std::string manifest_path = manifestPathFromRepository(repository_path);
   pcod_common::ModelManifest manifest = pcod_common::LoadModelManifest(manifest_path);
   pcod_common::ValidateModelManifest(manifest);
   ModelConfig model_config;
 
-  const std::string manifest_precision = boost::algorithm::to_lower_copy(manifest.precision);
+  const std::string manifest_precision = boost::algorithm::to_lower_copy(manifest.artifact.precision);
   if (!isSupportedManifestPrecision(manifest_precision)) {
-    throwParameterError(this->get_logger(), "launch.manifest_path",
-                        "manifest precision must be either 'fp32' or 'fp16'");
+    throwParameterError(this->get_logger(), "prediction.model_repository",
+                        "manifest precision must be one of 'fp32', 'fp16', or 'int8'");
   }
-  if (!manifest.triton.precision.empty()) {
-    const std::string triton_precision = boost::algorithm::to_lower_copy(manifest.triton.precision);
-    if (!isSupportedManifestPrecision(triton_precision)) {
-      throwParameterError(this->get_logger(), "launch.manifest_path",
-                          "manifest triton.precision must be either 'fp32' or 'fp16'");
-    }
-    if (triton_precision != manifest_precision) {
-      throwParameterError(this->get_logger(), "launch.manifest_path",
-                          "manifest precision and triton.precision must match");
-    }
-  }
-  const std::string manifest_device = boost::algorithm::to_lower_copy(manifest.device);
+  const std::string manifest_device = boost::algorithm::to_lower_copy(manifest.artifact.device);
   if (manifest_device.rfind("cuda", 0) != 0) {
-    throwParameterError(this->get_logger(), "launch.manifest_path", "manifest device must start with 'cuda'");
+    throwParameterError(this->get_logger(), "prediction.model_repository", "manifest device must start with 'cuda'");
   }
-  if (manifest.triton.model_name.empty() || manifest.triton.model_version.empty()) {
-    throwParameterError(this->get_logger(), "launch.manifest_path",
-                        "manifest must define triton.model_name and triton.model_version");
+  if (!manifest.artifact.triton.enabled || manifest.artifact.triton.model_name.empty() ||
+      manifest.artifact.triton.model_version.empty()) {
+    throwParameterError(this->get_logger(), "prediction.model_repository",
+                        "manifest must define artifact.triton.model_name and artifact.triton.model_version");
   }
-  model_name = manifest.triton.model_name;
-  model_version = manifest.triton.model_version;
+  const std::filesystem::path config_path =
+      std::filesystem::path(repository_path) / manifest.artifact.files.triton_config;
+  if (manifest.artifact.files.triton_config.empty() || !std::filesystem::exists(config_path)) {
+    throwParameterError(this->get_logger(), "prediction.model_repository",
+                        "manifest must reference an existing Triton config.pbtxt");
+  }
+  try {
+    model_name = parseTritonModelNameFromConfig(config_path.string());
+  } catch (const std::exception& e) {
+    throwParameterError(this->get_logger(), "prediction.model_repository",
+                        std::string("failed to parse config.pbtxt: ") + e.what());
+  }
+  if (model_name != manifest.artifact.triton.model_name) {
+    throwParameterError(this->get_logger(), "prediction.model_repository",
+                        "config.pbtxt model name does not match artifact.triton.model_name");
+  }
 
-  model_config.point_feature_normalization_type = manifest.preprocessing.point_features_normalization.type;
-  model_config.point_feature_intensity_threshold =
-      manifest.preprocessing.point_features_normalization.intensity_threshold;
-  model_config.point_feature_min_intensity = manifest.preprocessing.point_features_normalization.min_intensity;
-  model_config.point_feature_max_intensity = manifest.preprocessing.point_features_normalization.max_intensity;
-  model_config.point_feature_norm_epsilon = manifest.preprocessing.point_features_normalization.epsilon;
-  model_config.predicted_class_names = manifest.postprocessing.class_names;
+  model_config.point_feature_normalization_type =
+      manifest.frozen_contract.preprocessing.point_feature_normalization.type;
+  model_config.point_feature_value_threshold = manifest.runtime_defaults.preprocessing.point_feature.value_threshold;
+  model_config.point_feature_min_value = manifest.frozen_contract.preprocessing.point_feature_normalization.min_value;
+  model_config.point_feature_max_value = manifest.frozen_contract.preprocessing.point_feature_normalization.max_value;
+  model_config.point_feature_norm_epsilon = manifest.frozen_contract.preprocessing.point_feature_normalization.epsilon;
+  model_config.predicted_class_names = manifest.frozen_contract.postprocessing.class_names;
   model_config.class_mapping_.clear();
 
-  model_config.x_min = manifest.preprocessing.x_range[0];
-  model_config.x_max = manifest.preprocessing.x_range[1];
-  model_config.y_min = manifest.preprocessing.y_range[0];
-  model_config.y_max = manifest.preprocessing.y_range[1];
-  model_config.z_min = manifest.preprocessing.z_range[0];
-  model_config.z_max = manifest.preprocessing.z_range[1];
-  model_config.x_grid_size = manifest.postprocessing.grid_x;
-  model_config.y_grid_size = manifest.postprocessing.grid_y;
-  model_config.voxel_x = manifest.preprocessing.voxel_x;
-  model_config.voxel_y = manifest.preprocessing.voxel_y;
-  model_config.voxel_z = manifest.preprocessing.voxel_z;
+  model_config.x_min = manifest.frozen_contract.preprocessing.x_range[0];
+  model_config.x_max = manifest.frozen_contract.preprocessing.x_range[1];
+  model_config.y_min = manifest.frozen_contract.preprocessing.y_range[0];
+  model_config.y_max = manifest.frozen_contract.preprocessing.y_range[1];
+  model_config.z_min = manifest.frozen_contract.preprocessing.z_range[0];
+  model_config.z_max = manifest.frozen_contract.preprocessing.z_range[1];
+  model_config.x_grid_size = manifest.frozen_contract.postprocessing.grid_x;
+  model_config.y_grid_size = manifest.frozen_contract.postprocessing.grid_y;
+  model_config.voxel_x = manifest.frozen_contract.preprocessing.voxel_x;
+  model_config.voxel_y = manifest.frozen_contract.preprocessing.voxel_y;
+  model_config.voxel_z = manifest.frozen_contract.preprocessing.voxel_z;
 
-  model_config.nms_iou_threshold = manifest.postprocessing.nms_iou_threshold;
-  model_config.nms_max_num_objects = manifest.postprocessing.max_detections;
-  model_config.nms_score_threshold.assign(manifest.postprocessing.score_thresholds.begin(),
-                                          manifest.postprocessing.score_thresholds.end());
+  model_config.nms_iou_threshold = static_cast<float>(params.nms_iou_threshold);
+  model_config.nms_max_num_objects = static_cast<int>(params.nms_max_num_objects);
+  model_config.nms_score_threshold.assign(params.nms_score_threshold.begin(), params.nms_score_threshold.end());
 
-  model_config.max_num_points = manifest.preprocessing.max_num_points;
+  model_config.max_num_points = manifest.frozen_contract.preprocessing.max_num_points;
   model_config.stride.clear();
-  for (int stride : manifest.model.stride) {
+  for (int stride : manifest.frozen_contract.model.stride) {
     model_config.stride.push_back(stride);
   }
-  model_config.first_up_stride = manifest.model.first_up_stride;
+  model_config.first_up_stride = manifest.frozen_contract.model.first_up_stride;
 
-  model_config.pillar_map_size = {manifest.model.pillar_map_size[0], manifest.model.pillar_map_size[1]};
-  model_config.pillar_map_range = {{manifest.model.pillar_map_range[0][0], manifest.model.pillar_map_range[0][1]},
-                                   {manifest.model.pillar_map_range[1][0], manifest.model.pillar_map_range[1][1]},
-                                   {manifest.model.pillar_map_range[2][0], manifest.model.pillar_map_range[2][1]}};
-
-  model_config.mask_is_bool = manifest.model.mask_is_bool;
-  model_config.zero_intensity = manifest.model.zero_intensity;
+  model_config.pillar_map_size = {manifest.frozen_contract.model.pillar_map_size[0],
+                                  manifest.frozen_contract.model.pillar_map_size[1]};
+  model_config.pillar_map_range = {
+      {manifest.frozen_contract.model.pillar_map_range[0][0], manifest.frozen_contract.model.pillar_map_range[0][1]},
+      {manifest.frozen_contract.model.pillar_map_range[1][0], manifest.frozen_contract.model.pillar_map_range[1][1]},
+      {manifest.frozen_contract.model.pillar_map_range[2][0], manifest.frozen_contract.model.pillar_map_range[2][1]}};
 
   for (auto& name : model_config.predicted_class_names) {
     boost::algorithm::to_lower(name);
@@ -857,6 +1141,13 @@ void PointCloudObjectDetection::validateModelConfigOrThrow(const ModelConfig& mo
     throwParameterError(this->get_logger(), param, message);
   };
 
+  if (!isAllowedPreprocessingBackend(model_config.preprocessing_backend)) {
+    fail("preprocessing.backend", "must be one of: " + allowedPreprocessingBackendsString());
+  }
+  if (model_config.preprocessing_backend == "cuda" && !pcod_common::HasCudaPillarPreprocessSupport()) {
+    fail("preprocessing.backend",
+         "is set to 'cuda' but CUDA preprocessing support is not available in this build/runtime");
+  }
   if (!isFinite(model_config.x_min) || !isFinite(model_config.x_max)) {
     fail("x_min/x_max", "must be finite");
   }
@@ -916,9 +1207,9 @@ void PointCloudObjectDetection::validateModelConfigOrThrow(const ModelConfig& mo
   if (model_config.nms_max_num_objects < 0) {
     fail("postprocessing.nms.max_num_objects", "must be zero or positive");
   }
-  if (model_config.point_feature_normalization_type == "intensity_threshold" &&
-      model_config.point_feature_intensity_threshold <= 0.0f) {
-    fail("preprocessing.point_feature.intensity_threshold", "must be greater than 0");
+  if (model_config.point_feature_normalization_type == "value_threshold" &&
+      model_config.point_feature_value_threshold <= 0.0f) {
+    fail("preprocessing.point_feature.value_threshold", "must be greater than 0");
   }
 
   if (model_config.max_num_points <= 0) {
@@ -976,7 +1267,7 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
   bool model_change_on_runtime = false;
   bool publishers_changed = false;
   for (const auto& param : parameters) {
-    if (name_in(param.get_name(), {"prediction.triton_client_timeout_s", "prediction.use_shm"})) {
+    if (requiresModelReinitializationForParameter(param.get_name())) {
       model_change_on_runtime = true;
     }
     if (name_in(param.get_name(),
@@ -1061,11 +1352,9 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
 void PointCloudObjectDetection::refreshResolvedModelConfigLocked() {
   const Params params_snapshot = params_;
   std::string model_name;
-  std::string model_version;
   pcod_common::NmsConfig new_nms_config;
-  auto new_model_config = loadModelConfig(params_snapshot, model_name, model_version, new_nms_config);
+  auto new_model_config = loadModelConfig(params_snapshot, model_name, new_nms_config);
   params_.model_name = model_name;
-  params_.model_version = model_version;
   model_config_ = std::move(new_model_config);
   nms_config_ = std::move(new_nms_config);
 }
@@ -1082,6 +1371,13 @@ void PointCloudObjectDetection::initializeModel() {
   ModelConfig new_model_config = model_config_;
   std::unique_ptr<triton_cpp::TritonInterface> new_triton_interface;
   std::unique_ptr<Model> new_detection_model;
+  if (params_snapshot.cuda_input_shm && model_config_.preprocessing_backend != "cuda") {
+    RCLCPP_WARN(this->get_logger(),
+                "prediction.cuda_input_shm is enabled but preprocessing.backend='%s'. "
+                "CUDA input shared memory is only used with preprocessing.backend='cuda'; "
+                "continuing with the normal CPU input transport.",
+                model_config_.preprocessing_backend.c_str());
+  }
 
   // Retry Triton connection until the ROS context is shutting down.
   constexpr auto kRetryDelay = std::chrono::seconds(1);
@@ -1089,7 +1385,8 @@ void PointCloudObjectDetection::initializeModel() {
     try {
       new_triton_interface = std::make_unique<triton_cpp::TritonInterface>(
           model_name, model_version, params_snapshot.server_url, params_snapshot.use_shm, false, false,
-          params_snapshot.triton_client_timeout_s);
+          params_snapshot.triton_client_timeout_s,
+          params_snapshot.cuda_input_shm && model_config_.preprocessing_backend == "cuda");
       break;
     } catch (const std::exception& e) {
       RCLCPP_WARN(this->get_logger(),
@@ -1175,7 +1472,7 @@ void PointCloudObjectDetection::setupPublishers() {
 void PointCloudObjectDetection::setup() {
   // Preload manifest-derived model config before any parameter-driven transport setup.
   // point_cloud_transport may set parameters during subscribe/advertise, and those callbacks
-  // validate NMS overrides against the predicted class list from the manifest.
+  // validate NMS settings against the predicted class list from the manifest.
   {
     std::lock_guard<std::mutex> model_lock(model_mutex_);
     refreshResolvedModelConfigLocked();
@@ -1213,107 +1510,8 @@ void PointCloudObjectDetection::setup() {
 void PointCloudObjectDetection::processPointCloud(const sensor_msgs::msg::PointCloud2::ConstSharedPtr msg,
                                                   const ModelConfig& model_config, const Params& params,
                                                   PointCloud& point_cloud) {
-  // Transform only when required so we avoid TF cost/latency when frames already match.
-  sensor_msgs::msg::PointCloud2::SharedPtr transformed_point_cloud_msg;
-  sensor_msgs::msg::PointCloud2::ConstSharedPtr input_point_cloud_msg = msg;
-
-  if (!params.inference_frame.empty() && msg->header.frame_id != params.inference_frame) {
-    transformed_point_cloud_msg = std::make_shared<sensor_msgs::msg::PointCloud2>();
-    // transform point cloud
-    try {
-      tf_buffer_->transform(*msg, *transformed_point_cloud_msg, params.inference_frame);
-      input_point_cloud_msg = transformed_point_cloud_msg;
-    } catch (tf2::TransformException& e) {
-      RCLCPP_ERROR(this->get_logger(),
-                   "Cannot tranform Pointcloud: Transformation from its frame (%s) to inference_frame "
-                   "(%s) not found: %s",
-                   msg->header.frame_id.c_str(), params.inference_frame.c_str(), e.what());
-      return;
-    }
-  }
-
-  auto findField = [&](const std::string& name) -> const sensor_msgs::msg::PointField* {
-    for (const auto& field : input_point_cloud_msg->fields) {
-      if (field.name == name) {
-        return &field;
-      }
-    }
-    return nullptr;
-  };
-
-  const std::string primary_feature_field = resolvePrimaryFeatureField(model_config, params);
-  const auto* x_field = findField("x");
-  const auto* y_field = findField("y");
-  const auto* z_field = findField("z");
-  const auto* primary_feature = findField(primary_feature_field);
-
-  if (!x_field || !y_field || !z_field) {
-    RCLCPP_FATAL(this->get_logger(), "Point fields 'x', 'y', 'z' are required in PointCloud2 input");
-    throw std::runtime_error("Missing required PointCloud2 coordinate fields");
-  }
-  if (!primary_feature) {
-    RCLCPP_FATAL(this->get_logger(), "Point field '%s' is required for primary feature extraction",
-                 primary_feature_field.c_str());
-    throw std::runtime_error("Missing required PointCloud2 field: " + primary_feature_field);
-  }
-
-  using PF = sensor_msgs::msg::PointField;
-  // Keep x/y/z strictly FLOAT32 so the hot decode path can stay branch-light and deterministic.
-  if (x_field->datatype != PF::FLOAT32 || y_field->datatype != PF::FLOAT32 || z_field->datatype != PF::FLOAT32) {
-    RCLCPP_FATAL(this->get_logger(), "Point fields 'x', 'y', 'z' must be FLOAT32");
-    throw std::runtime_error("Unsupported PointCloud2 datatype for x/y/z fields");
-  }
-
-  switch (primary_feature->datatype) {
-    case PF::FLOAT32:
-      break;
-    case PF::FLOAT64:
-    case PF::UINT16:
-    case PF::UINT8:
-    case PF::INT16:
-    case PF::INT8:
-    case PF::UINT32:
-    case PF::INT32:
-      RCLCPP_WARN_ONCE(this->get_logger(), "Converting PointCloud2 field '%s' from %s to FLOAT32",
-                       primary_feature_field.c_str(), pointFieldDatatypeToString(primary_feature->datatype));
-      break;
-    default:
-      RCLCPP_FATAL(this->get_logger(),
-                   "Point field '%s' has unsupported datatype %u (%s). Supported: INT8, UINT8, INT16, UINT16, "
-                   "INT32, UINT32, FLOAT32, FLOAT64",
-                   primary_feature_field.c_str(), primary_feature->datatype,
-                   pointFieldDatatypeToString(primary_feature->datatype));
-      throw std::runtime_error("Unsupported PointCloud2 datatype for field: " + primary_feature_field);
-  }
-
-  // Swap only when message byte order differs from host byte order.
-  const bool needs_swap = input_point_cloud_msg->is_bigendian == isHostLittleEndian();
-
-  const auto& msg_ref = *input_point_cloud_msg;
-  const std::size_t total_points = static_cast<std::size_t>(msg_ref.width) * msg_ref.height;
-
-  point_cloud.clear();
-  pcl_conversions::toPCL(msg_ref.header, point_cloud.header);
-  point_cloud.width = msg_ref.width;
-  point_cloud.height = msg_ref.height;
-  point_cloud.is_dense = msg_ref.is_dense;
-  point_cloud.points.resize(total_points);
-
-  // Decode directly from PointCloud2 bytes to reduce per-point overhead in high-rate clouds.
-  std::size_t out_idx = 0;
-  const std::size_t row_step = static_cast<std::size_t>(msg_ref.row_step);
-  const std::size_t point_step = static_cast<std::size_t>(msg_ref.point_step);
-  for (std::size_t row = 0; row < msg_ref.height; ++row) {
-    const std::uint8_t* row_ptr = msg_ref.data.data() + row * row_step;
-    for (std::size_t col = 0; col < msg_ref.width; ++col) {
-      const std::uint8_t* point_ptr = row_ptr + col * point_step;
-      auto& dst = point_cloud.points[out_idx++];
-      dst.x = readFloat32At(point_ptr + x_field->offset, needs_swap);
-      dst.y = readFloat32At(point_ptr + y_field->offset, needs_swap);
-      dst.z = readFloat32At(point_ptr + z_field->offset, needs_swap);
-      dst.intensity = readPointFieldAsFloat(point_ptr + primary_feature->offset, primary_feature->datatype, needs_swap);
-    }
-  }
+  const auto prepared = preparePointCloudInput(msg, model_config, params, *tf_buffer_, this->get_logger());
+  decodePreparedPointCloudToPcl(prepared, point_cloud);
 }
 
 void PointCloudObjectDetection::boxesToObjectList(const std::vector<BoundingBox>& bboxes,
@@ -1443,15 +1641,19 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
     std::vector<std::chrono::time_point<std::chrono::high_resolution_clock>> timestamps = {
         std::chrono::high_resolution_clock::now()};  // index: 0, start timer
 
-    // msg to transformed pointcloud
-    PointCloud point_cloud;
     auto header = msg->header;
-    processPointCloud(msg, model_config_snapshot, params_snapshot, point_cloud);
+    const PreparedPointCloudInput prepared_input =
+        preparePointCloudInput(msg, model_config_snapshot, params_snapshot, *tf_buffer_, this->get_logger());
+    const bool need_point_cloud = params_snapshot.no_detection_zone_publish_points &&
+                                  params_snapshot.no_detection_zone_enabled && no_detection_zone_points_publisher;
+    PointCloud point_cloud;
+    if (need_point_cloud) {
+      decodePreparedPointCloudToPcl(prepared_input, point_cloud);
+    }
     timestamps.push_back(std::chrono::high_resolution_clock::now());  // index: 1, after pcl preprocessing
 
     // Optionally publish raw points inside the no-detection zone
-    if (params_snapshot.no_detection_zone_publish_points && params_snapshot.no_detection_zone_enabled &&
-        no_detection_zone_points_publisher) {
+    if (need_point_cloud) {
       PointCloud ndz_points;
       ndz_points.header.frame_id =
           params_snapshot.inference_frame.empty() ? msg->header.frame_id : params_snapshot.inference_frame;
@@ -1663,8 +1865,21 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
       if (!detection_model_) {
         throw std::runtime_error("Detection model is not initialized");
       }
-      center_boxes = (*detection_model_)(point_cloud, timestamps);
-      used_points = detection_model_->getFilteredInputPoints().size();
+      auto* pbod_model = dynamic_cast<PBODModel*>(detection_model_.get());
+      const bool can_use_direct_preprocess = pbod_model != nullptr && !need_point_cloud;
+      if (can_use_direct_preprocess) {
+        pbod_model->prepareModelInputFromPointCloud2(
+            *prepared_input.msg, prepared_input.x_offset, prepared_input.y_offset, prepared_input.z_offset,
+            prepared_input.feature_offset, prepared_input.feature_datatype, prepared_input.needs_swap, false);
+        timestamps.push_back(std::chrono::high_resolution_clock::now());
+        center_boxes = detection_model_->inferAndDecode(timestamps);
+      } else {
+        if (!need_point_cloud) {
+          decodePreparedPointCloudToPcl(prepared_input, point_cloud);
+        }
+        center_boxes = (*detection_model_)(point_cloud, timestamps);
+      }
+      used_points = detection_model_->getFilteredInputPointCount();
     } catch (const std::exception& e) {
       RCLCPP_WARN(this->get_logger(), "Lost Triton connection for '%s:%s' on server '%s': %s. Attempting to reconnect.",
                   params_snapshot.model_name.c_str(), params_snapshot.model_version.c_str(),
@@ -1787,8 +2002,8 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
                  "%s points=%zu used_points=%zu boxes_in=%zu boxes_nms=%zu boxes_out=%zu objects=%zu "
                  "e2e_ms=%.3f pcl_pre_ms=%.3f model_input_ms=%.3f infer_ms=%.3f decode_ms=%.3f "
                  "nms_ms=%.3f filter_ms=%.3f boxes_to_msg_ms=%.3f publish_ms=%.3f",
-                 event_name, point_cloud.size(), used_points, boxes_before_nms, boxes_after_nms, center_boxes.size(),
-                 size, to_ms(timestamps[8] - timestamps[0]), to_ms(timestamps[1] - timestamps[0]),
+                 event_name, prepared_input.total_points, used_points, boxes_before_nms, boxes_after_nms,
+                 center_boxes.size(), size, to_ms(timestamps[8] - timestamps[0]), to_ms(timestamps[1] - timestamps[0]),
                  to_ms(timestamps[2] - timestamps[1]), to_ms(timestamps[3] - timestamps[2]),
                  to_ms(timestamps[4] - timestamps[3]), to_ms(timestamps[5] - timestamps[4]),
                  to_ms(timestamps[6] - timestamps[5]), to_ms(timestamps[7] - timestamps[6]),
