@@ -35,6 +35,8 @@ class PBODModel : public Model {
   static constexpr const char* kOutputNameReg = "reg_logits";
   static constexpr const char* kOutputNameClass = "class_logits";
   static constexpr const char* kOutputNameSize = "size_posterior";
+  static constexpr const char* kOutputNameDensity = "density_logits";
+  static constexpr const char* kOutputNameOccupancy = "occupancy_logits";
 
   static constexpr int kPreprocessedFeatureDim = 18;
   static constexpr int kPillarIndexDim = 2;
@@ -65,8 +67,8 @@ class PBODModel : public Model {
   static constexpr std::array<const char*, 5> kExpectedInputNames{kInputNamePointFeatures, kInputNamePillarIds,
                                                                   kInputNameValidMask, kInputNamePillarMasks,
                                                                   kInputNamePillarIndices};
-  static constexpr std::array<const char*, 4> kExpectedOutputNames{kOutputNameFocal, kOutputNameReg, kOutputNameClass,
-                                                                   kOutputNameSize};
+  static constexpr std::array<const char*, 6> kExpectedOutputNames{
+      kOutputNameFocal, kOutputNameReg, kOutputNameClass, kOutputNameSize, kOutputNameDensity, kOutputNameOccupancy};
 
   static void validateInterface(const triton_cpp::TritonInterface& triton_interface);
 
@@ -154,6 +156,7 @@ class PBODModel : public Model {
   const float da_fov_rad_;
   pcod_common::PointPreprocessor point_preprocessor_;
   pcod_common::PillarPreprocessCudaContext cuda_preprocess_context_;
+  bool has_auxiliary_grid_map_outputs_ = false;
 };
 
 }  // namespace point_cloud_object_detection
