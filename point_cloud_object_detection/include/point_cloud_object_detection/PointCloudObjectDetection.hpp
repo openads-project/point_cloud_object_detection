@@ -67,6 +67,8 @@ class PointCloudObjectDetection : public rclcpp::Node {
    * @brief Loads all ROS parameters for the node itself
    */
   void loadParameters();
+  void loadBootstrapParameters();
+  void loadManifestBackedParameterDefaults();
   /**
    * @brief Synchronize model runtime options from the loaded node parameters
    */
@@ -81,8 +83,7 @@ class PointCloudObjectDetection : public rclcpp::Node {
   /**
    * @brief Loads all ROS parameters for the model depending on the architecture
    */
-  ModelConfig loadModelConfig(const Params& params, std::string& model_name, std::string& model_version,
-                              pcod_common::NmsConfig& nms_config) const;
+  ModelConfig loadModelConfig(const Params& params, std::string& model_name, pcod_common::NmsConfig& nms_config) const;
 
   template <typename T>
   void declareAndLoadParameter(const std::string& name, T& param, const std::string& description,
@@ -209,7 +210,6 @@ class PointCloudObjectDetection : public rclcpp::Node {
 
  private:
   Params params_;
-  std::string model_manifest_path_;
   ModelConfig model_config_;
   std::mutex model_mutex_;
 

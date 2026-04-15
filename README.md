@@ -6,6 +6,10 @@ This node does not perform the inference itself, but needs a [Triton server](htt
 
 [[_TOC_]]
 
+## Demo
+
+A compact demo is provided in [demo/README.md](/docker-ros/ws/src/target/demo/README.md). It uses Docker Compose to start a Triton server, the packaged detection node, a point cloud publisher, RViz, and an `rqt` parameter GUI to interact with the node.
+
 ## Nodes
 
 | Package | Node | Description |
@@ -33,7 +37,8 @@ All output topics are node-relative (start with `~`) and are always in the node'
 ## Multi-Instance Support
 - You can run multiple instances of this node, each with its own namespace and remapped topics.
 - All output topics can be uniquely named per node instance.
-- You **must** deactivate shared memory (SHM) for multiple instances, i.e., set `prediction.use_shm: False` in the [parameter file](point_cloud_object_detection/config/params.yml). 
+- Shared memory transport is supported for multi-instance deployments. `triton_cpp` uses per-client shared-memory region names and only unregisters the regions owned by that client instance, so one detection node does not clear another node's Triton registrations.
+- This applies both when multiple detection nodes share one Triton server and when each detection node talks to its own Triton server, as long as the underlying Triton shared-memory requirements are met.
 
 ## Launch File Usage
 The provided [launch file](point_cloud_object_detection/launch/point_cloud_object_detection.launch.py) supports launch arguments and topic remappings.
@@ -44,10 +49,11 @@ Example usage:
 ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py \
     namespace:=/perception \
     params:=/docker-ros/ws/src/target/point_cloud_object_detection/config/params.yml \
-    manifest_path:=/docker-ros/ws/src/target/point_cloud_object_detection/model_manifests/model_manifest.yml \
     point_cloud_topic:=/my_lidar/points \
     object_list_topic:=/my_lidar/objects
 ```
+
+Set `prediction.model_repository_path` in the parameter file to the exported Triton repository bundle you want to use. The repository directory name identifies the exported artifact, while the Triton serving name is read from `config.pbtxt` inside that repository.
 
 ### Launch Arguments ###
 
@@ -56,7 +62,6 @@ ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py 
 | `name` | `string` | Node name (default: `point_cloud_object_detection`). |
 | `namespace` | `string` | Node namespace (default: empty). |
 | `params` | `string` | Path to parameter file (default: `point_cloud_object_detection/config/params.yml` from package share). |
-| `manifest_path` | `string` | Path to exported `model_manifest.yml` (default: `point_cloud_object_detection/model_manifests/model_manifest.yml` from package share). |
 | `log_level` | `string` | ROS log level (`debug|info|warn|error|fatal`, default: `info`). |
 | `use_sim_time` | `bool` | Use simulation clock (`true|false`, default: `false`). |
 | `trace` | `bool` | Enable tracing (`true|false`, default: `false`). |
@@ -76,8 +81,17 @@ At startup, invalid parameter values fail initialization. At runtime, invalid dy
 | Parameter | Type | Description | Constraints |
 | --- | --- | --- | --- |
 | `prediction.server_url` | `string` | Triton server host:port combination. | Required at startup. Read-only at runtime. |
+| `prediction.model_repository_path` | `string` | Path to the exported Triton model repository bundle root. | Required at startup. Must point to a directory containing `model_manifest.yml` and `config.pbtxt`. Read-only at runtime. |
+| `prediction.model_version` | `string` | Requested Triton model version directory inside `prediction.model_repository_path`. | Optional. If empty, the export default from `model_manifest.yml` is used. The resolved version directory must exist. Read-only at runtime. |
 | `prediction.triton_client_timeout_s` | `double` | [**dynamic**] Client timeout for Triton requests in seconds (`0.0` disables timeout). | Must be in `[0.0, 300.0]`. |
 | `prediction.use_shm` | `bool` | Enable Triton shared-memory transport. | Requires client and Triton on the same host with a shared IPC namespace (e.g., Docker `ipc: host` or equivalent). |
+| `prediction.cuda_input_shm` | `bool` | Require Triton CUDA shared memory for input tensors. Only used when `preprocessing.backend='cuda'`. | If enabled together with `preprocessing.backend='cuda'`, the node fails fast when CUDA SHM is unavailable or the CUDA-SHM path cannot be used. If `preprocessing.backend!='cuda'`, this setting is ignored with a warning. |
+
+**Transport Parameters**
+
+| Parameter | Type | Description | Constraints |
+| --- | --- | --- | --- |
+| `point_cloud_transport` | `string` | [**dynamic**] Transport hint used by the `point_cloud_transport` subscriber. | Must match an available point-cloud transport plugin. |
 
 **Input Parameters**
 
@@ -89,6 +103,7 @@ At startup, invalid parameter values fail initialization. At runtime, invalid dy
 
 | Parameter | Type | Description | Constraints |
 | --- | --- | --- | --- |
+| `preprocessing.backend` | `string` | [**dynamic**] Point preprocessing backend (`cpu` or `cuda`). | If set to `cuda`, the node fails fast when CUDA preprocessing support is unavailable or the CUDA path cannot be used. |
 | `preprocessing.inference_frame` | `string` | [**dynamic**] Frame used for preprocessing and geometric filtering. | Required. |
 | `preprocessing.no_detection_zone.enabled` | `bool` | Enable rectangular exclusion in `preprocessing.inference_frame`. | - |
 | `preprocessing.no_detection_zone.remove_points` | `bool` | Drop raw points that fall into the rectangle. | - |
@@ -108,28 +123,29 @@ At startup, invalid parameter values fail initialization. At runtime, invalid dy
 | `preprocessing.detection_area.publish_polygon` | `bool` | Publish the sector as `geometry_msgs/msg/PolygonStamped` on `~/detection_area`. | - |
 | `preprocessing.detection_area.filter_detections` | `bool` | Remove detections outside the sector. | - |
 | `preprocessing.detection_area.filter_mode` | `string` | Filtering mode. | Must be either `center` or `complete`. |
+| `preprocessing.point_feature.value_threshold` | `double` | [**dynamic**] Exported default for point-feature value-threshold normalization. | Defaults to `runtime_defaults.preprocessing.point_feature.value_threshold` from `model_manifest.yml`; must be finite and greater than 0 when value-threshold normalization is used. |
 
 **Postprocessing Parameters**
 
 | Parameter | Type | Description | Constraints |
 | --- | --- | --- | --- |
-| `postprocessing.class_score_threshold` | `double` | [**dynamic**] Minimum class score kept in the output list. | Must be within `[0.0, 1.0]`. |
-| `postprocessing.nms.score_threshold` | `double array` | [**dynamic**] Optional NMS score threshold override. | If unset, uses `postprocessing.score_threshold` from `model_manifest.yml`; if set, must contain exactly one value or one per predicted class, and all entries must be within `[0.0, 1.0]`. |
-| `postprocessing.nms.iou_threshold` | `double` | [**dynamic**] Optional NMS IoU threshold override. | If unset, uses `postprocessing.nms_iou_threshold` from `model_manifest.yml`; if set, must be within `[0.0, 1.0]`. |
-| `postprocessing.nms.max_num_objects` | `int` | [**dynamic**] Optional maximum number of objects after NMS. | If unset, uses `postprocessing.max_detections` from `model_manifest.yml`; if set, must be zero or positive. |
+| `postprocessing.class_score_threshold` | `double` | [**dynamic**] Minimum class score kept in the output list. | Defaults to `runtime_defaults.postprocessing.class_score_threshold` from `model_manifest.yml`; must be within `[0.0, 1.0]`. |
+| `postprocessing.nms.score_threshold` | `double array` | [**dynamic**] Score threshold used for candidate filtering and NMS. | If unset, uses `runtime_defaults.postprocessing.nms.score_threshold` from `model_manifest.yml`; if set, must contain exactly one value or one per predicted class, and all entries must be within `[0.0, 1.0]`. |
+| `postprocessing.nms.iou_threshold` | `double` | [**dynamic**] Optional NMS IoU threshold override. | If unset, uses `runtime_defaults.postprocessing.nms.iou_threshold` from `model_manifest.yml`; if set, must be within `[0.0, 1.0]`. |
+| `postprocessing.nms.max_num_objects` | `int` | [**dynamic**] Optional maximum number of objects after NMS. | If unset, uses `runtime_defaults.postprocessing.nms.max_num_objects` from `model_manifest.yml`; if set, must be zero or positive. |
 
 **Output Parameters**
 
 | Parameter | Type | Description | Constraints |
 | --- | --- | --- | --- |
-| `output.frame` | `string` | [**dynamic**] Frame reported in the output object list. | If unset, output uses `preprocessing.inference_frame`. |
+| `output.frame` | `string` | [**dynamic**] Frame reported in the output object list. | Required. |
 | `output.sensor_id` | `int` | [**dynamic**] Sensor identifier stored on every object. | Must be within `[0, 100000]`. |
 | `output.variances` | `double array` | [**dynamic**] Continuous-state covariance diagonal. | Exactly 12 entries; each entry must be ≥ 0.0 or `-1.0` (`CONTINUOUS_STATE_COVARIANCE_UNKNOWN`). |
 | `output.model_bounds.publish_polygon` | `bool` | Publish the xy bounds as `geometry_msgs/msg/PolygonStamped` on `~/model_bounds`. | - |
 
-Model-specific parameters (grid size, class names, stride, etc.) are loaded from the exported `model_manifest.yml` selected via launch argument `manifest_path`.
-`postprocessing.nms.score_threshold`, `postprocessing.nms.iou_threshold`, and `postprocessing.nms.max_num_objects` can optionally override their manifest values at runtime.
-The Triton model identity (`model_name`, `model_version`) is also loaded from `triton.model_name` and `triton.model_version` inside that manifest, not from separate ROS parameters.
+The exported `model_manifest.yml` is the source of truth for the bundle. Its `frozen_contract` section defines the non-overridable model contract used by inference, and its `runtime_defaults` section provides the default values for intentionally tunable runtime behavior.
+`params.yml` is the runtime selection and override file. `prediction.model_repository_path` selects the exported Triton repository bundle, `prediction.model_version` optionally selects the numbered Triton version directory, and the Triton model name is inferred from `config.pbtxt` inside that repository and validated against `artifact.triton.model_name` in `model_manifest.yml`. Repository directory names do not need to match the Triton model name.
+`preprocessing.point_feature.value_threshold`, `postprocessing.class_score_threshold`, `postprocessing.nms.score_threshold`, `postprocessing.nms.iou_threshold`, and `postprocessing.nms.max_num_objects` can override the exported defaults at runtime.
 
 
 ## Usage of docker-ros Images
@@ -157,7 +173,6 @@ ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py
 | Package | File | Source Path | Installed Path | Description |
 | --- | --- | --- | --- | --- |
 | `point_cloud_object_detection` | `params.yml` | `/docker-ros/ws/src/target/point_cloud_object_detection/config/params.yml` | `/docker-ros/ws/install/point_cloud_object_detection/share/point_cloud_object_detection/config/params.yml` | Default runtime parameter file used by launch. |
-| `point_cloud_object_detection` | `model_manifest.yml` | `/docker-ros/ws/src/target/point_cloud_object_detection/model_manifests/model_manifest.yml` | `/docker-ros/ws/install/point_cloud_object_detection/share/point_cloud_object_detection/model_manifests/model_manifest.yml` | Model export manifest selected via launch argument `manifest_path`. |
 
 ## Point Cloud Input Fields
 

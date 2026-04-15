@@ -43,12 +43,16 @@ class Model {
       const PointCloud& point_cloud,
       std::vector<std::chrono::time_point<std::chrono::high_resolution_clock>>& timestamps);
 
+  std::vector<BoundingBox> inferAndDecode(
+      std::vector<std::chrono::time_point<std::chrono::high_resolution_clock>>& timestamps);
+
   /**
    * @brief Get the points that were actually used as input to the model after filtering
    * 
    * @return const PointCloud& Reference to the filtered input points
    */
   const PointCloud& getFilteredInputPoints() const;
+  std::size_t getFilteredInputPointCount() const;
 
   virtual std::map<std::string, std::vector<int64_t>> getSpecialOutputShapes() { return {}; };
 
@@ -61,6 +65,7 @@ class Model {
  protected:
   triton_cpp::TritonInterface& triton_interface_;
   mutable PointCloud filtered_input_points_;  // Store points actually used as model input
+  std::size_t filtered_input_point_count_ = 0;
 
   virtual void setupModelInput(const PointCloud& point_cloud) = 0;
   virtual std::vector<BoundingBox> modelOutputToBoxes() = 0;
