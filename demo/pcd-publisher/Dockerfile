@@ -1,4 +1,4 @@
-FROM rwthika/ros2:jazzy-ros-base-v26.02
+FROM rwthika/ros2:jazzy-ros-base
 
 WORKDIR /opt/demo
 
