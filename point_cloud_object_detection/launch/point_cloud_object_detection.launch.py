@@ -40,6 +40,9 @@ def generate_launch_description():
         DeclareLaunchArgument('occupancy_grid_map_topic',
                               default_value='~/occupancy_grid_map',
                               description='occupancy grid map topic remap'),
+        DeclareLaunchArgument('combined_grid_map_topic',
+                              default_value='~/combined_grid_map',
+                              description='combined grid map topic remap'),
     ]
 
     args = [

@@ -59,3 +59,5 @@
     output.model_bounds.publish_polygon: false
     output.grid_maps.publish_density: false
     output.grid_maps.publish_occupancy: false
+    output.grid_maps.publish_combined: false
+    output.grid_maps.message_type: "grid_map"

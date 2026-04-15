@@ -83,6 +83,7 @@ find_package(perception_msgs_utils REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
 find_package(grid_map_core REQUIRED)
 find_package(grid_map_msgs REQUIRED)
 find_package(grid_map_ros REQUIRED)
@@ -130,6 +131,7 @@ ament_target_dependencies(
   perception_msgs_utils
   point_cloud_transport
   geometry_msgs
+  nav_msgs
   grid_map_core
   grid_map_msgs
   grid_map_ros
