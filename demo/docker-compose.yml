@@ -48,7 +48,7 @@ services:
       <<: *gpu_reservation
     volumes:
       - ./point_cloud_object_detection.demo.params.yml:/params.yml:ro
-      - ./models:/models:ro
+      - ./models/point-cloud-object-detection:/docker-ros/ws/install/point_cloud_object_detection/share/point_cloud_object_detection/models/point-cloud-object-detection:ro
     command: >
       bash -lc "
       ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py
