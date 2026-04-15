@@ -83,8 +83,7 @@ bool isSupportedManifestPrecision(const std::string& precision) {
 bool requiresModelReinitializationForParameter(const std::string& name) {
   return name == "prediction.triton_client_timeout_s" || name == "prediction.use_shm" ||
          name == "prediction.cuda_input_shm" || name == "preprocessing.backend" ||
-         name == "preprocessing.point_feature.value_threshold" ||
-         name == "postprocessing.nms.score_threshold" ||
+         name == "preprocessing.point_feature.value_threshold" || name == "postprocessing.nms.score_threshold" ||
          name == "preprocessing.no_detection_zone.remove_points" || name == "preprocessing.no_detection_zone.x_min" ||
          name == "preprocessing.no_detection_zone.x_max" || name == "preprocessing.no_detection_zone.y_min" ||
          name == "preprocessing.no_detection_zone.y_max" || name == "preprocessing.detection_area.enabled" ||
