@@ -188,8 +188,7 @@ std::optional<grid_map_msgs::msg::GridMap> buildAuxiliaryGridMapMessage(const Au
   if (grid_map_output.grid_x <= 0 || grid_map_output.grid_y <= 0) {
     return std::nullopt;
   }
-  if (grid_map_output.values.size() !=
-      static_cast<std::size_t>(grid_map_output.grid_x * grid_map_output.grid_y)) {
+  if (grid_map_output.values.size() != static_cast<std::size_t>(grid_map_output.grid_x * grid_map_output.grid_y)) {
     return std::nullopt;
   }
 
@@ -208,10 +207,10 @@ std::optional<grid_map_msgs::msg::GridMap> buildAuxiliaryGridMapMessage(const Au
   grid_map::GridMap map({grid_map_output.layer});
   map.setFrameId(frame_id);
   map.setTimestamp(rclcpp::Time(header.stamp).nanoseconds());
-  map.setGeometry(grid_map::Length(x_length, y_length),
-                  resolution_x,
-                  grid_map::Position((static_cast<double>(model_config.x_min) + static_cast<double>(model_config.x_max)) * 0.5,
-                                     (static_cast<double>(model_config.y_min) + static_cast<double>(model_config.y_max)) * 0.5));
+  map.setGeometry(
+      grid_map::Length(x_length, y_length), resolution_x,
+      grid_map::Position((static_cast<double>(model_config.x_min) + static_cast<double>(model_config.x_max)) * 0.5,
+                         (static_cast<double>(model_config.y_min) + static_cast<double>(model_config.y_max)) * 0.5));
   for (int ix = 0; ix < grid_map_output.grid_x; ++ix) {
     for (int iy = 0; iy < grid_map_output.grid_y; ++iy) {
       const std::size_t flat_index = static_cast<std::size_t>(ix * grid_map_output.grid_y + iy);
@@ -219,11 +218,13 @@ std::optional<grid_map_msgs::msg::GridMap> buildAuxiliaryGridMapMessage(const Au
     }
   }
 
-  grid_map_msgs::msg::GridMap message;
-  grid_map::GridMapRosConverter::toMessage(map, message);
-  message.info.header = header;
-  message.info.header.frame_id = frame_id;
-  return message;
+  auto message = grid_map::GridMapRosConverter::toMessage(map);
+  if (!message) {
+    return std::nullopt;
+  }
+  message->header = header;
+  message->header.frame_id = frame_id;
+  return std::move(*message);
 }
 
 std::uint16_t byteSwap16(std::uint16_t value) { return static_cast<std::uint16_t>((value >> 8) | (value << 8)); }
