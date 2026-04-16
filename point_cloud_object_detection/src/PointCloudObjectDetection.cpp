@@ -180,10 +180,35 @@ bool isHostLittleEndian() {
   return *reinterpret_cast<const std::uint8_t*>(&value) == 1;
 }
 
-std::optional<nav_msgs::msg::OccupancyGrid> buildAuxiliaryOccupancyGridMessage(const AuxiliaryGridMap& grid_map_output,
-                                                                               const ModelConfig& model_config,
-                                                                               const std_msgs::msg::Header& header,
-                                                                               const std::string& frame_id) {
+constexpr double kAuxiliaryGridMapUnityGainEpsilon = 1e-6;
+constexpr double kAuxiliaryGridMapResolutionTolerance = 1e-6;
+
+bool shouldApplyAuxiliaryGridMapGain(double gain) { return std::fabs(gain - 1.0) > kAuxiliaryGridMapUnityGainEpsilon; }
+
+float applyAuxiliaryGridMapGainToValue(float value, double gain) {
+  if (shouldApplyAuxiliaryGridMapGain(gain)) {
+    value *= static_cast<float>(gain);
+  }
+  return clamp(value, 0.0f, 1.0f);
+}
+
+bool haveCompatibleAuxiliaryGridMaps(const AuxiliaryGridMap& first, const AuxiliaryGridMap& second) {
+  return first.grid_x == second.grid_x && first.grid_y == second.grid_y && first.values.size() == second.values.size();
+}
+
+AuxiliaryGridMap makeAuxiliaryGridMapLike(const AuxiliaryGridMap& reference, const char* layer) {
+  return AuxiliaryGridMap{layer,
+                          std::vector<float>(reference.values.size()),
+                          reference.grid_x,
+                          reference.grid_y,
+                          reference.x_min,
+                          reference.x_max,
+                          reference.y_min,
+                          reference.y_max};
+}
+
+std::optional<nav_msgs::msg::OccupancyGrid> initializeAuxiliaryOccupancyGridMessage(
+    const AuxiliaryGridMap& grid_map_output, const std_msgs::msg::Header& header, const std::string& frame_id) {
   if (grid_map_output.grid_x <= 0 || grid_map_output.grid_y <= 0) {
     return std::nullopt;
   }
@@ -191,15 +216,15 @@ std::optional<nav_msgs::msg::OccupancyGrid> buildAuxiliaryOccupancyGridMessage(c
     return std::nullopt;
   }
 
-  const double x_length = static_cast<double>(model_config.x_max) - static_cast<double>(model_config.x_min);
-  const double y_length = static_cast<double>(model_config.y_max) - static_cast<double>(model_config.y_min);
+  const double x_length = static_cast<double>(grid_map_output.x_max) - static_cast<double>(grid_map_output.x_min);
+  const double y_length = static_cast<double>(grid_map_output.y_max) - static_cast<double>(grid_map_output.y_min);
   if (!(x_length > 0.0) || !(y_length > 0.0)) {
     return std::nullopt;
   }
 
   const double resolution_x = x_length / static_cast<double>(grid_map_output.grid_x);
   const double resolution_y = y_length / static_cast<double>(grid_map_output.grid_y);
-  if (std::fabs(resolution_x - resolution_y) > 1e-6) {
+  if (std::fabs(resolution_x - resolution_y) > kAuxiliaryGridMapResolutionTolerance) {
     return std::nullopt;
   }
 
@@ -210,18 +235,31 @@ std::optional<nav_msgs::msg::OccupancyGrid> buildAuxiliaryOccupancyGridMessage(c
   message.info.resolution = static_cast<float>(resolution_x);
   message.info.width = static_cast<std::uint32_t>(grid_map_output.grid_x);
   message.info.height = static_cast<std::uint32_t>(grid_map_output.grid_y);
-  message.info.origin.position.x = static_cast<double>(model_config.x_min);
-  message.info.origin.position.y = static_cast<double>(model_config.y_min);
+  message.info.origin.position.x = static_cast<double>(grid_map_output.x_min);
+  message.info.origin.position.y = static_cast<double>(grid_map_output.y_min);
   message.info.origin.position.z = 0.0;
   message.info.origin.orientation.w = 1.0;
   message.data.assign(static_cast<std::size_t>(grid_map_output.grid_x * grid_map_output.grid_y), 0);
+  return message;
+}
+
+int8_t toOccupancyGridCellValue(float value, double gain = 1.0) {
+  return static_cast<int8_t>(std::lround(applyAuxiliaryGridMapGainToValue(value, gain) * 100.0f));
+}
+
+std::optional<nav_msgs::msg::OccupancyGrid> buildAuxiliaryOccupancyGridMessage(const AuxiliaryGridMap& grid_map_output,
+                                                                               const std_msgs::msg::Header& header,
+                                                                               const std::string& frame_id) {
+  auto message = initializeAuxiliaryOccupancyGridMessage(grid_map_output, header, frame_id);
+  if (!message.has_value()) {
+    return std::nullopt;
+  }
 
   for (int ix = 0; ix < grid_map_output.grid_x; ++ix) {
     for (int iy = 0; iy < grid_map_output.grid_y; ++iy) {
       const std::size_t source_index = static_cast<std::size_t>(ix * grid_map_output.grid_y + iy);
       const std::size_t target_index = static_cast<std::size_t>(iy * grid_map_output.grid_x + ix);
-      const float value = clamp(grid_map_output.values[source_index], 0.0f, 1.0f);
-      message.data[target_index] = static_cast<int8_t>(std::lround(value * 100.0f));
+      message->data[target_index] = toOccupancyGridCellValue(grid_map_output.values[source_index]);
     }
   }
 
@@ -230,27 +268,24 @@ std::optional<nav_msgs::msg::OccupancyGrid> buildAuxiliaryOccupancyGridMessage(c
 
 std::optional<AuxiliaryGridMap> buildCombinedAuxiliaryGridMap(const AuxiliaryGridMap& density_grid_map,
                                                               const AuxiliaryGridMap& occupancy_grid_map) {
-  if (density_grid_map.grid_x != occupancy_grid_map.grid_x || density_grid_map.grid_y != occupancy_grid_map.grid_y) {
-    return std::nullopt;
-  }
-  if (density_grid_map.values.size() != occupancy_grid_map.values.size()) {
+  if (!haveCompatibleAuxiliaryGridMaps(density_grid_map, occupancy_grid_map)) {
     return std::nullopt;
   }
 
-  AuxiliaryGridMap combined_grid_map{"combined", std::vector<float>(density_grid_map.values.size()),
-                                     density_grid_map.grid_x, density_grid_map.grid_y};
+  AuxiliaryGridMap combined_grid_map = makeAuxiliaryGridMapLike(density_grid_map, "combined");
   for (std::size_t i = 0; i < combined_grid_map.values.size(); ++i) {
     const float density = clamp(density_grid_map.values[i], 0.0f, 1.0f);
     const float occupancy = clamp(occupancy_grid_map.values[i], 0.0f, 1.0f);
-    // Keep occupancy as the primary signal and use density only to boost contrast
-    // within the remaining headroom. This preserves occupancy visibility while
-    // still surfacing density variations in occupied cells.
-    combined_grid_map.values[i] = clamp(occupancy + 0.5f * density * (1.0f - occupancy), 0.0f, 1.0f);
+    combined_grid_map.values[i] = occupancy + 0.5f * density * (1.0f - occupancy);
   }
   return combined_grid_map;
 }
 
 void applyAuxiliaryGridMapGain(AuxiliaryGridMap& grid_map_output, double gain) {
+  if (!shouldApplyAuxiliaryGridMapGain(gain) || grid_map_output.values.empty()) {
+    return;
+  }
+
   const float gain_f = static_cast<float>(gain);
   for (float& value : grid_map_output.values) {
     value = clamp(value * gain_f, 0.0f, 1.0f);
@@ -259,17 +294,15 @@ void applyAuxiliaryGridMapGain(AuxiliaryGridMap& grid_map_output, double gain) {
 
 std::optional<AuxiliaryGridMap> buildStaticAuxiliaryGridMap(const AuxiliaryGridMap& density_grid_map,
                                                             const AuxiliaryGridMap& occupancy_grid_map) {
-  if (density_grid_map.grid_x != occupancy_grid_map.grid_x || density_grid_map.grid_y != occupancy_grid_map.grid_y) {
-    return std::nullopt;
-  }
-  if (density_grid_map.values.size() != occupancy_grid_map.values.size()) {
+  if (!haveCompatibleAuxiliaryGridMaps(density_grid_map, occupancy_grid_map)) {
     return std::nullopt;
   }
 
-  AuxiliaryGridMap static_grid_map{"static", std::vector<float>(density_grid_map.values.size()),
-                                   density_grid_map.grid_x, density_grid_map.grid_y};
+  AuxiliaryGridMap static_grid_map = makeAuxiliaryGridMapLike(density_grid_map, "static");
   for (std::size_t i = 0; i < static_grid_map.values.size(); ++i) {
-    static_grid_map.values[i] = std::max(0.0f, density_grid_map.values[i] - occupancy_grid_map.values[i]);
+    const float density = clamp(density_grid_map.values[i], 0.0f, 1.0f);
+    const float occupancy = clamp(occupancy_grid_map.values[i], 0.0f, 1.0f);
+    static_grid_map.values[i] = density * (1.0f - occupancy);
   }
   return static_grid_map;
 }
@@ -876,7 +909,7 @@ void PointCloudObjectDetection::declareParameters() {
                                 false,                                                          // is_required
                                 false,                                                          // read_only
                                 std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "");                                                            // additional_constraints
+                                "Must be one of: 'center', 'complete'.");                       // additional_constraints
 
   this->declareAndLoadParameter("output.model_bounds.publish_polygon", params_.model_bounds_publish_polygon,
                                 "Publish the model x/y range rectangle as geometry_msgs/PolygonStamped",
@@ -922,6 +955,20 @@ void PointCloudObjectDetection::declareParameters() {
                                 "Must be within [0, 100].");                                    // additional_constraints
   this->declareAndLoadParameter("output.grid_maps.occupancy_gain", params_.occupancy_grid_map_gain,
                                 "Linear gain applied to the published occupancy grid map",      // description
+                                true,                                                           // add_to_auto_reconfigurable_params
+                                false,                                                          // is_required
+                                false,                                                          // read_only
+                                0.0, 100.0, std::nullopt,                                       // from_value, to_value, step_value
+                                "Must be within [0, 100].");                                    // additional_constraints
+  this->declareAndLoadParameter("output.grid_maps.combined_gain", params_.combined_grid_map_gain,
+                                "Linear gain applied to the published combined grid map",       // description
+                                true,                                                           // add_to_auto_reconfigurable_params
+                                false,                                                          // is_required
+                                false,                                                          // read_only
+                                0.0, 100.0, std::nullopt,                                       // from_value, to_value, step_value
+                                "Must be within [0, 100].");                                    // additional_constraints
+  this->declareAndLoadParameter("output.grid_maps.static_gain", params_.static_grid_map_gain,
+                                "Linear gain applied to the published static grid map",        // description
                                 true,                                                           // add_to_auto_reconfigurable_params
                                 false,                                                          // is_required
                                 false,                                                          // read_only
@@ -1073,6 +1120,14 @@ void PointCloudObjectDetection::validateParamsOrThrow() const {
   if (!isFinite(params_.occupancy_grid_map_gain) || params_.occupancy_grid_map_gain < 0.0 ||
       params_.occupancy_grid_map_gain > 100.0) {
     fail("output.grid_maps.occupancy_gain", "must be finite and within [0, 100]");
+  }
+  if (!isFinite(params_.combined_grid_map_gain) || params_.combined_grid_map_gain < 0.0 ||
+      params_.combined_grid_map_gain > 100.0) {
+    fail("output.grid_maps.combined_gain", "must be finite and within [0, 100]");
+  }
+  if (!isFinite(params_.static_grid_map_gain) || params_.static_grid_map_gain < 0.0 ||
+      params_.static_grid_map_gain > 100.0) {
+    fail("output.grid_maps.static_gain", "must be finite and within [0, 100]");
   }
   if (!isFinite(params_.point_feature_value_threshold)) {
     fail("preprocessing.point_feature.value_threshold", "must be finite");
@@ -1559,7 +1614,6 @@ void PointCloudObjectDetection::initializeModel() {
   // create model architecture
   PBODModel::validateInterface(*new_triton_interface);
   new_detection_model = std::make_unique<PBODModel>(*new_triton_interface.get(), new_model_config);
-
   new_triton_interface->initInOutputs(new_detection_model->getSpecialOutputShapes());
   triton_interface_ = std::move(new_triton_interface);
   detection_model_ = std::move(new_detection_model);
@@ -1607,43 +1661,39 @@ void PointCloudObjectDetection::setupPublishers() {
   }
 
   if (params_snapshot.publish_density_grid_map) {
-    if (!density_occupancy_grid_pub_) {
-      density_occupancy_grid_pub_ = create_publisher<nav_msgs::msg::OccupancyGrid>(kDensityGridMapTopic, 1);
-      RCLCPP_INFO(this->get_logger(), "Publishing density occupancy grid on '%s'",
-                  density_occupancy_grid_pub_->get_topic_name());
+    if (!density_grid_pub_) {
+      density_grid_pub_ = create_publisher<nav_msgs::msg::OccupancyGrid>(kDensityGridMapTopic, 1);
+      RCLCPP_INFO(this->get_logger(), "Publishing density grid map on '%s'", density_grid_pub_->get_topic_name());
     }
   } else {
-    density_occupancy_grid_pub_.reset();
+    density_grid_pub_.reset();
   }
 
   if (params_snapshot.publish_occupancy_grid_map) {
-    if (!occupancy_occupancy_grid_pub_) {
-      occupancy_occupancy_grid_pub_ = create_publisher<nav_msgs::msg::OccupancyGrid>(kOccupancyGridMapTopic, 1);
-      RCLCPP_INFO(this->get_logger(), "Publishing occupancy occupancy grid on '%s'",
-                  occupancy_occupancy_grid_pub_->get_topic_name());
+    if (!occupancy_grid_pub_) {
+      occupancy_grid_pub_ = create_publisher<nav_msgs::msg::OccupancyGrid>(kOccupancyGridMapTopic, 1);
+      RCLCPP_INFO(this->get_logger(), "Publishing occupancy grid map on '%s'", occupancy_grid_pub_->get_topic_name());
     }
   } else {
-    occupancy_occupancy_grid_pub_.reset();
+    occupancy_grid_pub_.reset();
   }
 
   if (params_snapshot.publish_combined_grid_map) {
-    if (!combined_occupancy_grid_pub_) {
-      combined_occupancy_grid_pub_ = create_publisher<nav_msgs::msg::OccupancyGrid>(kCombinedGridMapTopic, 1);
-      RCLCPP_INFO(this->get_logger(), "Publishing combined occupancy grid on '%s'",
-                  combined_occupancy_grid_pub_->get_topic_name());
+    if (!combined_grid_pub_) {
+      combined_grid_pub_ = create_publisher<nav_msgs::msg::OccupancyGrid>(kCombinedGridMapTopic, 1);
+      RCLCPP_INFO(this->get_logger(), "Publishing combined grid map on '%s'", combined_grid_pub_->get_topic_name());
     }
   } else {
-    combined_occupancy_grid_pub_.reset();
+    combined_grid_pub_.reset();
   }
 
   if (params_snapshot.publish_static_grid_map) {
-    if (!static_occupancy_grid_pub_) {
-      static_occupancy_grid_pub_ = create_publisher<nav_msgs::msg::OccupancyGrid>(kStaticGridMapTopic, 1);
-      RCLCPP_INFO(this->get_logger(), "Publishing static occupancy grid on '%s'",
-                  static_occupancy_grid_pub_->get_topic_name());
+    if (!static_grid_pub_) {
+      static_grid_pub_ = create_publisher<nav_msgs::msg::OccupancyGrid>(kStaticGridMapTopic, 1);
+      RCLCPP_INFO(this->get_logger(), "Publishing static grid map on '%s'", static_grid_pub_->get_topic_name());
     }
   } else {
-    static_occupancy_grid_pub_.reset();
+    static_grid_pub_.reset();
   }
 
   // create no-detection zone raw points publisher if enabled
@@ -1819,24 +1869,23 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
     rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr no_detection_zone_pub;
     rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr detection_area_pub;
     rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr model_bounds_pub;
-    rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr density_occupancy_grid_pub;
-    rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr occupancy_occupancy_grid_pub;
-    rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr combined_occupancy_grid_pub;
-    rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr static_occupancy_grid_pub;
+    rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr density_grid_pub;
+    rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr occupancy_grid_pub;
+    rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr combined_grid_pub;
+    rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr static_grid_pub;
     std::shared_ptr<point_cloud_transport::Publisher> no_detection_zone_points_publisher;
     {
       std::lock_guard<std::mutex> publishers_lock(publishers_mutex_);
       no_detection_zone_pub = no_detection_zone_pub_;
       detection_area_pub = detection_area_pub_;
       model_bounds_pub = model_bounds_pub_;
-      density_occupancy_grid_pub = density_occupancy_grid_pub_;
-      occupancy_occupancy_grid_pub = occupancy_occupancy_grid_pub_;
-      combined_occupancy_grid_pub = combined_occupancy_grid_pub_;
-      static_occupancy_grid_pub = static_occupancy_grid_pub_;
+      density_grid_pub = density_grid_pub_;
+      occupancy_grid_pub = occupancy_grid_pub_;
+      combined_grid_pub = combined_grid_pub_;
+      static_grid_pub = static_grid_pub_;
       no_detection_zone_points_publisher = no_detection_zone_points_publisher_;
     }
 
-    // initialize timer
     std::vector<std::chrono::time_point<std::chrono::high_resolution_clock>> timestamps = {
         std::chrono::high_resolution_clock::now()};  // index: 0, start timer
 
@@ -2062,12 +2111,20 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
     std::optional<AuxiliaryGridMap> occupancy_grid_map;
     std::optional<AuxiliaryGridMap> combined_grid_map;
     std::optional<AuxiliaryGridMap> static_grid_map;
+    const bool need_density_grid_map = params_snapshot.publish_density_grid_map ||
+                                       params_snapshot.publish_combined_grid_map ||
+                                       params_snapshot.publish_static_grid_map;
+    const bool need_occupancy_grid_map = params_snapshot.publish_occupancy_grid_map ||
+                                         params_snapshot.publish_combined_grid_map ||
+                                         params_snapshot.publish_static_grid_map;
     std::size_t used_points = 0;
     try {
       std::lock_guard<std::mutex> model_lock(model_mutex_);
       if (!detection_model_) {
         throw std::runtime_error("Detection model is not initialized");
       }
+      detection_model_->setAuxiliaryGridMapRequest(
+          AuxiliaryGridMapRequest{need_density_grid_map, need_occupancy_grid_map});
       auto* pbod_model = dynamic_cast<PBODModel*>(detection_model_.get());
       const bool can_use_direct_preprocess = pbod_model != nullptr && !need_point_cloud;
       if (can_use_direct_preprocess) {
@@ -2083,8 +2140,12 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
         center_boxes = (*detection_model_)(point_cloud, timestamps);
       }
       used_points = detection_model_->getFilteredInputPointCount();
-      density_grid_map = detection_model_->getDensityGridMap();
-      occupancy_grid_map = detection_model_->getOccupancyGridMap();
+      if (need_density_grid_map) {
+        density_grid_map = detection_model_->getDensityGridMap();
+      }
+      if (need_occupancy_grid_map) {
+        occupancy_grid_map = detection_model_->getOccupancyGridMap();
+      }
     } catch (const std::exception& e) {
       RCLCPP_WARN(this->get_logger(), "Lost Triton connection for '%s:%s' on server '%s': %s. Attempting to reconnect.",
                   params_snapshot.model_name.c_str(), params_snapshot.model_version.c_str(),
@@ -2101,58 +2162,69 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
     }
     timestamps.push_back(std::chrono::high_resolution_clock::now());  // index: 4, after output tensor creation
 
-    if (density_grid_map.has_value()) {
-      applyAuxiliaryGridMapGain(*density_grid_map, params_snapshot.density_grid_map_gain);
-    }
-    if (occupancy_grid_map.has_value()) {
-      applyAuxiliaryGridMapGain(*occupancy_grid_map, params_snapshot.occupancy_grid_map_gain);
-    }
-    if (density_grid_map.has_value() && occupancy_grid_map.has_value()) {
-      combined_grid_map = buildCombinedAuxiliaryGridMap(*density_grid_map, *occupancy_grid_map);
-      static_grid_map = buildStaticAuxiliaryGridMap(*density_grid_map, *occupancy_grid_map);
-    }
-
+    // Build derived maps from raw model outputs before applying per-map display gains.
+    // The combination formulas require probability-scale inputs [0, 1]; applying gain
+    // beforehand would distort those semantics.
     const std::string grid_map_frame =
         params_snapshot.inference_frame.empty() ? header.frame_id : params_snapshot.inference_frame;
-    if (params_snapshot.publish_density_grid_map && density_grid_map.has_value() && density_occupancy_grid_pub) {
-      if (auto density_message =
-              buildAuxiliaryOccupancyGridMessage(*density_grid_map, model_config_snapshot, header, grid_map_frame);
+    if (density_grid_map.has_value() && occupancy_grid_map.has_value()) {
+      if (params_snapshot.publish_combined_grid_map) {
+        combined_grid_map = buildCombinedAuxiliaryGridMap(*density_grid_map, *occupancy_grid_map);
+      }
+      if (params_snapshot.publish_static_grid_map) {
+        static_grid_map = buildStaticAuxiliaryGridMap(*density_grid_map, *occupancy_grid_map);
+      }
+    }
+    if (params_snapshot.publish_density_grid_map && density_grid_map.has_value()) {
+      applyAuxiliaryGridMapGain(*density_grid_map, params_snapshot.density_grid_map_gain);
+    }
+    if (params_snapshot.publish_occupancy_grid_map && occupancy_grid_map.has_value()) {
+      applyAuxiliaryGridMapGain(*occupancy_grid_map, params_snapshot.occupancy_grid_map_gain);
+    }
+    if (params_snapshot.publish_combined_grid_map && combined_grid_map.has_value()) {
+      applyAuxiliaryGridMapGain(*combined_grid_map, params_snapshot.combined_grid_map_gain);
+    }
+    if (params_snapshot.publish_static_grid_map && static_grid_map.has_value()) {
+      applyAuxiliaryGridMapGain(*static_grid_map, params_snapshot.static_grid_map_gain);
+    }
+    if (params_snapshot.publish_density_grid_map && density_grid_map.has_value() && density_grid_pub) {
+      if (auto density_message = buildAuxiliaryOccupancyGridMessage(*density_grid_map, header, grid_map_frame);
           density_message.has_value()) {
-        density_occupancy_grid_pub->publish(std::move(*density_message));
+        density_grid_pub->publish(std::move(*density_message));
       } else {
         RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
-                             "Failed to build density occupancy grid message from model output.");
+                             "Failed to build density grid map message from model output.");
       }
     }
-    if (params_snapshot.publish_occupancy_grid_map && occupancy_grid_map.has_value() && occupancy_occupancy_grid_pub) {
-      if (auto occupancy_message =
-              buildAuxiliaryOccupancyGridMessage(*occupancy_grid_map, model_config_snapshot, header, grid_map_frame);
+    if (params_snapshot.publish_occupancy_grid_map && occupancy_grid_map.has_value() && occupancy_grid_pub) {
+      if (auto occupancy_message = buildAuxiliaryOccupancyGridMessage(*occupancy_grid_map, header, grid_map_frame);
           occupancy_message.has_value()) {
-        occupancy_occupancy_grid_pub->publish(std::move(*occupancy_message));
+        occupancy_grid_pub->publish(std::move(*occupancy_message));
       } else {
         RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
-                             "Failed to build occupancy occupancy grid message from model output.");
+                             "Failed to build occupancy grid map message from model output.");
       }
     }
-    if (params_snapshot.publish_combined_grid_map && combined_grid_map.has_value() && combined_occupancy_grid_pub) {
-      if (auto combined_message =
-              buildAuxiliaryOccupancyGridMessage(*combined_grid_map, model_config_snapshot, header, grid_map_frame);
+    if (params_snapshot.publish_combined_grid_map && combined_grid_map.has_value() && combined_grid_pub) {
+      if (auto combined_message = buildAuxiliaryOccupancyGridMessage(*combined_grid_map, header, grid_map_frame);
           combined_message.has_value()) {
-        combined_occupancy_grid_pub->publish(std::move(*combined_message));
+        combined_grid_pub->publish(std::move(*combined_message));
       } else {
         RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
-                             "Failed to build combined occupancy grid message from model output.");
+                             "Failed to build combined grid map message from model output.");
       }
     }
-    if (params_snapshot.publish_static_grid_map && static_grid_map.has_value() && static_occupancy_grid_pub) {
-      if (auto static_message =
-              buildAuxiliaryOccupancyGridMessage(*static_grid_map, model_config_snapshot, header, grid_map_frame);
+    if (params_snapshot.publish_static_grid_map && static_grid_map.has_value() && static_grid_pub) {
+      if (auto static_message = buildAuxiliaryOccupancyGridMessage(*static_grid_map, header, grid_map_frame);
           static_message.has_value()) {
-        static_occupancy_grid_pub->publish(std::move(*static_message));
+        static_grid_pub->publish(std::move(*static_message));
       } else {
         RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
-                             "Failed to build static occupancy grid message from model output.");
+                             "Failed to build static grid map message from model output.");
       }
+    } else if (params_snapshot.publish_static_grid_map && static_grid_pub) {
+      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                           "Failed to build static grid map message from model output.");
     }
 
     const std::size_t boxes_before_nms = center_boxes.size();

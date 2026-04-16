@@ -721,19 +721,52 @@ std::vector<BoundingBox> PBODModel::modelOutputToBoxes() {
   auto focal_logits = triton_interface_.getOutputTensor<float>(kOutputNameFocal, num_pillars);
   auto reg_logits =
       triton_interface_.getOutputTensor<float>(kOutputNameReg, num_pillars, kRegressionValuesPerClass * num_classes);
-  if (has_auxiliary_grid_map_outputs_) {
-    auto density_logits = triton_interface_.getOutputTensor<float>(kOutputNameDensity, num_pillars);
-    auto occupancy_logits = triton_interface_.getOutputTensor<float>(kOutputNameOccupancy, num_pillars);
+  const AuxiliaryGridMapRequest& auxiliary_grid_map_request = getAuxiliaryGridMapRequest();
+  if (has_auxiliary_grid_map_outputs_ && auxiliary_grid_map_request.any()) {
+    const auto build_auxiliary_grid_map = [&](const char* layer) {
+      return AuxiliaryGridMap{layer,
+                              std::vector<float>(static_cast<std::size_t>(num_pillars)),
+                              pillar_grid_.grid_x,
+                              pillar_grid_.grid_y,
+                              x_min_,
+                              x_max_,
+                              y_min_,
+                              y_max_};
+    };
 
-    density_grid_map_ = AuxiliaryGridMap{"density", std::vector<float>(static_cast<std::size_t>(num_pillars)),
-                                         pillar_grid_.grid_x, pillar_grid_.grid_y};
-    occupancy_grid_map_ = AuxiliaryGridMap{"occupancy", std::vector<float>(static_cast<std::size_t>(num_pillars)),
-                                           pillar_grid_.grid_x, pillar_grid_.grid_y};
-    for (int ix = 0; ix < pillar_grid_.grid_x; ++ix) {
-      for (int iy = 0; iy < pillar_grid_.grid_y; ++iy) {
-        const std::size_t flat_index = static_cast<std::size_t>(ix * pillar_grid_.grid_y + iy);
-        density_grid_map_->values[flat_index] = densityTransform(sigmoid(density_logits(flat_index)));
-        occupancy_grid_map_->values[flat_index] = sigmoid(occupancy_logits(flat_index));
+    if (auxiliary_grid_map_request.density && auxiliary_grid_map_request.occupancy) {
+      auto density_logits = triton_interface_.getOutputTensor<float>(kOutputNameDensity, num_pillars);
+      auto occupancy_logits = triton_interface_.getOutputTensor<float>(kOutputNameOccupancy, num_pillars);
+
+      density_grid_map_ = build_auxiliary_grid_map("density");
+      occupancy_grid_map_ = build_auxiliary_grid_map("occupancy");
+
+      for (int ix = 0; ix < pillar_grid_.grid_x; ++ix) {
+        for (int iy = 0; iy < pillar_grid_.grid_y; ++iy) {
+          const std::size_t flat_index = static_cast<std::size_t>(ix * pillar_grid_.grid_y + iy);
+          density_grid_map_->values[flat_index] = densityTransform(sigmoid(density_logits(flat_index)));
+          occupancy_grid_map_->values[flat_index] = sigmoid(occupancy_logits(flat_index));
+        }
+      }
+    } else if (auxiliary_grid_map_request.density) {
+      auto density_logits = triton_interface_.getOutputTensor<float>(kOutputNameDensity, num_pillars);
+
+      density_grid_map_ = build_auxiliary_grid_map("density");
+      for (int ix = 0; ix < pillar_grid_.grid_x; ++ix) {
+        for (int iy = 0; iy < pillar_grid_.grid_y; ++iy) {
+          const std::size_t flat_index = static_cast<std::size_t>(ix * pillar_grid_.grid_y + iy);
+          density_grid_map_->values[flat_index] = densityTransform(sigmoid(density_logits(flat_index)));
+        }
+      }
+    } else if (auxiliary_grid_map_request.occupancy) {
+      auto occupancy_logits = triton_interface_.getOutputTensor<float>(kOutputNameOccupancy, num_pillars);
+
+      occupancy_grid_map_ = build_auxiliary_grid_map("occupancy");
+      for (int ix = 0; ix < pillar_grid_.grid_x; ++ix) {
+        for (int iy = 0; iy < pillar_grid_.grid_y; ++iy) {
+          const std::size_t flat_index = static_cast<std::size_t>(ix * pillar_grid_.grid_y + iy);
+          occupancy_grid_map_->values[flat_index] = sigmoid(occupancy_logits(flat_index));
+        }
       }
     }
   }

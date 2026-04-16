@@ -26,6 +26,20 @@ struct AuxiliaryGridMap {
   std::vector<float> values;
   int grid_x = 0;
   int grid_y = 0;
+  // Spatial range of the pillar grid in the inference frame (metres).
+  // Populated by the model at inference time so downstream code does not
+  // need to consult ModelConfig independently.
+  float x_min = 0.0f;
+  float x_max = 0.0f;
+  float y_min = 0.0f;
+  float y_max = 0.0f;
+};
+
+struct AuxiliaryGridMapRequest {
+  bool density = false;
+  bool occupancy = false;
+
+  [[nodiscard]] bool any() const { return density || occupancy; }
 };
 
 /**
@@ -62,6 +76,8 @@ class Model {
    */
   const PointCloud& getFilteredInputPoints() const;
   std::size_t getFilteredInputPointCount() const;
+  void setAuxiliaryGridMapRequest(const AuxiliaryGridMapRequest& request) { auxiliary_grid_map_request_ = request; }
+  const AuxiliaryGridMapRequest& getAuxiliaryGridMapRequest() const { return auxiliary_grid_map_request_; }
 
   virtual std::map<std::string, std::vector<int64_t>> getSpecialOutputShapes() { return {}; };
   virtual const std::optional<AuxiliaryGridMap>& getDensityGridMap() const { return density_grid_map_; }
@@ -77,6 +93,7 @@ class Model {
   triton_cpp::TritonInterface& triton_interface_;
   mutable PointCloud filtered_input_points_;  // Store points actually used as model input
   std::size_t filtered_input_point_count_ = 0;
+  AuxiliaryGridMapRequest auxiliary_grid_map_request_;
   std::optional<AuxiliaryGridMap> density_grid_map_;
   std::optional<AuxiliaryGridMap> occupancy_grid_map_;
 
