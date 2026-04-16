@@ -143,6 +143,8 @@ struct Params {
   bool publish_static_grid_map = false;
   double density_grid_map_gain = 1.0;
   double occupancy_grid_map_gain = 1.0;
+  double combined_grid_map_gain = 1.0;
+  double static_grid_map_gain = 1.0;
 };
 
 }  // namespace point_cloud_object_detection
