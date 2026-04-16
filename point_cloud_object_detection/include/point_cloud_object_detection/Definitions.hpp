@@ -21,7 +21,6 @@ using pcod_common::ClassificationEntry;
 inline constexpr std::array<const char*, 2> kAllowedPointFeatureFields = {"intensity", "reflectivity"};
 inline constexpr std::array<const char*, 3> kSupportedManifestPrecisions = {"fp32", "fp16", "int8"};
 inline constexpr std::array<const char*, 2> kAllowedPreprocessingBackends = {"cpu", "cuda"};
-inline constexpr std::array<const char*, 2> kAllowedAuxGridMapMessageTypes = {"grid_map", "occupancy_grid"};
 
 // model config
 struct ModelConfig {
@@ -141,7 +140,9 @@ struct Params {
   bool publish_density_grid_map = false;
   bool publish_occupancy_grid_map = false;
   bool publish_combined_grid_map = false;
-  std::string auxiliary_grid_map_message_type = "grid_map";
+  bool publish_static_grid_map = false;
+  double density_grid_map_gain = 1.0;
+  double occupancy_grid_map_gain = 1.0;
 };
 
 }  // namespace point_cloud_object_detection

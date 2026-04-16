@@ -35,7 +35,6 @@
 #include "point_cloud_object_detection/PointTypes.hpp"
 
 #include <geometry_msgs/msg/polygon_stamped.hpp>
-#include <grid_map_msgs/msg/grid_map.hpp>
 #include <nav_msgs/msg/occupancy_grid.hpp>
 
 namespace point_cloud_object_detection {
@@ -169,6 +168,7 @@ class PointCloudObjectDetection : public rclcpp::Node {
   static const std::string kDensityGridMapTopic;
   static const std::string kOccupancyGridMapTopic;
   static const std::string kCombinedGridMapTopic;
+  static const std::string kStaticGridMapTopic;
   static const std::map<uint8_t, std::vector<std::string>> kPossibleClassNames;
   static constexpr std::size_t kExpectedVarianceSize = 12;
   static constexpr int64_t kMinSensorId = 0;
@@ -204,12 +204,10 @@ class PointCloudObjectDetection : public rclcpp::Node {
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr no_detection_zone_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr detection_area_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr model_bounds_pub_;
-  rclcpp::Publisher<grid_map_msgs::msg::GridMap>::SharedPtr density_grid_map_pub_;
-  rclcpp::Publisher<grid_map_msgs::msg::GridMap>::SharedPtr occupancy_grid_map_pub_;
-  rclcpp::Publisher<grid_map_msgs::msg::GridMap>::SharedPtr combined_grid_map_pub_;
   rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr density_occupancy_grid_pub_;
   rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr occupancy_occupancy_grid_pub_;
   rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr combined_occupancy_grid_pub_;
+  rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr static_occupancy_grid_pub_;
   std::mutex publishers_mutex_;
 
   // publisher for raw points inside the no-detection zone

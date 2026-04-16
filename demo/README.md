@@ -27,7 +27,7 @@ From this directory:
 docker compose up
 ```
 
-The detection node consumes `/demo/points` and publishes detections on `/demo/objects`. It also publishes grid maps on `/demo/density_grid_map`, `/demo/occupancy_grid_map`, and optionally `/demo/combined_grid_map`.
+The detection node consumes `/demo/points` and publishes detections on `/demo/objects`. It also publishes occupancy grids on `/demo/density_grid_map`, `/demo/occupancy_grid_map`, `/demo/combined_grid_map`, and `/demo/static_grid_map`.
 
 ## Interacting Through `rqt`
 
