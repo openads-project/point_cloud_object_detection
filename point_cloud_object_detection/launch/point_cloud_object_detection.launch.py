@@ -43,6 +43,9 @@ def generate_launch_description():
         DeclareLaunchArgument('combined_grid_map_topic',
                               default_value='~/combined_grid_map',
                               description='combined grid map topic remap'),
+        DeclareLaunchArgument('static_grid_map_topic',
+                              default_value='~/static_grid_map',
+                              description='static grid map topic remap'),
     ]
 
     args = [
