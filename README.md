@@ -31,6 +31,10 @@ A compact demo is provided in [demo/README.md](/docker-ros/ws/src/target/demo/RE
 | `~/no_detection_zone_points` | `sensor_msgs/msg/PointCloud2` | Raw points inside the no-detection zone |
 | `~/detection_area` | `geometry_msgs/msg/PolygonStamped` | Polygon of the configured detection sector (preprocessing.inference_frame) |
 | `~/model_bounds` | `geometry_msgs/msg/PolygonStamped` | Polygon of the model xy bounds |
+| `~/density_grid_map` | `nav_msgs/msg/OccupancyGrid` | Density grid map provided by the detection model; higher values correspond to a higher density of above-ground points |
+| `~/occupancy_grid_map` | `nav_msgs/msg/OccupancyGrid` | Occupancy grid map provided by the detection model; higher values correspond to a higher probability of occupancy by detectable objects |
+| `~/combined_grid_map` | `nav_msgs/msg/OccupancyGrid` | Grid map that combines occupancy and density into a single grid map |
+| `~/static_grid_map` | `nav_msgs/msg/OccupancyGrid` | Grid map derived from the density grid map, with density attenuated where occupancy is high, to highlight static structures. |
 
 All output topics are node-relative (start with `~`) and are always in the node's namespace.
 
@@ -53,7 +57,7 @@ ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py 
     object_list_topic:=/my_lidar/objects
 ```
 
-Set `prediction.model_repository_path` in the parameter file to the exported Triton repository bundle you want to use. The repository directory name identifies the exported artifact, while the Triton serving name is read from `config.pbtxt` inside that repository.
+Set `prediction.model_repository` in the parameter file to the exported Triton repository bundle you want to use. The repository directory name identifies the exported artifact, while the Triton serving name is read from `config.pbtxt` inside that repository.
 
 ### Launch Arguments ###
 
@@ -71,6 +75,10 @@ Set `prediction.model_repository_path` in the parameter file to the exported Tri
 | `no_detection_zone_points_topic` | `string` | Remap for no-detection-zone points topic (default: `~/no_detection_zone_points`). |
 | `detection_area_topic` | `string` | Remap for detection area polygon topic (default: `~/detection_area`). |
 | `model_bounds_topic` | `string` | Remap for model bounds polygon topic (default: `~/model_bounds`). |
+| `density_grid_map_topic` | `string` | Remap for density grid map topic (default: `~/density_grid_map`). |
+| `occupancy_grid_map_topic` | `string` | Remap for occupancy grid map topic (default: `~/occupancy_grid_map`). |
+| `combined_grid_map_topic` | `string` | Remap for combined grid map topic (default: `~/combined_grid_map`). |
+| `static_grid_map_topic` | `string` | Remap for static grid map topic (default: `~/static_grid_map`). |
 
 ## Parameters
 
@@ -81,8 +89,8 @@ At startup, invalid parameter values fail initialization. At runtime, invalid dy
 | Parameter | Type | Description | Constraints |
 | --- | --- | --- | --- |
 | `prediction.server_url` | `string` | Triton server host:port combination. | Required at startup. Read-only at runtime. |
-| `prediction.model_repository_path` | `string` | Path to the exported Triton model repository bundle root. | Required at startup. Must point to a directory containing `model_manifest.yml` and `config.pbtxt`. Read-only at runtime. |
-| `prediction.model_version` | `string` | Requested Triton model version directory inside `prediction.model_repository_path`. | Optional. If empty, the export default from `model_manifest.yml` is used. The resolved version directory must exist. Read-only at runtime. |
+| `prediction.model_repository` | `string` | Path to the exported Triton model repository bundle root. | Required at startup. Must point to a directory containing `model_manifest.yml` and `config.pbtxt`. Read-only at runtime. |
+| `prediction.model_version` | `string` | Requested Triton model version directory inside `prediction.model_repository`. | Optional. If empty, the export default from `model_manifest.yml` is used. The resolved version directory must exist. Read-only at runtime. |
 | `prediction.triton_client_timeout_s` | `double` | [**dynamic**] Client timeout for Triton requests in seconds (`0.0` disables timeout). | Must be in `[0.0, 300.0]`. |
 | `prediction.use_shm` | `bool` | Enable Triton shared-memory transport. | Requires client and Triton on the same host with a shared IPC namespace (e.g., Docker `ipc: host` or equivalent). |
 | `prediction.cuda_input_shm` | `bool` | Require Triton CUDA shared memory for input tensors. Only used when `preprocessing.backend='cuda'`. | If enabled together with `preprocessing.backend='cuda'`, the node fails fast when CUDA SHM is unavailable or the CUDA-SHM path cannot be used. If `preprocessing.backend!='cuda'`, this setting is ignored with a warning. |
@@ -142,9 +150,17 @@ At startup, invalid parameter values fail initialization. At runtime, invalid dy
 | `output.sensor_id` | `int` | [**dynamic**] Sensor identifier stored on every object. | Must be within `[0, 100000]`. |
 | `output.variances` | `double array` | [**dynamic**] Continuous-state covariance diagonal. | Exactly 12 entries; each entry must be ≥ 0.0 or `-1.0` (`CONTINUOUS_STATE_COVARIANCE_UNKNOWN`). |
 | `output.model_bounds.publish_polygon` | `bool` | Publish the xy bounds as `geometry_msgs/msg/PolygonStamped` on `~/model_bounds`. | - |
+| `output.grid_maps.publish_density` | `bool` | Publish the decoded density auxiliary grid map on `~/density_grid_map`. This is useful for inspecting where the model sees strong local point support. | - |
+| `output.grid_maps.publish_occupancy` | `bool` | Publish the decoded occupancy auxiliary grid map on `~/occupancy_grid_map`. This gives a rough view of which cells the model considers occupied. | - |
+| `output.grid_maps.publish_combined` | `bool` | Publish the combined auxiliary grid map on `~/combined_grid_map`. It blends density and occupancy into a single map. | - |
+| `output.grid_maps.publish_static` | `bool` | Publish the static auxiliary grid map on `~/static_grid_map`. This is intended to make more static scene structure stand out relative to dynamic occupancy cues. | - |
+| `output.grid_maps.density_gain` | `double` | [**dynamic**] Linear gain applied to the published density grid map. | Must be finite and within `[0, 100]`. |
+| `output.grid_maps.occupancy_gain` | `double` | [**dynamic**] Linear gain applied to the published occupancy grid map. | Must be finite and within `[0, 100]`. |
+| `output.grid_maps.combined_gain` | `double` | [**dynamic**] Linear gain applied to the published combined grid map. | Must be finite and within `[0, 100]`. |
+| `output.grid_maps.static_gain` | `double` | [**dynamic**] Linear gain applied to the published static grid map. | Must be finite and within `[0, 100]`. |
 
 The exported `model_manifest.yml` is the source of truth for the bundle. Its `frozen_contract` section defines the non-overridable model contract used by inference, and its `runtime_defaults` section provides the default values for intentionally tunable runtime behavior.
-`params.yml` is the runtime selection and override file. `prediction.model_repository_path` selects the exported Triton repository bundle, `prediction.model_version` optionally selects the numbered Triton version directory, and the Triton model name is inferred from `config.pbtxt` inside that repository and validated against `artifact.triton.model_name` in `model_manifest.yml`. Repository directory names do not need to match the Triton model name.
+`params.yml` is the runtime selection and override file. `prediction.model_repository` selects the exported Triton repository bundle, `prediction.model_version` optionally selects the numbered Triton version directory, and the Triton model name is inferred from `config.pbtxt` inside that repository and validated against `artifact.triton.model_name` in `model_manifest.yml`. Repository directory names do not need to match the Triton model name.
 `preprocessing.point_feature.value_threshold`, `postprocessing.class_score_threshold`, `postprocessing.nms.score_threshold`, `postprocessing.nms.iou_threshold`, and `postprocessing.nms.max_num_objects` can override the exported defaults at runtime.
 
 
