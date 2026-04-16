@@ -900,17 +900,33 @@ void PointCloudObjectDetection::declareParameters() {
                                 std::nullopt, std::nullopt, std::nullopt,
                                 "");
   this->declareAndLoadParameter("output.grid_maps.publish_combined", params_.publish_combined_grid_map,
-                                "Publish a combined auxiliary occupancy grid map",
-                                true, false, false, std::nullopt, std::nullopt, std::nullopt, "");
+                                "Publish a combined auxiliary occupancy grid map",              // description
+                                true,                                                           // add_to_auto_reconfigurable_params
+                                false,                                                          // is_required
+                                false,                                                          // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
+                                "");                                                            // additional_constraints
   this->declareAndLoadParameter("output.grid_maps.publish_static", params_.publish_static_grid_map,
-                                "Publish a static-obstacle occupancy grid map",
-                                true, false, false, std::nullopt, std::nullopt, std::nullopt, "");
+                                "Publish a static-obstacle occupancy grid map",                 // description
+                                true,                                                           // add_to_auto_reconfigurable_params
+                                false,                                                          // is_required
+                                false,                                                          // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
+                                "");                                                            // additional_constraints
   this->declareAndLoadParameter("output.grid_maps.density_gain", params_.density_grid_map_gain,
-                                "Linear gain applied to the published density grid map",
-                                true, false, false, 0.0, 100.0, std::nullopt, "Must be within [0, 100].");
+                                "Linear gain applied to the published density grid map",        // description
+                                true,                                                           // add_to_auto_reconfigurable_params
+                                false,                                                          // is_required
+                                false,                                                          // read_only
+                                0.0, 100.0, std::nullopt,                                       // from_value, to_value, step_value
+                                "Must be within [0, 100].");                                    // additional_constraints
   this->declareAndLoadParameter("output.grid_maps.occupancy_gain", params_.occupancy_grid_map_gain,
-                                "Linear gain applied to the published occupancy grid map",
-                                true, false, false, 0.0, 100.0, std::nullopt, "Must be within [0, 100].");
+                                "Linear gain applied to the published occupancy grid map",      // description
+                                true,                                                           // add_to_auto_reconfigurable_params
+                                false,                                                          // is_required
+                                false,                                                          // read_only
+                                0.0, 100.0, std::nullopt,                                       // from_value, to_value, step_value
+                                "Must be within [0, 100].");                                    // additional_constraints
 
   validateParamsOrThrow();
   // clang-format on
