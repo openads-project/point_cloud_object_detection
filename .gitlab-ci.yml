@@ -1,7 +1,8 @@
 include:
-  - remote: https://raw.githubusercontent.com/ika-rwth-aachen/docker-ros/main/.gitlab-ci/docker-ros.yml
+  - remote: https://raw.githubusercontent.com/ika-rwth-aachen/docker-ros/switch/ubuntu_mirror/.gitlab-ci/docker-ros.yml
 
 variables:
+  DOCKER_ROS_GIT_REF: switch/ubuntu_mirror
   BASE_IMAGE: rwthika/ros2-triton:jazzy
   PLATFORM: amd64,arm64
   RMW_IMPLEMENTATION: rmw_zenoh_cpp
