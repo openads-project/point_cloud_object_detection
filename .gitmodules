@@ -7,3 +7,6 @@
 [submodule "point_cloud_object_detection/pcod-common"]
 	path = point_cloud_object_detection/pcod-common
 	url = ../../../ml/pcod-common
+[submodule "docker/docker-ros"]
+	path = docker/docker-ros
+	url = https://github.com/ika-rwth-aachen/docker-ros.git
