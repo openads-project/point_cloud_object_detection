@@ -154,6 +154,8 @@ At startup, invalid parameter values fail initialization. At runtime, invalid dy
 | `output.grid_maps.publish_occupancy` | `bool` | Publish the decoded occupancy auxiliary grid map on `~/occupancy_grid_map`. This gives a rough view of which cells the model considers occupied. | - |
 | `output.grid_maps.publish_combined` | `bool` | Publish the combined auxiliary grid map on `~/combined_grid_map`. It blends density and occupancy into a single map. | - |
 | `output.grid_maps.publish_static` | `bool` | Publish the static auxiliary grid map on `~/static_grid_map`. This is intended to make more static scene structure stand out relative to dynamic occupancy cues. | - |
+| `output.grid_maps.zero_in_no_detection_zone` | `bool` | [**dynamic**] If true, zero published auxiliary grid-map cells whose centers fall inside the configured no-detection rectangle. | Only applies when `preprocessing.no_detection_zone.enabled` is true. |
+| `output.grid_maps.zero_outside_detection_area` | `bool` | [**dynamic**] If true, zero published auxiliary grid-map cells whose centers fall outside the configured detection area sector. | Only applies when `preprocessing.detection_area.enabled` is true. |
 | `output.grid_maps.density_gain` | `double` | [**dynamic**] Linear gain applied to the published density grid map. | Must be finite and within `[0, 100]`. |
 | `output.grid_maps.occupancy_gain` | `double` | [**dynamic**] Linear gain applied to the published occupancy grid map. | Must be finite and within `[0, 100]`. |
 | `output.grid_maps.combined_gain` | `double` | [**dynamic**] Linear gain applied to the published combined grid map. | Must be finite and within `[0, 100]`. |

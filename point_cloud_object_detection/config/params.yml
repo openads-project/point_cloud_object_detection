@@ -61,5 +61,7 @@
     output.grid_maps.publish_occupancy: false
     output.grid_maps.publish_combined: false
     output.grid_maps.publish_static: false
+    output.grid_maps.zero_in_no_detection_zone: false
+    output.grid_maps.zero_outside_detection_area: false
     output.grid_maps.density_gain: 1.0
     output.grid_maps.occupancy_gain: 1.0

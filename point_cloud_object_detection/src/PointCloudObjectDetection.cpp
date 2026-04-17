@@ -307,6 +307,78 @@ std::optional<AuxiliaryGridMap> buildStaticAuxiliaryGridMap(const AuxiliaryGridM
   return static_grid_map;
 }
 
+constexpr double kGridMapMaskMinDetectionAreaRadius = 0.0;
+constexpr double kGridMapMaskMinDetectionAreaFovDeg = 0.0;
+constexpr double kGridMapMaskMaxDetectionAreaFovDeg = 360.0;
+
+bool isPointInsideDetectionAreaSector(double x, double y, const Params& params) {
+  const double sector_center_x = params.detection_area_center_x;
+  const double sector_center_y = params.detection_area_center_y;
+  const double sector_radius = params.detection_area_radius;
+  const double sector_bearing_rad = params.detection_area_bearing_deg * M_PI / 180.0;
+  const double sector_fov_rad = params.detection_area_fov_deg * M_PI / 180.0;
+  constexpr double kFullCircleToleranceDeg = 1e-3;
+  const bool is_full_circle =
+      std::abs(params.detection_area_fov_deg - kGridMapMaskMaxDetectionAreaFovDeg) <= kFullCircleToleranceDeg;
+
+  const double delta_x = x - sector_center_x;
+  const double delta_y = y - sector_center_y;
+  const double squared_distance_to_center = delta_x * delta_x + delta_y * delta_y;
+  if (squared_distance_to_center > sector_radius * sector_radius) {
+    return false;
+  }
+  if (is_full_circle) {
+    return true;
+  }
+
+  const double angle_to_center = std::atan2(delta_y, delta_x);
+  double angle_offset = angle_to_center - sector_bearing_rad;
+  while (angle_offset > M_PI) angle_offset -= 2.0 * M_PI;
+  while (angle_offset < -M_PI) angle_offset += 2.0 * M_PI;
+  return std::abs(angle_offset) <= (sector_fov_rad * 0.5 + 1e-9);
+}
+
+void applyAuxiliaryGridMapMasks(AuxiliaryGridMap& grid_map_output, const Params& params) {
+  if (grid_map_output.grid_x <= 0 || grid_map_output.grid_y <= 0 || grid_map_output.values.empty()) {
+    return;
+  }
+
+  const bool zero_in_no_detection_zone =
+      params.zero_grid_map_cells_in_no_detection_zone && params.no_detection_zone_enabled;
+  const bool zero_outside_detection_area = params.zero_grid_map_cells_outside_detection_area &&
+                                           params.detection_area_enabled &&
+                                           params.detection_area_radius > kGridMapMaskMinDetectionAreaRadius &&
+                                           params.detection_area_fov_deg > kGridMapMaskMinDetectionAreaFovDeg;
+  if (!zero_in_no_detection_zone && !zero_outside_detection_area) {
+    return;
+  }
+
+  const double resolution_x =
+      (static_cast<double>(grid_map_output.x_max) - static_cast<double>(grid_map_output.x_min)) /
+      grid_map_output.grid_x;
+  const double resolution_y =
+      (static_cast<double>(grid_map_output.y_max) - static_cast<double>(grid_map_output.y_min)) /
+      grid_map_output.grid_y;
+
+  for (int ix = 0; ix < grid_map_output.grid_x; ++ix) {
+    for (int iy = 0; iy < grid_map_output.grid_y; ++iy) {
+      const double x = static_cast<double>(grid_map_output.x_min) + (static_cast<double>(ix) + 0.5) * resolution_x;
+      const double y = static_cast<double>(grid_map_output.y_min) + (static_cast<double>(iy) + 0.5) * resolution_y;
+
+      const bool in_no_detection_zone = zero_in_no_detection_zone && x >= params.no_detection_zone_x_min &&
+                                        x <= params.no_detection_zone_x_max && y >= params.no_detection_zone_y_min &&
+                                        y <= params.no_detection_zone_y_max;
+      const bool outside_detection_area =
+          zero_outside_detection_area && !isPointInsideDetectionAreaSector(x, y, params);
+
+      if (in_no_detection_zone || outside_detection_area) {
+        const std::size_t flat_index = static_cast<std::size_t>(ix * grid_map_output.grid_y + iy);
+        grid_map_output.values[flat_index] = 0.0f;
+      }
+    }
+  }
+}
+
 std::uint16_t byteSwap16(std::uint16_t value) { return static_cast<std::uint16_t>((value >> 8) | (value << 8)); }
 
 std::uint32_t byteSwap32(std::uint32_t value) {
@@ -946,6 +1018,24 @@ void PointCloudObjectDetection::declareParameters() {
                                 false,                                                          // read_only
                                 std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
                                 "");                                                            // additional_constraints
+  this->declareAndLoadParameter("output.grid_maps.zero_in_no_detection_zone",
+                                params_.zero_grid_map_cells_in_no_detection_zone,
+                                "If true, set published auxiliary grid-map cells inside the configured no-detection"
+                                " zone to zero",
+                                true,
+                                false,
+                                false,
+                                std::nullopt, std::nullopt, std::nullopt,
+                                "");
+  this->declareAndLoadParameter("output.grid_maps.zero_outside_detection_area",
+                                params_.zero_grid_map_cells_outside_detection_area,
+                                "If true, set published auxiliary grid-map cells outside the configured detection"
+                                " area to zero",
+                                true,
+                                false,
+                                false,
+                                std::nullopt, std::nullopt, std::nullopt,
+                                "");
   this->declareAndLoadParameter("output.grid_maps.density_gain", params_.density_grid_map_gain,
                                 "Linear gain applied to the published density grid map",        // description
                                 true,                                                           // add_to_auto_reconfigurable_params
@@ -2176,15 +2266,19 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
       }
     }
     if (params_snapshot.publish_density_grid_map && density_grid_map.has_value()) {
+      applyAuxiliaryGridMapMasks(*density_grid_map, params_snapshot);
       applyAuxiliaryGridMapGain(*density_grid_map, params_snapshot.density_grid_map_gain);
     }
     if (params_snapshot.publish_occupancy_grid_map && occupancy_grid_map.has_value()) {
+      applyAuxiliaryGridMapMasks(*occupancy_grid_map, params_snapshot);
       applyAuxiliaryGridMapGain(*occupancy_grid_map, params_snapshot.occupancy_grid_map_gain);
     }
     if (params_snapshot.publish_combined_grid_map && combined_grid_map.has_value()) {
+      applyAuxiliaryGridMapMasks(*combined_grid_map, params_snapshot);
       applyAuxiliaryGridMapGain(*combined_grid_map, params_snapshot.combined_grid_map_gain);
     }
     if (params_snapshot.publish_static_grid_map && static_grid_map.has_value()) {
+      applyAuxiliaryGridMapMasks(*static_grid_map, params_snapshot);
       applyAuxiliaryGridMapGain(*static_grid_map, params_snapshot.static_grid_map_gain);
     }
     if (params_snapshot.publish_density_grid_map && density_grid_map.has_value() && density_grid_pub) {
