@@ -8,6 +8,7 @@
     preprocessing.backend: "cpu"
     preprocessing.inference_frame: base_link
     output.frame: base_link
+    output.grid_maps.frame: ""
     output.sensor_id: 0    
     point_cloud_transport: raw
     prediction.use_shm: false

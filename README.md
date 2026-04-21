@@ -37,6 +37,7 @@ A compact demo is provided in [demo/README.md](/docker-ros/ws/src/target/demo/RE
 | `~/static_grid_map` | `nav_msgs/msg/OccupancyGrid` | Grid map derived from the density grid map, with density attenuated where occupancy is high, to highlight static structures. |
 
 All output topics are node-relative (start with `~`) and are always in the node's namespace.
+Auxiliary grid maps are published in `output.grid_maps.frame` when set; otherwise they use `preprocessing.inference_frame`.
 
 ## Multi-Instance Support
 - You can run multiple instances of this node, each with its own namespace and remapped topics.
@@ -150,6 +151,7 @@ At startup, invalid parameter values fail initialization. At runtime, invalid dy
 | `output.sensor_id` | `int` | [**dynamic**] Sensor identifier stored on every object. | Must be within `[0, 100000]`. |
 | `output.variances` | `double array` | [**dynamic**] Continuous-state covariance diagonal. | Exactly 12 entries; each entry must be ≥ 0.0 or `-1.0` (`CONTINUOUS_STATE_COVARIANCE_UNKNOWN`). |
 | `output.model_bounds.publish_polygon` | `bool` | Publish the xy bounds as `geometry_msgs/msg/PolygonStamped` on `~/model_bounds`. | - |
+| `output.grid_maps.frame` | `string` | [**dynamic**] Frame used for auxiliary grid-map publication. If empty, the node publishes grid maps in `preprocessing.inference_frame`. | Optional. |
 | `output.grid_maps.publish_density` | `bool` | Publish the decoded density auxiliary grid map on `~/density_grid_map`. This is useful for inspecting where the model sees strong local point support. | - |
 | `output.grid_maps.publish_occupancy` | `bool` | Publish the decoded occupancy auxiliary grid map on `~/occupancy_grid_map`. This gives a rough view of which cells the model considers occupied. | - |
 | `output.grid_maps.publish_combined` | `bool` | Publish the combined auxiliary grid map on `~/combined_grid_map`. It blends density and occupancy into a single map. | - |
