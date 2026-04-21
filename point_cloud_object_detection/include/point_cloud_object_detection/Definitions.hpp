@@ -137,6 +137,7 @@ struct Params {
   bool model_bounds_publish_polygon = false;
 
   // Auxiliary grid-map publications
+  std::string grid_map_frame;
   bool publish_density_grid_map = false;
   bool publish_occupancy_grid_map = false;
   bool publish_combined_grid_map = false;

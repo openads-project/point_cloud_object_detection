@@ -208,7 +208,8 @@ AuxiliaryGridMap makeAuxiliaryGridMapLike(const AuxiliaryGridMap& reference, con
 }
 
 std::optional<nav_msgs::msg::OccupancyGrid> initializeAuxiliaryOccupancyGridMessage(
-    const AuxiliaryGridMap& grid_map_output, const std_msgs::msg::Header& header, const std::string& frame_id) {
+    const AuxiliaryGridMap& grid_map_output, const std_msgs::msg::Header& header, const std::string& frame_id,
+    const geometry_msgs::msg::Pose& origin) {
   if (grid_map_output.grid_x <= 0 || grid_map_output.grid_y <= 0) {
     return std::nullopt;
   }
@@ -235,10 +236,7 @@ std::optional<nav_msgs::msg::OccupancyGrid> initializeAuxiliaryOccupancyGridMess
   message.info.resolution = static_cast<float>(resolution_x);
   message.info.width = static_cast<std::uint32_t>(grid_map_output.grid_x);
   message.info.height = static_cast<std::uint32_t>(grid_map_output.grid_y);
-  message.info.origin.position.x = static_cast<double>(grid_map_output.x_min);
-  message.info.origin.position.y = static_cast<double>(grid_map_output.y_min);
-  message.info.origin.position.z = 0.0;
-  message.info.origin.orientation.w = 1.0;
+  message.info.origin = origin;
   message.data.assign(static_cast<std::size_t>(grid_map_output.grid_x * grid_map_output.grid_y), 0);
   return message;
 }
@@ -249,8 +247,9 @@ int8_t toOccupancyGridCellValue(float value, double gain = 1.0) {
 
 std::optional<nav_msgs::msg::OccupancyGrid> buildAuxiliaryOccupancyGridMessage(const AuxiliaryGridMap& grid_map_output,
                                                                                const std_msgs::msg::Header& header,
-                                                                               const std::string& frame_id) {
-  auto message = initializeAuxiliaryOccupancyGridMessage(grid_map_output, header, frame_id);
+                                                                               const std::string& frame_id,
+                                                                               const geometry_msgs::msg::Pose& origin) {
+  auto message = initializeAuxiliaryOccupancyGridMessage(grid_map_output, header, frame_id, origin);
   if (!message.has_value()) {
     return std::nullopt;
   }
@@ -264,6 +263,70 @@ std::optional<nav_msgs::msg::OccupancyGrid> buildAuxiliaryOccupancyGridMessage(c
   }
 
   return message;
+}
+
+geometry_msgs::msg::Pose makeAuxiliaryGridMapOriginPose(const AuxiliaryGridMap& grid_map_output) {
+  geometry_msgs::msg::Pose origin;
+  origin.position.x = static_cast<double>(grid_map_output.x_min);
+  origin.position.y = static_cast<double>(grid_map_output.y_min);
+  origin.position.z = 0.0;
+  origin.orientation.w = 1.0;
+  return origin;
+}
+
+std::string resolveAuxiliaryGridMapSourceFrame(const Params& params, const std_msgs::msg::Header& header) {
+  return params.inference_frame.empty() ? header.frame_id : params.inference_frame;
+}
+
+std::string resolveAuxiliaryGridMapTargetFrame(const Params& params, const std::string& source_frame) {
+  return params.grid_map_frame.empty() ? source_frame : params.grid_map_frame;
+}
+
+std::optional<geometry_msgs::msg::Pose> transformAuxiliaryGridMapOriginPose(
+    const geometry_msgs::msg::Pose& source_origin, const std_msgs::msg::Header& header, const std::string& source_frame,
+    const std::string& target_frame, tf2_ros::Buffer& tf_buffer, const rclcpp::Logger& logger) {
+  if (target_frame.empty() || target_frame == source_frame) {
+    return source_origin;
+  }
+
+  geometry_msgs::msg::TransformStamped transform;
+  try {
+    transform = tf_buffer.lookupTransform(target_frame, source_frame, header.stamp);
+  } catch (tf2::TransformException& e) {
+    RCLCPP_ERROR(logger,
+                 "Cannot transform grid map: Transformation from source frame (%s) to output frame (%s) not found: %s",
+                 source_frame.c_str(), target_frame.c_str(), e.what());
+    return std::nullopt;
+  }
+
+  const auto& translation = transform.transform.translation;
+  const auto& rotation = transform.transform.rotation;
+  tf2::Quaternion target_from_source_rotation(rotation.x, rotation.y, rotation.z, rotation.w);
+  target_from_source_rotation.normalize();
+  const tf2::Transform target_from_source(target_from_source_rotation,
+                                          tf2::Vector3(translation.x, translation.y, translation.z));
+
+  const auto& source_position = source_origin.position;
+  const auto& source_orientation = source_origin.orientation;
+  tf2::Quaternion source_origin_rotation(source_orientation.x, source_orientation.y, source_orientation.z,
+                                         source_orientation.w);
+  source_origin_rotation.normalize();
+  const tf2::Transform source_from_grid(source_origin_rotation,
+                                        tf2::Vector3(source_position.x, source_position.y, source_position.z));
+
+  const tf2::Transform target_from_grid = target_from_source * source_from_grid;
+
+  geometry_msgs::msg::Pose target_origin;
+  const tf2::Vector3 target_position = target_from_grid.getOrigin();
+  target_origin.position.x = target_position.x();
+  target_origin.position.y = target_position.y();
+  target_origin.position.z = target_position.z();
+  const tf2::Quaternion target_orientation = target_from_grid.getRotation();
+  target_origin.orientation.x = target_orientation.x();
+  target_origin.orientation.y = target_orientation.y();
+  target_origin.orientation.z = target_orientation.z();
+  target_origin.orientation.w = target_orientation.w();
+  return target_origin;
 }
 
 std::optional<AuxiliaryGridMap> buildCombinedAuxiliaryGridMap(const AuxiliaryGridMap& density_grid_map,
@@ -990,6 +1053,13 @@ void PointCloudObjectDetection::declareParameters() {
                                 false,                                                          // read_only
                                 std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
                                 "");                                                            // additional_constraints
+  this->declareAndLoadParameter("output.grid_maps.frame", params_.grid_map_frame,
+                                "Frame for auxiliary grid-map publication. If empty, use the inference frame.",
+                                true,
+                                false,
+                                false,
+                                std::nullopt, std::nullopt, std::nullopt,
+                                "");
   this->declareAndLoadParameter("output.grid_maps.publish_density", params_.publish_density_grid_map,
                                 "Publish decoded density logits as an auxiliary grid map",
                                 true,                                                           // add_to_auto_reconfigurable_params
@@ -2255,8 +2325,10 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
     // Build derived maps from raw model outputs before applying per-map display gains.
     // The combination formulas require probability-scale inputs [0, 1]; applying gain
     // beforehand would distort those semantics.
-    const std::string grid_map_frame =
-        params_snapshot.inference_frame.empty() ? header.frame_id : params_snapshot.inference_frame;
+    const std::string grid_map_source_frame = resolveAuxiliaryGridMapSourceFrame(params_snapshot, header);
+    const std::string grid_map_target_frame =
+        resolveAuxiliaryGridMapTargetFrame(params_snapshot, grid_map_source_frame);
+    std::optional<geometry_msgs::msg::Pose> grid_map_origin;
     if (density_grid_map.has_value() && occupancy_grid_map.has_value()) {
       if (params_snapshot.publish_combined_grid_map) {
         combined_grid_map = buildCombinedAuxiliaryGridMap(*density_grid_map, *occupancy_grid_map);
@@ -2281,8 +2353,31 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
       applyAuxiliaryGridMapMasks(*static_grid_map, params_snapshot);
       applyAuxiliaryGridMapGain(*static_grid_map, params_snapshot.static_grid_map_gain);
     }
-    if (params_snapshot.publish_density_grid_map && density_grid_map.has_value() && density_grid_pub) {
-      if (auto density_message = buildAuxiliaryOccupancyGridMessage(*density_grid_map, header, grid_map_frame);
+    if ((params_snapshot.publish_density_grid_map && density_grid_map.has_value()) ||
+        (params_snapshot.publish_occupancy_grid_map && occupancy_grid_map.has_value()) ||
+        (params_snapshot.publish_combined_grid_map && combined_grid_map.has_value()) ||
+        (params_snapshot.publish_static_grid_map && static_grid_map.has_value())) {
+      const AuxiliaryGridMap* reference_grid_map = nullptr;
+      if (density_grid_map.has_value()) {
+        reference_grid_map = &*density_grid_map;
+      } else if (occupancy_grid_map.has_value()) {
+        reference_grid_map = &*occupancy_grid_map;
+      } else if (combined_grid_map.has_value()) {
+        reference_grid_map = &*combined_grid_map;
+      } else if (static_grid_map.has_value()) {
+        reference_grid_map = &*static_grid_map;
+      }
+
+      if (reference_grid_map != nullptr) {
+        grid_map_origin = transformAuxiliaryGridMapOriginPose(makeAuxiliaryGridMapOriginPose(*reference_grid_map),
+                                                              header, grid_map_source_frame, grid_map_target_frame,
+                                                              *tf_buffer_, this->get_logger());
+      }
+    }
+    if (params_snapshot.publish_density_grid_map && density_grid_map.has_value() && density_grid_pub &&
+        grid_map_origin.has_value()) {
+      if (auto density_message =
+              buildAuxiliaryOccupancyGridMessage(*density_grid_map, header, grid_map_target_frame, *grid_map_origin);
           density_message.has_value()) {
         density_grid_pub->publish(std::move(*density_message));
       } else {
@@ -2290,8 +2385,10 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
                              "Failed to build density grid map message from model output.");
       }
     }
-    if (params_snapshot.publish_occupancy_grid_map && occupancy_grid_map.has_value() && occupancy_grid_pub) {
-      if (auto occupancy_message = buildAuxiliaryOccupancyGridMessage(*occupancy_grid_map, header, grid_map_frame);
+    if (params_snapshot.publish_occupancy_grid_map && occupancy_grid_map.has_value() && occupancy_grid_pub &&
+        grid_map_origin.has_value()) {
+      if (auto occupancy_message =
+              buildAuxiliaryOccupancyGridMessage(*occupancy_grid_map, header, grid_map_target_frame, *grid_map_origin);
           occupancy_message.has_value()) {
         occupancy_grid_pub->publish(std::move(*occupancy_message));
       } else {
@@ -2299,8 +2396,10 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
                              "Failed to build occupancy grid map message from model output.");
       }
     }
-    if (params_snapshot.publish_combined_grid_map && combined_grid_map.has_value() && combined_grid_pub) {
-      if (auto combined_message = buildAuxiliaryOccupancyGridMessage(*combined_grid_map, header, grid_map_frame);
+    if (params_snapshot.publish_combined_grid_map && combined_grid_map.has_value() && combined_grid_pub &&
+        grid_map_origin.has_value()) {
+      if (auto combined_message =
+              buildAuxiliaryOccupancyGridMessage(*combined_grid_map, header, grid_map_target_frame, *grid_map_origin);
           combined_message.has_value()) {
         combined_grid_pub->publish(std::move(*combined_message));
       } else {
@@ -2308,8 +2407,10 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
                              "Failed to build combined grid map message from model output.");
       }
     }
-    if (params_snapshot.publish_static_grid_map && static_grid_map.has_value() && static_grid_pub) {
-      if (auto static_message = buildAuxiliaryOccupancyGridMessage(*static_grid_map, header, grid_map_frame);
+    if (params_snapshot.publish_static_grid_map && static_grid_map.has_value() && static_grid_pub &&
+        grid_map_origin.has_value()) {
+      if (auto static_message =
+              buildAuxiliaryOccupancyGridMessage(*static_grid_map, header, grid_map_target_frame, *grid_map_origin);
           static_message.has_value()) {
         static_grid_pub->publish(std::move(*static_message));
       } else {
