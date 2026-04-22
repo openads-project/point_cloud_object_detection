@@ -29,6 +29,8 @@
     # model_manifest.yml is the source of truth for the exported model contract.
     # params.yml should only override intentionally tunable runtime behavior.
     # preprocessing.point_feature.value_threshold: 5000.0
+    # preprocessing.detection_area.z_min: -3.0
+    # preprocessing.detection_area.z_max: 1.0
     # postprocessing.class_score_threshold: 0.0
     # postprocessing.nms.score_threshold: [0.1]
     # postprocessing.nms.iou_threshold: 0.2
