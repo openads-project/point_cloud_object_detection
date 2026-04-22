@@ -43,6 +43,8 @@ struct ModelConfig {
   float y_max;
   float z_min;
   float z_max;
+  float contract_z_min = 0.0f;
+  float contract_z_max = 0.0f;
   int x_grid_size;
   int y_grid_size;
   float voxel_x = 0.0f;
@@ -125,6 +127,9 @@ struct Params {
   double detection_area_radius = 0.0;
   double detection_area_bearing_deg = 0.0;  // central azimuth (deg, 0 along +x, CCW)
   double detection_area_fov_deg = 360.0;    // angular width (deg)
+  // Effective z range used during inference-time preprocessing. Defaults to the manifest z range and may only narrow it.
+  double detection_area_z_min = 0.0;
+  double detection_area_z_max = 0.0;
   bool detection_area_publish_polygon = false;
   int detection_area_num_segments = 32;  // polygon approximation of arc
 

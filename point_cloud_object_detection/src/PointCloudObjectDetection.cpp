@@ -84,7 +84,8 @@ bool isSupportedManifestPrecision(const std::string& precision) {
 bool requiresModelReinitializationForParameter(const std::string& name) {
   return name == "prediction.triton_client_timeout_s" || name == "prediction.use_shm" ||
          name == "prediction.cuda_input_shm" || name == "preprocessing.backend" ||
-         name == "preprocessing.point_feature.value_threshold" || name == "postprocessing.nms.score_threshold" ||
+         name == "preprocessing.point_feature.value_threshold" || name == "preprocessing.detection_area.z_min" ||
+         name == "preprocessing.detection_area.z_max" || name == "postprocessing.nms.score_threshold" ||
          name == "preprocessing.no_detection_zone.remove_points" || name == "preprocessing.no_detection_zone.x_min" ||
          name == "preprocessing.no_detection_zone.x_max" || name == "preprocessing.no_detection_zone.y_min" ||
          name == "preprocessing.no_detection_zone.y_max" || name == "preprocessing.detection_area.enabled" ||
@@ -906,7 +907,7 @@ void PointCloudObjectDetection::declareParameters() {
                                 std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
                                 "");                                                            // additional_constraints
   this->declareAndLoadParameter("preprocessing.point_feature.value_threshold",
-                                params_.point_feature_value_threshold,                      // name
+                                params_.point_feature_value_threshold,                          // name
                                 "Point-feature value threshold. Defaults to runtime_defaults.preprocessing"
                                 ".point_feature.value_threshold from the model manifest.",
                                 true,                                                           // add_to_auto_reconfigurable_params
@@ -914,6 +915,24 @@ void PointCloudObjectDetection::declareParameters() {
                                 false,                                                          // read_only
                                 0.0, 1000000.0, std::nullopt,                                   // from_value, to_value, step_value
                                 "Must be greater than 0 when value_threshold normalization is used.");
+  this->declareAndLoadParameter("preprocessing.detection_area.z_min", params_.detection_area_z_min,  // name
+                                "Effective preprocessing lower z-bound used for point filtering and tensor "  // description
+                                "construction. Defaults to the model manifest z range and may only narrow it.",
+                                true,                                                           // add_to_auto_reconfigurable_params
+                                false,                                                          // is_required
+                                false,                                                          // read_only
+                                params_.detection_area_z_min, params_.detection_area_z_max, std::nullopt,  // from_value, to_value, step_value
+                                "Must be finite, smaller than preprocessing.detection_area.z_max, and not below"
+                                " the manifest z_min.");
+  this->declareAndLoadParameter("preprocessing.detection_area.z_max", params_.detection_area_z_max,  // name
+                                "Effective preprocessing upper z-bound used for point filtering and tensor "  // description
+                                "construction. Defaults to the model manifest z range and may only narrow it.",
+                                true,                                                           // add_to_auto_reconfigurable_params
+                                false,                                                          // is_required
+                                false,                                                          // read_only
+                                params_.detection_area_z_min, params_.detection_area_z_max, std::nullopt,  // from_value, to_value, step_value
+                                "Must be finite, greater than preprocessing.detection_area.z_min, and not"
+                                " above the manifest z_max.");
 
   this->declareAndLoadParameter("preprocessing.no_detection_zone.enabled", params_.no_detection_zone_enabled,
                                 "Enable rectangular no-detection zone in inference_frame",      // description
@@ -1147,6 +1166,12 @@ void PointCloudObjectDetection::syncModelRuntimeConfigFromParams(ModelConfig& mo
                                                                  const Params& params) const {
   model_config.preprocessing_backend = params.preprocessing_backend;
   model_config.point_feature_value_threshold = static_cast<float>(params.point_feature_value_threshold);
+  model_config.z_min = static_cast<float>(params.detection_area_z_min);
+  model_config.z_max = static_cast<float>(params.detection_area_z_max);
+  if (model_config.pillar_map_range.size() >= 3 && model_config.pillar_map_range[2].size() >= 2) {
+    model_config.pillar_map_range[2][0] = model_config.z_min;
+    model_config.pillar_map_range[2][1] = model_config.z_max;
+  }
   model_config.no_detection_zone_remove_points = params.no_detection_zone_remove_points;
   model_config.no_detection_zone_x_min = params.no_detection_zone_x_min;
   model_config.no_detection_zone_x_max = params.no_detection_zone_x_max;
@@ -1240,6 +1265,8 @@ void PointCloudObjectDetection::loadManifestBackedParameterDefaults() {
                 params_.model_version.c_str(), manifest.artifact.triton.model_version.c_str());
   }
   params_.point_feature_value_threshold = manifest.runtime_defaults.preprocessing.point_feature.value_threshold;
+  params_.detection_area_z_min = manifest.frozen_contract.preprocessing.z_range[0];
+  params_.detection_area_z_max = manifest.frozen_contract.preprocessing.z_range[1];
   params_.output_class_score_threshold = manifest.runtime_defaults.postprocessing.class_score_threshold;
   params_.nms_iou_threshold = manifest.runtime_defaults.postprocessing.nms_iou_threshold;
   params_.nms_max_num_objects = manifest.runtime_defaults.postprocessing.max_detections;
@@ -1291,6 +1318,15 @@ void PointCloudObjectDetection::validateParamsOrThrow() const {
   }
   if (!isFinite(params_.point_feature_value_threshold)) {
     fail("preprocessing.point_feature.value_threshold", "must be finite");
+  }
+  if (!isFinite(params_.detection_area_z_min)) {
+    fail("preprocessing.detection_area.z_min", "must be finite");
+  }
+  if (!isFinite(params_.detection_area_z_max)) {
+    fail("preprocessing.detection_area.z_max", "must be finite");
+  }
+  if (!(params_.detection_area_z_min < params_.detection_area_z_max)) {
+    fail("preprocessing.detection_area.z_min", "must be smaller than preprocessing.detection_area.z_max");
   }
   if (!isFinite(params_.output_class_score_threshold)) {
     fail("postprocessing.class_score_threshold", "must be finite");
@@ -1443,6 +1479,8 @@ ModelConfig PointCloudObjectDetection::loadModelConfig(const Params& params, std
   model_config.y_max = manifest.frozen_contract.preprocessing.y_range[1];
   model_config.z_min = manifest.frozen_contract.preprocessing.z_range[0];
   model_config.z_max = manifest.frozen_contract.preprocessing.z_range[1];
+  model_config.contract_z_min = manifest.frozen_contract.preprocessing.z_range[0];
+  model_config.contract_z_max = manifest.frozen_contract.preprocessing.z_range[1];
   model_config.x_grid_size = manifest.frozen_contract.postprocessing.grid_x;
   model_config.y_grid_size = manifest.frozen_contract.postprocessing.grid_y;
   model_config.voxel_x = manifest.frozen_contract.preprocessing.voxel_x;
@@ -1531,6 +1569,18 @@ void PointCloudObjectDetection::validateModelConfigOrThrow(const ModelConfig& mo
   }
   if (!(model_config.z_min < model_config.z_max)) {
     fail("z_min/z_max", "requires z_min < z_max");
+  }
+  if (!isFinite(model_config.contract_z_min) || !isFinite(model_config.contract_z_max)) {
+    fail("contract_z_min/contract_z_max", "must be finite");
+  }
+  if (!(model_config.contract_z_min < model_config.contract_z_max)) {
+    fail("contract_z_min/contract_z_max", "requires contract_z_min < contract_z_max");
+  }
+  if (model_config.z_min < model_config.contract_z_min) {
+    fail("preprocessing.detection_area.z_min", "must not be below the manifest z_min");
+  }
+  if (model_config.z_max > model_config.contract_z_max) {
+    fail("preprocessing.detection_area.z_max", "must not exceed the manifest z_max");
   }
 
   if (model_config.x_grid_size <= 0) {
@@ -1723,6 +1773,14 @@ void PointCloudObjectDetection::refreshResolvedModelConfigLocked() {
   params_.model_name = model_name;
   model_config_ = std::move(new_model_config);
   nms_config_ = std::move(new_nms_config);
+  if (std::fabs(static_cast<double>(model_config_.z_min) - static_cast<double>(model_config_.contract_z_min)) > 1e-6 ||
+      std::fabs(static_cast<double>(model_config_.z_max) - static_cast<double>(model_config_.contract_z_max)) > 1e-6) {
+    RCLCPP_WARN(this->get_logger(),
+                "Using preprocessing z override [%.3f, %.3f] instead of manifest z range [%.3f, %.3f]. "
+                "This changes point filtering and tensor construction for inference.",
+                static_cast<double>(model_config_.z_min), static_cast<double>(model_config_.z_max),
+                static_cast<double>(model_config_.contract_z_min), static_cast<double>(model_config_.contract_z_max));
+  }
 }
 
 void PointCloudObjectDetection::initializeModel() {
@@ -2464,6 +2522,8 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
       const double sector_radius = params_snapshot.detection_area_radius;
       const double sector_bearing_rad = params_snapshot.detection_area_bearing_deg * M_PI / 180.0;
       const double sector_fov_rad = params_snapshot.detection_area_fov_deg * M_PI / 180.0;
+      const double z_min = params_snapshot.detection_area_z_min;
+      const double z_max = params_snapshot.detection_area_z_max;
       const bool require_complete_box_inside = (params_snapshot.detection_area_filter_mode == "complete");
 
       auto is_point_inside_sector = [&](double x, double y) -> bool {
@@ -2479,17 +2539,28 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
         return std::abs(angle_offset) <= (sector_fov_rad * 0.5 + 1e-9);
       };
 
+      auto is_z_center_inside_range = [&](const BoundingBox& bbox) -> bool {
+        return static_cast<double>(bbox.z) >= z_min && static_cast<double>(bbox.z) <= z_max;
+      };
+
+      auto is_z_extent_inside_range = [&](const BoundingBox& bbox) -> bool {
+        const double half_height = 0.5 * static_cast<double>(bbox.height);
+        const double box_z_min = static_cast<double>(bbox.z) - half_height;
+        const double box_z_max = static_cast<double>(bbox.z) + half_height;
+        return box_z_min >= z_min && box_z_max <= z_max;
+      };
+
       auto is_bounding_box_inside_sector = [&](const BoundingBox& bbox) -> bool {
         if (!require_complete_box_inside) {
-          // "center": cheaper and less strict; keeps boxes with centroids inside the sector.
-          return is_point_inside_sector(bbox.center[0], bbox.center[1]);
+          // "center": cheaper and less strict; keeps boxes with centroids inside the XY sector and z range.
+          return is_point_inside_sector(bbox.center[0], bbox.center[1]) && is_z_center_inside_range(bbox);
         }
-        // "complete": conservative; all 4 oriented box corners must remain inside.
+        // "complete": conservative; all 4 oriented box corners and the full vertical extent must remain inside.
         auto vertices = bbox.rectangle_vertices();
         for (const auto& vertex : vertices) {
           if (!is_point_inside_sector(vertex.x, vertex.y)) return false;
         }
-        return true;
+        return is_z_extent_inside_range(bbox);
       };
 
       auto num_boxes_before = center_boxes.size();
