@@ -413,7 +413,7 @@ void PointCloudObjectDetection::loadBootstrapParameters() {
   repository_desc.description =
       "Path to the exported Triton model repository bundle root (absolute or package-relative).";
   repository_desc.additional_constraints = "Must point to a directory containing model_manifest.yml and config.pbtxt.";
-  repository_desc.read_only = true;
+  repository_desc.read_only = false;
   this->declare_parameter("prediction.model_repository", params_.model_repository, repository_desc);
   params_.model_repository = this->get_parameter("prediction.model_repository").as_string();
 
@@ -421,7 +421,7 @@ void PointCloudObjectDetection::loadBootstrapParameters() {
   version_desc.description =
       "Requested Triton model version directory inside prediction.model_repository. If empty, the exported "
       "default from model_manifest.yml is used.";
-  version_desc.read_only = true;
+  version_desc.read_only = false;
   this->declare_parameter("prediction.model_version", params_.model_version, version_desc);
   params_.model_version = this->get_parameter("prediction.model_version").as_string();
 }
