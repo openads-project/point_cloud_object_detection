@@ -89,7 +89,8 @@ bool requiresModelReinitializationForParameter(const std::string& name) {
          name == "preprocessing.no_detection_zone.y_max" || name == "preprocessing.detection_area.enabled" ||
          name == "preprocessing.detection_area.center_x" || name == "preprocessing.detection_area.center_y" ||
          name == "preprocessing.detection_area.radius" || name == "preprocessing.detection_area.bearing_deg" ||
-         name == "preprocessing.detection_area.fov_deg" || name == "preprocessing.detection_area.num_segments";
+         name == "preprocessing.detection_area.fov_deg" || name == "preprocessing.detection_area.num_segments" ||
+         name == "prediction.model_repository" || name == "prediction.model_version";
 }
 
 std::string resolveModelRepositoryPath(const std::string& path) {
@@ -1266,8 +1267,11 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
 
   bool model_change_on_runtime = false;
   bool publishers_changed = false;
+  const bool suppress_reinit = manifest_params_update_in_progress_.load(std::memory_order_acquire);
+  bool repository_changed = false;
+  bool manifest_defaults_updated = false;
   for (const auto& param : parameters) {
-    if (requiresModelReinitializationForParameter(param.get_name())) {
+    if (!suppress_reinit && requiresModelReinitializationForParameter(param.get_name())) {
       model_change_on_runtime = true;
     }
     if (name_in(param.get_name(),
@@ -1283,6 +1287,17 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
     std::lock_guard<std::mutex> model_lock(model_mutex_);
     try {
       for (const auto& param : parameters) {
+        if (param.get_name() == "prediction.model_repository") {
+          params_.model_repository = param.as_string();
+          applied_parameters.push_back(param);
+          repository_changed = (params_.model_repository != params_before_update.model_repository);
+          continue;
+        }
+        if (param.get_name() == "prediction.model_version") {
+          params_.model_version = param.as_string();
+          applied_parameters.push_back(param);
+          continue;
+        }
         for (auto& auto_reconfigurable_param : auto_reconfigurable_params_) {
           if (param.get_name() == std::get<0>(auto_reconfigurable_param)) {
             std::get<1>(auto_reconfigurable_param)(param);
@@ -1292,10 +1307,19 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
         }
       }
 
+      if (repository_changed) {
+        loadManifestBackedParameterDefaults();
+        manifest_defaults_updated = true;
+      }
+
       const double cscu = pm::object_access::CONTINUOUS_STATE_COVARIANCE_UNKNOWN;
       sanitizeVarianceVector(params_.variance, cscu);
-      syncModelRuntimeConfigFromParams();
-      syncNmsRuntimeConfigFromParams();
+      if (repository_changed) {
+        refreshResolvedModelConfigLocked();
+      } else {
+        syncModelRuntimeConfigFromParams();
+        syncNmsRuntimeConfigFromParams();
+      }
       validateParamsOrThrow();
       if (detection_model_) {
         validateModelConfigOrThrow();
@@ -1318,6 +1342,21 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
   for (const auto& param : applied_parameters) {
     RCLCPP_INFO(this->get_logger(), "Reconfigured parameter '%s' to: %s", param.get_name().c_str(),
                 param.value_to_string().c_str());
+  }
+
+  if (manifest_defaults_updated) {
+    std::vector<rclcpp::Parameter> pending;
+    pending.emplace_back("prediction.model_version", params_.model_version);
+    pending.emplace_back("preprocessing.point_feature.value_threshold", params_.point_feature_value_threshold);
+    pending.emplace_back("postprocessing.class_score_threshold", params_.output_class_score_threshold);
+    pending.emplace_back("postprocessing.nms.iou_threshold", params_.nms_iou_threshold);
+    pending.emplace_back("postprocessing.nms.max_num_objects", params_.nms_max_num_objects);
+    pending.emplace_back("postprocessing.nms.score_threshold", params_.nms_score_threshold);
+    {
+      std::lock_guard<std::mutex> pending_lock(manifest_params_mutex_);
+      pending_manifest_params_ = std::move(pending);
+    }
+    manifest_params_update_pending_.store(true, std::memory_order_release);
   }
 
   // Reinitialize model if runtime-critical configuration changed
@@ -1605,6 +1644,25 @@ void PointCloudObjectDetection::boxesToObjectList(const std::vector<BoundingBox>
 void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg) {
   // Guard the whole callback so unexpected runtime errors drop only this frame instead of crashing the node.
   try {
+    if (manifest_params_update_pending_.exchange(false, std::memory_order_acq_rel)) {
+      std::vector<rclcpp::Parameter> pending;
+      {
+        std::lock_guard<std::mutex> pending_lock(manifest_params_mutex_);
+        pending = pending_manifest_params_;
+      }
+      if (!pending.empty()) {
+        manifest_params_update_in_progress_.store(true, std::memory_order_release);
+        const auto results = this->set_parameters(pending);
+        manifest_params_update_in_progress_.store(false, std::memory_order_release);
+        for (std::size_t i = 0; i < results.size(); ++i) {
+          if (!results[i].successful) {
+            RCLCPP_WARN(this->get_logger(), "Failed to apply manifest default for '%s': %s",
+                        pending[i].get_name().c_str(), results[i].reason.c_str());
+          }
+        }
+      }
+    }
+
     if (publishers_update_pending_.exchange(false, std::memory_order_acq_rel)) {
       setupPublishers();
     }
