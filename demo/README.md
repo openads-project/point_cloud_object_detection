@@ -16,7 +16,7 @@ This directory contains a self-contained demo setup for the `point_cloud_object_
 - `triton-server`: serves the model repository from `./models`.
 - `point-cloud-object-detection`: runs the packaged detection node against the Triton server.
 - `pcd-publisher`: publishes the sample point clouds to `/demo/points`.
-- `rviz`: visualizes `/demo/points`, `/demo/objects`, and `/demo/model_bounds`.
+- `rviz`: visualizes `/demo/points`, `/demo/objects`, `/demo/detection_area`, `/demo/no_detection_zone`, `/demo/no_detection_zone_points`, and `/demo/model_bounds`.
 - `ros-parameter-gui`: starts `rqt_reconfigure` for interactive parameter changes.
 
 ## Run
@@ -24,10 +24,11 @@ This directory contains a self-contained demo setup for the `point_cloud_object_
 From this directory:
 
 ```bash
+xhost +local:
 docker compose up
 ```
 
-The detection node consumes `/demo/points` and publishes detections on `/demo/objects`. It also publishes occupancy grids on `/demo/density_grid_map`, `/demo/occupancy_grid_map`, `/demo/combined_grid_map`, and `/demo/static_grid_map`.
+The detection node consumes `/demo/points` and publishes detections on `/demo/objects`. It also publishes polygons on `/demo/detection_area`, `/demo/no_detection_zone`, and `/demo/model_bounds`, no-detection-zone points on `/demo/no_detection_zone_points`, and grid maps on `/demo/density_grid_map`, `/demo/occupancy_grid_map`, `/demo/combined_grid_map`, and `/demo/static_grid_map`.
 
 ## Interacting Through `rqt`
 

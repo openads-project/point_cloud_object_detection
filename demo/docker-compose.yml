@@ -55,6 +55,9 @@ services:
       name:=point_cloud_object_detection
       point_cloud_topic:=/demo/points
       object_list_topic:=/demo/objects
+      no_detection_zone_topic:=/demo/no_detection_zone
+      no_detection_zone_points_topic:=/demo/no_detection_zone_points
+      detection_area_topic:=/demo/detection_area
       model_bounds_topic:=/demo/model_bounds
       density_grid_map_topic:=/demo/density_grid_map
       occupancy_grid_map_topic:=/demo/occupancy_grid_map
