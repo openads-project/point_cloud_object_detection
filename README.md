@@ -8,7 +8,7 @@ This node does not perform the inference itself, but needs a [Triton server](htt
 
 ## Demo
 
-A compact demo is provided in [demo/README.md](/docker-ros/ws/src/target/demo/README.md). It uses Docker Compose to start a Triton server, the packaged detection node, a point cloud publisher, RViz, and an `rqt` parameter GUI to interact with the node.
+A compact demo is provided in [demo/README.md](demo/README.md). It uses Docker Compose to start a Triton server, the packaged detection node, a point cloud publisher, RViz, and an `rqt` parameter GUI to interact with the node.
 
 ## Nodes
 
