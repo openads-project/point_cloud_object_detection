@@ -1770,6 +1770,7 @@ void PointCloudObjectDetection::refreshResolvedModelConfigLocked() {
   std::string model_name;
   pcod_common::NmsConfig new_nms_config;
   auto new_model_config = loadModelConfig(params_snapshot, model_name, new_nms_config);
+  validateModelConfigOrThrow(new_model_config);
   params_.model_name = model_name;
   model_config_ = std::move(new_model_config);
   nms_config_ = std::move(new_nms_config);
