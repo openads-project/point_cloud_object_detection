@@ -792,367 +792,367 @@ void PointCloudObjectDetection::declareParameters() {
   const double cscu = pm::object_access::CONTINUOUS_STATE_COVARIANCE_UNKNOWN;
 
   // clang-format off
-  this->declareAndLoadParameter("preprocessing.backend", params_.preprocessing_backend,                     // name
+  this->declareAndLoadParameter("preprocessing.backend", params_.preprocessing_backend,                                 // name
                                 "Point preprocessing backend: 'cpu' or 'cuda'. If 'cuda' is selected, the node"
-                                " fails fast when CUDA preprocessing support is unavailable.",
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "Must be one of: 'cpu', 'cuda'.");                              // additional_constraints
-  this->declareAndLoadParameter("prediction.server_url", params_.server_url,                               // name
-                                "URL of the triton server, e.g. 134.130.20.221:8001",           // description
-                                false,                                                          // add_to_auto_reconfigurable_params
-                                true,                                                           // is_required
-                                true,                                                           // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "Must be set.");                                                // additional_constraints
-  this->declareAndLoadParameter("prediction.triton_client_timeout_s", params_.triton_client_timeout_s,     // name
-                                "Client timeout for Triton requests in seconds (0.0 disables timeout)",
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                0.0, kMaxTritonClientTimeoutS, std::nullopt,                    // from_value, to_value, step_value
-                                "Must be non-negative.");                                       // additional_constraints
-  this->declareAndLoadParameter("prediction.use_shm", params_.use_shm,                                     // name
-                                "Whether or not to use shared memory for Triton",               // description
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "");                                                            // additional_constraints
-  this->declareAndLoadParameter("prediction.cuda_input_shm", params_.cuda_input_shm,                     // name
+                                " fails fast when CUDA preprocessing support is unavailable.",                          // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "Must be one of: 'cpu', 'cuda'.");                                                      // additional_constraints
+  this->declareAndLoadParameter("prediction.server_url", params_.server_url,                                            // name
+                                "URL of the triton server, e.g. 134.130.20.221:8001",                                   // description
+                                false,                                                                                  // add_to_auto_reconfigurable_params
+                                true,                                                                                   // is_required
+                                true,                                                                                   // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "Must be set.");                                                                        // additional_constraints
+  this->declareAndLoadParameter("prediction.triton_client_timeout_s", params_.triton_client_timeout_s,                  // name
+                                "Client timeout for Triton requests in seconds (0.0 disables timeout)",                 // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                0.0, kMaxTritonClientTimeoutS, std::nullopt,                                            // from_value, to_value, step_value
+                                "Must be non-negative.");                                                               // additional_constraints
+  this->declareAndLoadParameter("prediction.use_shm", params_.use_shm,                                                  // name
+                                "Whether or not to use shared memory for Triton",                                       // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "");                                                                                    // additional_constraints
+  this->declareAndLoadParameter("prediction.cuda_input_shm", params_.cuda_input_shm,                                    // name
                                 "If true, require Triton input tensors to use CUDA shared memory."
                                 " This is only used when preprocessing.backend='cuda' and is independent of"
-                                " prediction.use_shm. If CUDA shared memory is unavailable, node startup fails.",
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "");                                                            // additional_constraints
-  this->declareAndLoadParameter("preprocessing.inference_frame", params_.inference_frame,       // name
-                                "Frame for inference",                                          // description
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                true,                                                           // is_required
-                                false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "Must be set.");                                                // additional_constraints
-  this->declareAndLoadParameter("output.frame", params_.output_frame,                           // name
-                                "Frame for object list",                                        // description
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                true,                                                           // is_required
-                                false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "Must be set.");                                                // additional_constraints
-  this->declareAndLoadParameter("output.sensor_id", params_.sensor_id,                                 // name
-                                "Sensor ID for object list",                                    // description
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
+                                " prediction.use_shm. If CUDA shared memory is unavailable, node startup fails.",       // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "");                                                                                    // additional_constraints
+  this->declareAndLoadParameter("preprocessing.inference_frame", params_.inference_frame,                               // name
+                                "Frame for inference",                                                                  // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                true,                                                                                   // is_required
+                                false,                                                                                  // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "Must be set.");                                                                        // additional_constraints
+  this->declareAndLoadParameter("output.frame", params_.output_frame,                                                   // name
+                                "Frame for object list",                                                                // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                true,                                                                                   // is_required
+                                false,                                                                                  // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "Must be set.");                                                                        // additional_constraints
+  this->declareAndLoadParameter("output.sensor_id", params_.sensor_id,                                                  // name
+                                "Sensor ID for object list",                                                            // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
                                 static_cast<double>(kMinSensorId), static_cast<double>(kMaxSensorId),
-                                static_cast<double>(kSensorIdStep),                             // from_value, to_value, step_value
+                                static_cast<double>(kSensorIdStep),                                                     // from_value, to_value, step_value
                                 "Must be in range [" + std::to_string(kMinSensorId) + ", " +
-                                    std::to_string(kMaxSensorId) + "].");                       // additional_constraints
+                                    std::to_string(kMaxSensorId) + "].");                                               // additional_constraints
 
   this->declareAndLoadParameter(
-      "output.variances", params_.variance,                                                     // name
-      "Array with variances. Entries correspond to ISCACTR model defined in perception interfaces",
-      true,                                                                                     // add_to_auto_reconfigurable_params
-      false,                                                                                    // is_required
-      false,                                                                                    // read_only
-      std::nullopt, std::nullopt, std::nullopt,                                                 // from_value, to_value, step_value
-      "");                                                                                      // additional_constraints
+      "output.variances", params_.variance,                                                                             // name
+      "Array with variances. Entries correspond to ISCACTR model defined in perception interfaces",                     // description
+      true,                                                                                                             // add_to_auto_reconfigurable_params
+      false,                                                                                                            // is_required
+      false,                                                                                                            // read_only
+      std::nullopt, std::nullopt, std::nullopt,                                                                         // from_value, to_value, step_value
+      "");                                                                                                              // additional_constraints
   sanitizeVarianceVector(params_.variance, cscu);
 
-  this->declareAndLoadParameter("postprocessing.class_score_threshold",                         // name
+  this->declareAndLoadParameter("postprocessing.class_score_threshold",                                                 // name
                                 params_.output_class_score_threshold,
                                 "Output class score threshold. Defaults to runtime_defaults.postprocessing."
-                                "class_score_threshold from the model manifest.",
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                kMinClassScoreThreshold, kMaxClassScoreThreshold, std::nullopt, // from_value, to_value, step_value
-                                "Must be within [0.0, 1.0].");                                  // additional_constraints
-  this->declareAndLoadParameter("postprocessing.nms.iou_threshold", params_.nms_iou_threshold,                // name
+                                "class_score_threshold from the model manifest.",                                       // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                kMinClassScoreThreshold, kMaxClassScoreThreshold, std::nullopt,                         // from_value, to_value, step_value
+                                "Must be within [0.0, 1.0].");                                                          // additional_constraints
+  this->declareAndLoadParameter("postprocessing.nms.iou_threshold", params_.nms_iou_threshold,                          // name
                                 "NMS IoU threshold. Defaults to runtime_defaults.postprocessing.nms."
-                                "iou_threshold from the model manifest.",
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                kMinClassScoreThreshold, kMaxClassScoreThreshold, std::nullopt, // from_value, to_value, step_value
-                                "Must be within [0.0, 1.0].");                                  // additional_constraints
-  this->declareAndLoadParameter("postprocessing.nms.max_num_objects", params_.nms_max_num_objects,            // name
+                                "iou_threshold from the model manifest.",                                               // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                kMinClassScoreThreshold, kMaxClassScoreThreshold, std::nullopt,                         // from_value, to_value, step_value
+                                "Must be within [0.0, 1.0].");                                                          // additional_constraints
+  this->declareAndLoadParameter("postprocessing.nms.max_num_objects", params_.nms_max_num_objects,                      // name
                                 "Maximum number of objects after NMS. Defaults to runtime_defaults.postprocessing"
-                                ".nms.max_num_objects from the model manifest.",
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                0.0, static_cast<double>(std::numeric_limits<int32_t>::max()), std::nullopt,
-                                "Must be zero or positive.");                                   // additional_constraints
-  this->declareAndLoadParameter("postprocessing.nms.score_threshold",                           // name
+                                ".nms.max_num_objects from the model manifest.",                                        // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                0.0, static_cast<double>(std::numeric_limits<int32_t>::max()), std::nullopt,            // from_value, to_value, step_value
+                                "Must be zero or positive.");                                                           // additional_constraints
+  this->declareAndLoadParameter("postprocessing.nms.score_threshold",                                                   // name
                                 params_.nms_score_threshold,
                                 "NMS score threshold (single value or per-class list). Defaults to runtime_defaults"
-                                ".postprocessing.nms.score_threshold from the model manifest.",
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
+                                ".postprocessing.nms.score_threshold from the model manifest.",                         // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
                                 "Must contain exactly one value or one value per predicted class; entries must be"
-                                " in [0.0, 1.0].");
-  this->declareAndLoadParameter("input.point_feature_field", params_.point_feature_field,       // name
-                                "Single-feature source: 'intensity' or 'reflectivity'",         // description
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "");                                                            // additional_constraints
+                                " in [0.0, 1.0].");                                                                     // additional_constraints
+  this->declareAndLoadParameter("input.point_feature_field", params_.point_feature_field,                               // name
+                                "Single-feature source: 'intensity' or 'reflectivity'",                                 // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "");                                                                                    // additional_constraints
   this->declareAndLoadParameter("preprocessing.point_feature.value_threshold",
-                                params_.point_feature_value_threshold,                          // name
+                                params_.point_feature_value_threshold,                                                  // name
                                 "Point-feature value threshold. Defaults to runtime_defaults.preprocessing"
-                                ".point_feature.value_threshold from the model manifest.",
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                0.0, 1000000.0, std::nullopt,                                   // from_value, to_value, step_value
-                                "Must be greater than 0 when value_threshold normalization is used.");
-  this->declareAndLoadParameter("preprocessing.detection_area.z_min", params_.detection_area_z_min,  // name
-                                "Effective preprocessing lower z-bound used for point filtering and tensor "  // description
-                                "construction. Defaults to the model manifest z range and may only narrow it.",
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                params_.detection_area_z_min, params_.detection_area_z_max, std::nullopt,  // from_value, to_value, step_value
+                                ".point_feature.value_threshold from the model manifest.",                              // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                0.0, 1000000.0, std::nullopt,                                                           // from_value, to_value, step_value
+                                "Must be greater than 0 when value_threshold normalization is used.");                  // additional_constraints
+  this->declareAndLoadParameter("preprocessing.detection_area.z_min", params_.detection_area_z_min,                     // name
+                                "Effective preprocessing lower z-bound used for point filtering and tensor "
+                                "construction. Defaults to the model manifest z range and may only narrow it.",         // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                params_.detection_area_z_min, params_.detection_area_z_max, std::nullopt,               // from_value, to_value, step_value
                                 "Must be finite, smaller than preprocessing.detection_area.z_max, and not below"
-                                " the manifest z_min.");
-  this->declareAndLoadParameter("preprocessing.detection_area.z_max", params_.detection_area_z_max,  // name
-                                "Effective preprocessing upper z-bound used for point filtering and tensor "  // description
-                                "construction. Defaults to the model manifest z range and may only narrow it.",
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                params_.detection_area_z_min, params_.detection_area_z_max, std::nullopt,  // from_value, to_value, step_value
+                                " the manifest z_min.");                                                                // additional_constraints
+  this->declareAndLoadParameter("preprocessing.detection_area.z_max", params_.detection_area_z_max,                     // name
+                                "Effective preprocessing upper z-bound used for point filtering and tensor "
+                                "construction. Defaults to the model manifest z range and may only narrow it.",         // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                params_.detection_area_z_min, params_.detection_area_z_max, std::nullopt,               // from_value, to_value, step_value
                                 "Must be finite, greater than preprocessing.detection_area.z_min, and not"
-                                " above the manifest z_max.");
+                                " above the manifest z_max.");                                                          // additional_constraints
 
   this->declareAndLoadParameter("preprocessing.no_detection_zone.enabled", params_.no_detection_zone_enabled,
-                                "Enable rectangular no-detection zone in inference_frame",      // description
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "");                                                            // additional_constraints
+                                "Enable rectangular no-detection zone in inference_frame",                              // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "");                                                                                    // additional_constraints
   this->declareAndLoadParameter("preprocessing.no_detection_zone.remove_points", params_.no_detection_zone_remove_points,
                                 "If true, remove raw points inside the no-detection zone from model input and"
-                                " unclassified point publishing",
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "");                                                            // additional_constraints
-  this->declareAndLoadParameter("preprocessing.no_detection_zone.x_min", params_.no_detection_zone_x_min,    // name
-                                "No-detection zone x_min (inference_frame)",                    // description
-                                true,                                                          // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                      // from_value, to_value, step_value
-                                "");                                                            // additional_constraints
-  this->declareAndLoadParameter("preprocessing.no_detection_zone.x_max", params_.no_detection_zone_x_max,    // name
-                                "No-detection zone x_max (inference_frame)",                    // description
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "");                                                            // additional_constraints
-  this->declareAndLoadParameter("preprocessing.no_detection_zone.y_min", params_.no_detection_zone_y_min,    // name
-                                "No-detection zone y_min (inference_frame)",                    // description
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "");                                                            // additional_constraints
-  this->declareAndLoadParameter("preprocessing.no_detection_zone.y_max", params_.no_detection_zone_y_max,    // name
-                                "No-detection zone y_max (inference_frame)",                    // description
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "");                                                            // additional_constraints
+                                " unclassified point publishing",                                                       // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "");                                                                                    // additional_constraints
+  this->declareAndLoadParameter("preprocessing.no_detection_zone.x_min", params_.no_detection_zone_x_min,               // name
+                                "No-detection zone x_min (inference_frame)",                                            // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "");                                                                                    // additional_constraints
+  this->declareAndLoadParameter("preprocessing.no_detection_zone.x_max", params_.no_detection_zone_x_max,               // name
+                                "No-detection zone x_max (inference_frame)",                                            // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "");                                                                                    // additional_constraints
+  this->declareAndLoadParameter("preprocessing.no_detection_zone.y_min", params_.no_detection_zone_y_min,               // name
+                                "No-detection zone y_min (inference_frame)",                                            // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "");                                                                                    // additional_constraints
+  this->declareAndLoadParameter("preprocessing.no_detection_zone.y_max", params_.no_detection_zone_y_max,               // name
+                                "No-detection zone y_max (inference_frame)",                                            // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "");                                                                                    // additional_constraints
   this->declareAndLoadParameter("preprocessing.no_detection_zone.publish_polygon", params_.no_detection_zone_publish_polygon,
-                                "If true, publish a geometry_msgs/PolygonStamped with the no-detection zone bounds",
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "");                                                            // additional_constraints
+                                "If true, publish a geometry_msgs/PolygonStamped with the no-detection zone bounds",    // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "");                                                                                    // additional_constraints
   this->declareAndLoadParameter("preprocessing.no_detection_zone.publish_points", params_.no_detection_zone_publish_points,
-                                "If true, publish raw points inside the no-detection zone",     // description
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "");                                                            // additional_constraints
+                                "If true, publish raw points inside the no-detection zone",                             // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "");                                                                                    // additional_constraints
 
-  this->declareAndLoadParameter("preprocessing.detection_area.enabled", params_.detection_area_enabled,      // name
-                                "Enable circular-sector detection area",                        // description
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "");                                                            // additional_constraints
-  this->declareAndLoadParameter("preprocessing.detection_area.center_x", params_.detection_area_center_x,    // name
-                                "Detection area center x (m) in inference_frame",               // description
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "");                                                            // additional_constraints
-  this->declareAndLoadParameter("preprocessing.detection_area.center_y", params_.detection_area_center_y,    // name
-                                "Detection area center y (m) in inference_frame",               // description
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "");                                                            // additional_constraints
-  this->declareAndLoadParameter("preprocessing.detection_area.radius", params_.detection_area_radius,        // name
-                                "Detection area radius (m)",                                    // description
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                kMinDetectionAreaRadius, kMaxDetectionAreaRadius, std::nullopt, // from_value, to_value, step_value
-                                "Must be non-negative.");                                       // additional_constraints
+  this->declareAndLoadParameter("preprocessing.detection_area.enabled", params_.detection_area_enabled,                 // name
+                                "Enable circular-sector detection area",                                                // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "");                                                                                    // additional_constraints
+  this->declareAndLoadParameter("preprocessing.detection_area.center_x", params_.detection_area_center_x,               // name
+                                "Detection area center x (m) in inference_frame",                                       // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "");                                                                                    // additional_constraints
+  this->declareAndLoadParameter("preprocessing.detection_area.center_y", params_.detection_area_center_y,               // name
+                                "Detection area center y (m) in inference_frame",                                       // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "");                                                                                    // additional_constraints
+  this->declareAndLoadParameter("preprocessing.detection_area.radius", params_.detection_area_radius,                   // name
+                                "Detection area radius (m)",                                                            // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                kMinDetectionAreaRadius, kMaxDetectionAreaRadius, std::nullopt,                         // from_value, to_value, step_value
+                                "Must be non-negative.");                                                               // additional_constraints
   this->declareAndLoadParameter("preprocessing.detection_area.bearing_deg", params_.detection_area_bearing_deg,
-                                "Detection area central azimuth (deg, 0 along +x, CCW positive)",
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                kMinDetectionAreaBearingDeg, kMaxDetectionAreaBearingDeg, std::nullopt,
-                                "Must be within [-360, 360].");                                 // additional_constraints
-  this->declareAndLoadParameter("preprocessing.detection_area.fov_deg", params_.detection_area_fov_deg,      // name
-                                "Detection area FOV angle (deg)",                               // description
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                kMinDetectionAreaFovDeg, kMaxDetectionAreaFovDeg, std::nullopt, // from_value, to_value, step_value
-                                "Must be in the range (0, 360].");                              // additional_constraints
+                                "Detection area central azimuth (deg, 0 along +x, CCW positive)",                       // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                kMinDetectionAreaBearingDeg, kMaxDetectionAreaBearingDeg, std::nullopt,                 // from_value, to_value, step_value
+                                "Must be within [-360, 360].");                                                         // additional_constraints
+  this->declareAndLoadParameter("preprocessing.detection_area.fov_deg", params_.detection_area_fov_deg,                 // name
+                                "Detection area FOV angle (deg)",                                                       // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                kMinDetectionAreaFovDeg, kMaxDetectionAreaFovDeg, std::nullopt,                         // from_value, to_value, step_value
+                                "Must be in the range (0, 360].");                                                      // additional_constraints
   this->declareAndLoadParameter("preprocessing.detection_area.publish_polygon", params_.detection_area_publish_polygon,
-                                "Publish geometry_msgs/PolygonStamped approximating the sector",
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "");                                                            // additional_constraints
+                                "Publish geometry_msgs/PolygonStamped approximating the sector",                        // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "");                                                                                    // additional_constraints
   this->declareAndLoadParameter("preprocessing.detection_area.num_segments", params_.detection_area_num_segments,
-                                "Number of segments to approximate the circular arc (>= 3)",    // description
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
+                                "Number of segments to approximate the circular arc (>= 3)",                            // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
                                 static_cast<double>(kMinDetectionAreaNumSegments),
                                 static_cast<double>(kMaxDetectionAreaNumSegments),
-                                std::nullopt,
-                                "Must be greater than or equal to 3.");                         // additional_constraints
+                                std::nullopt,                                                                           // from_value, to_value, step_value
+                                "Must be greater than or equal to 3.");                                                 // additional_constraints
   this->declareAndLoadParameter("preprocessing.detection_area.filter_detections", params_.detection_area_filter_detections,
-                                "Remove detections outside the detection area",                 // description
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "");                                                            // additional_constraints
+                                "Remove detections outside the detection area",                                         // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "");                                                                                    // additional_constraints
   this->declareAndLoadParameter("preprocessing.detection_area.filter_mode", params_.detection_area_filter_mode,
-                                "Filtering mode: 'center' or 'complete'",                       // description
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "Must be one of: 'center', 'complete'.");                       // additional_constraints
+                                "Filtering mode: 'center' or 'complete'",                                               // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "Must be one of: 'center', 'complete'.");                                               // additional_constraints
 
   this->declareAndLoadParameter("output.model_bounds.publish_polygon", params_.model_bounds_publish_polygon,
-                                "Publish the model x/y range rectangle as geometry_msgs/PolygonStamped",
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "");                                                            // additional_constraints
+                                "Publish the model x/y range rectangle as geometry_msgs/PolygonStamped",                // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "");                                                                                    // additional_constraints
   this->declareAndLoadParameter("output.grid_maps.frame", params_.grid_map_frame,
-                                "Frame for auxiliary grid-map publication. If empty, use the inference frame.",
-                                true,
-                                false,
-                                false,
-                                std::nullopt, std::nullopt, std::nullopt,
-                                "");
+                                "Frame for auxiliary grid-map publication. If empty, use the inference frame.",         // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "");                                                                                    // additional_constraints
   this->declareAndLoadParameter("output.grid_maps.publish_density", params_.publish_density_grid_map,
-                                "Publish decoded density logits as an auxiliary grid map",
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,
-                                "");
+                                "Publish decoded density logits as an auxiliary grid map",                              // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "");                                                                                    // additional_constraints
   this->declareAndLoadParameter("output.grid_maps.publish_occupancy", params_.publish_occupancy_grid_map,
-                                "Publish decoded occupancy logits as an auxiliary grid map",
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,
-                                "");
+                                "Publish decoded occupancy logits as an auxiliary grid map",                            // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "");                                                                                    // additional_constraints
   this->declareAndLoadParameter("output.grid_maps.publish_combined", params_.publish_combined_grid_map,
-                                "Publish a combined auxiliary occupancy grid map",              // description
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "");                                                            // additional_constraints
+                                "Publish a combined auxiliary occupancy grid map",                                      // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "");                                                                                    // additional_constraints
   this->declareAndLoadParameter("output.grid_maps.publish_static", params_.publish_static_grid_map,
-                                "Publish a static-obstacle occupancy grid map",                 // description
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                std::nullopt, std::nullopt, std::nullopt,                       // from_value, to_value, step_value
-                                "");                                                            // additional_constraints
+                                "Publish a static-obstacle occupancy grid map",                                         // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "");                                                                                    // additional_constraints
   this->declareAndLoadParameter("output.grid_maps.zero_in_no_detection_zone",
                                 params_.zero_grid_map_cells_in_no_detection_zone,
                                 "If true, set published auxiliary grid-map cells inside the configured no-detection"
-                                " zone to zero",
-                                true,
-                                false,
-                                false,
-                                std::nullopt, std::nullopt, std::nullopt,
-                                "");
+                                " zone to zero",                                                                        // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "");                                                                                    // additional_constraints
   this->declareAndLoadParameter("output.grid_maps.zero_outside_detection_area",
                                 params_.zero_grid_map_cells_outside_detection_area,
                                 "If true, set published auxiliary grid-map cells outside the configured detection"
-                                " area to zero",
-                                true,
-                                false,
-                                false,
-                                std::nullopt, std::nullopt, std::nullopt,
-                                "");
+                                " area to zero",                                                                        // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "");                                                                                    // additional_constraints
   this->declareAndLoadParameter("output.grid_maps.density_gain", params_.density_grid_map_gain,
-                                "Linear gain applied to the published density grid map",        // description
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                0.0, 100.0, std::nullopt,                                       // from_value, to_value, step_value
-                                "Must be within [0, 100].");                                    // additional_constraints
+                                "Linear gain applied to the published density grid map",                                // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                0.0, 100.0, std::nullopt,                                                               // from_value, to_value, step_value
+                                "Must be within [0, 100].");                                                            // additional_constraints
   this->declareAndLoadParameter("output.grid_maps.occupancy_gain", params_.occupancy_grid_map_gain,
-                                "Linear gain applied to the published occupancy grid map",      // description
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                0.0, 100.0, std::nullopt,                                       // from_value, to_value, step_value
-                                "Must be within [0, 100].");                                    // additional_constraints
+                                "Linear gain applied to the published occupancy grid map",                              // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                0.0, 100.0, std::nullopt,                                                               // from_value, to_value, step_value
+                                "Must be within [0, 100].");                                                            // additional_constraints
   this->declareAndLoadParameter("output.grid_maps.combined_gain", params_.combined_grid_map_gain,
-                                "Linear gain applied to the published combined grid map",       // description
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                0.0, 100.0, std::nullopt,                                       // from_value, to_value, step_value
-                                "Must be within [0, 100].");                                    // additional_constraints
+                                "Linear gain applied to the published combined grid map",                               // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                0.0, 100.0, std::nullopt,                                                               // from_value, to_value, step_value
+                                "Must be within [0, 100].");                                                            // additional_constraints
   this->declareAndLoadParameter("output.grid_maps.static_gain", params_.static_grid_map_gain,
-                                "Linear gain applied to the published static grid map",        // description
-                                true,                                                           // add_to_auto_reconfigurable_params
-                                false,                                                          // is_required
-                                false,                                                          // read_only
-                                0.0, 100.0, std::nullopt,                                       // from_value, to_value, step_value
-                                "Must be within [0, 100].");                                    // additional_constraints
+                                "Linear gain applied to the published static grid map",                                 // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                0.0, 100.0, std::nullopt,                                                               // from_value, to_value, step_value
+                                "Must be within [0, 100].");                                                            // additional_constraints
 
   validateParamsOrThrow();
   // clang-format on
