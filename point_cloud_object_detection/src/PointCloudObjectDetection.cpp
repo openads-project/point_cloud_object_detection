@@ -2395,6 +2395,36 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
         static_grid_map = buildStaticAuxiliaryGridMap(*density_grid_map, *occupancy_grid_map);
       }
     }
+    if (params_snapshot.publish_density_grid_map && !density_grid_map.has_value()) {
+      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                           "Density grid map publication was requested, but the model did not provide "
+                           "density_logits output.");
+    }
+    if (params_snapshot.publish_occupancy_grid_map && !occupancy_grid_map.has_value()) {
+      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                           "Occupancy grid map publication was requested, but the model did not provide "
+                           "occupancy_logits output.");
+    }
+    if (params_snapshot.publish_combined_grid_map && !combined_grid_map.has_value()) {
+      if (!density_grid_map.has_value() || !occupancy_grid_map.has_value()) {
+        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                             "Combined grid map publication was requested, but density_logits and occupancy_logits "
+                             "outputs are not both available.");
+      } else {
+        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                             "Failed to build combined grid map from incompatible model outputs.");
+      }
+    }
+    if (params_snapshot.publish_static_grid_map && !static_grid_map.has_value()) {
+      if (!density_grid_map.has_value() || !occupancy_grid_map.has_value()) {
+        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                             "Static grid map publication was requested, but density_logits and occupancy_logits "
+                             "outputs are not both available.");
+      } else {
+        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                             "Failed to build static grid map from incompatible model outputs.");
+      }
+    }
     if (params_snapshot.publish_density_grid_map && density_grid_map.has_value()) {
       applyAuxiliaryGridMapMasks(*density_grid_map, params_snapshot);
       applyAuxiliaryGridMapGain(*density_grid_map, params_snapshot.density_grid_map_gain);
@@ -2475,9 +2505,6 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
         RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
                              "Failed to build static grid map message from model output.");
       }
-    } else if (params_snapshot.publish_static_grid_map && static_grid_pub) {
-      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
-                           "Failed to build static grid map message from model output.");
     }
 
     const std::size_t boxes_before_nms = center_boxes.size();
