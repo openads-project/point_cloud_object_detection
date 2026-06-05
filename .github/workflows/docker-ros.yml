@@ -1,0 +1,34 @@
+name: docker-ros
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  docker-ros:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ika-rwth-aachen/docker-ros@main
+        with:
+          platform: amd64,arm64
+          target: dev,run
+          base-image: rwthika/ros2-triton:jazzy
+          rmw-implementation: rmw_zenoh_cpp
+          command: ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py
+          enable-industrial-ci: true
+        env:
+          ENABLE_RECURSIVE_VCS_IMPORT: 'false'
+          TARGET_CMAKE_ARGS: -DCMAKE_EXPORT_COMPILE_COMMANDS=1
+          ADDITIONAL_SLIM_BUILD_ARGS: >-
+            --compose-file ${GITHUB_WORKSPACE}/docker/slim-compose.yml
+            --compose-workdir ${GITHUB_WORKSPACE}
+            --target-compose-svc point-cloud-object-detection
+            --target-compose-svc-image ${FAT_IMAGE}
+            --dep-exclude-compose-svc-all
