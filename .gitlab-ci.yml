@@ -21,7 +21,7 @@ docker-ros:
       --compose-file ../docker/slim-compose.yml
       --compose-workdir ..
       --target-compose-svc point-cloud-object-detection
-      --target-compose-svc-image ${FAT_IMAGE}
+      --target-compose-svc-image $$FAT_IMAGE
       --dep-exclude-compose-svc-all
     ENABLE_INDUSTRIAL_CI: 'false'
     TARGET_CMAKE_ARGS: '-DCMAKE_EXPORT_COMPILE_COMMANDS=1'
