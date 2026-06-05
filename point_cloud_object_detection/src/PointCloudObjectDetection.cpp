@@ -1,3 +1,6 @@
+// Copyright Institute for Automotive Engineering (ika), RWTH Aachen University
+// SPDX-License-Identifier: Apache-2.0
+
 #include "point_cloud_object_detection/PointCloudObjectDetection.hpp"
 
 #include <algorithm>
