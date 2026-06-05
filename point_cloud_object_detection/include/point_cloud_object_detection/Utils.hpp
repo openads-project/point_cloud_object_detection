@@ -13,13 +13,25 @@
 #include <vector>
 
 namespace point_cloud_object_detection {
+/**
+ * @brief Convert an arbitrary class name into a topic-safe suffix.
+ */
 std::string sanitizeTopicName(const std::string& class_name);
 
+/**
+ * @brief Generate evenly spaced values between two bounds.
+ */
 std::vector<float> linspace(float start_in, float end_in, int num_in);
 
+/**
+ * @brief Wrap a scalar value into a half-open numeric range.
+ */
 float wrap_to_range(float val, float min_val = -M_PI, float max_val = M_PI);
 
 struct IntPairHash {
+  /**
+   * @brief Hash a pair of unsigned integer indices.
+   */
   std::size_t operator()(const std::pair<uint32_t, uint32_t>& pair) const;
 };
 

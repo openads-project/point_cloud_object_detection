@@ -60,6 +60,9 @@ class PointCloudObjectDetection : public rclcpp::Node {
   * @param options NodeOptions
   */
   explicit PointCloudObjectDetection(const rclcpp::NodeOptions& options);
+  /**
+   * @brief Destroy the node and release model/client resources.
+   */
   ~PointCloudObjectDetection() override;
 
  protected:
@@ -71,24 +74,39 @@ class PointCloudObjectDetection : public rclcpp::Node {
    * @brief Loads all ROS parameters for the node itself
    */
   void loadParameters();
+  /**
+   * @brief Load the minimal parameters required before model-manifest defaults are available.
+   */
   void loadBootstrapParameters();
+  /**
+   * @brief Load parameter defaults that are defined by the selected model manifest.
+   */
   void loadManifestBackedParameterDefaults();
   /**
    * @brief Synchronize model runtime options from the loaded node parameters
-   */
+  */
   void syncModelRuntimeConfigFromParams();
+  /**
+   * @brief Copy model-related runtime parameters into a model configuration object.
+   */
   void syncModelRuntimeConfigFromParams(ModelConfig& model_config, const Params& params) const;
   /**
    * @brief Apply optional NMS overrides from node params onto manifest-derived model config
-   */
+  */
   void syncNmsRuntimeConfigFromParams();
+  /**
+   * @brief Copy NMS-related runtime parameters into model and NMS configuration objects.
+   */
   void syncNmsRuntimeConfigFromParams(ModelConfig& model_config, pcod_common::NmsConfig& nms_config,
                                       const Params& params) const;
   /**
    * @brief Loads all ROS parameters for the model depending on the architecture
-   */
+  */
   ModelConfig loadModelConfig(const Params& params, std::string& model_name, pcod_common::NmsConfig& nms_config) const;
 
+  /**
+   * @brief Declare a ROS parameter, load its value, and register metadata for dynamic reconfiguration.
+   */
   template <typename T>
   void declareAndLoadParameter(const std::string& name, T& param, const std::string& description,
                                const bool add_to_auto_reconfigurable_params = true, const bool is_required = false,
@@ -125,6 +143,9 @@ class PointCloudObjectDetection : public rclcpp::Node {
    *
    */
   void initializeModel();
+  /**
+   * @brief Recompute the effective model configuration while holding the model mutex.
+   */
   void refreshResolvedModelConfigLocked();
 
   /**
@@ -157,8 +178,17 @@ class PointCloudObjectDetection : public rclcpp::Node {
    */
   void predict(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& pcl_msg);
 
+  /**
+   * @brief Validate currently loaded node parameters and throw on invalid values.
+   */
   void validateParamsOrThrow() const;
+  /**
+   * @brief Validate a model configuration and throw on invalid values.
+   */
   void validateModelConfigOrThrow(const ModelConfig& model_config) const;
+  /**
+   * @brief Validate the currently resolved model configuration and throw on invalid values.
+   */
   void validateModelConfigOrThrow() const;
 
   // constants

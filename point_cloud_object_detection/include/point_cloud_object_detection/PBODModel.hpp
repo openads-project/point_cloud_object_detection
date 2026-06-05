@@ -73,22 +73,55 @@ class PBODModel : public Model {
   static constexpr std::array<const char*, 6> kExpectedOutputNames{
       kOutputNameFocal, kOutputNameReg, kOutputNameClass, kOutputNameSize, kOutputNameDensity, kOutputNameOccupancy};
 
+  /**
+   * @brief Validate that the loaded Triton model exposes the expected PBOD input and output tensors.
+   */
   static void validateInterface(const triton_cpp::TritonInterface& triton_interface);
 
+  /**
+   * @brief Construct a PBOD model wrapper using Triton and manifest-derived runtime configuration.
+   */
   PBODModel(triton_cpp::TritonInterface& triton_interface, const ModelConfig& model_config);
 
+  /**
+   * @brief Return shape overrides for optional PBOD auxiliary output tensors.
+   */
   std::map<std::string, std::vector<int64_t>> getSpecialOutputShapes() override;
+  /**
+   * @brief Build model input tensors directly from a ROS PointCloud2 message.
+   */
   void prepareModelInputFromPointCloud2(const sensor_msgs::msg::PointCloud2& point_cloud_msg, uint32_t x_offset,
                                         uint32_t y_offset, uint32_t z_offset, uint32_t feature_offset,
                                         uint8_t feature_datatype, bool needs_swap, bool materialize_filtered_points);
+  /**
+   * @brief Destroy the PBOD model wrapper.
+   */
   ~PBODModel() override = default;
+  /**
+   * @brief PBOD model wrappers own tensor buffers and cannot be copied.
+   */
   PBODModel(const PBODModel&) = delete;  // Rule of five
+  /**
+   * @brief PBOD model wrappers own tensor buffers and cannot be copy-assigned.
+   */
   PBODModel& operator=(const PBODModel&) = delete;
+  /**
+   * @brief PBOD model wrappers own tensor buffers and cannot be moved.
+   */
   PBODModel(PBODModel&&) = delete;
+  /**
+   * @brief PBOD model wrappers own tensor buffers and cannot be move-assigned.
+   */
   PBODModel& operator=(PBODModel&&) = delete;
 
  protected:
+  /**
+   * @brief Convert a PCL point cloud into PBOD input tensors.
+   */
   void setupModelInput(const PointCloud& point_cloud) override;
+  /**
+   * @brief Decode PBOD output tensors into bounding boxes and auxiliary grids.
+   */
   std::vector<BoundingBox> modelOutputToBoxes() override;
 
  private:
@@ -98,12 +131,24 @@ class PBODModel : public Model {
     bool initialized = false;
   };
 
+  /**
+   * @brief Fill model input tensors from an abstract point accessor.
+   */
   template <typename PointGetter>
   void setupModelInputFromGetter(int n_points, PointGetter&& get_point, bool materialize_filtered_points);
+  /**
+   * @brief Populate PBOD input tensors using the CPU preprocessing path.
+   */
   void populateModelInputOnCpu(float* point_features, std::int64_t* pillar_ids, bool* valid_mask, bool* pillar_masks,
                                int num_selected);
+  /**
+   * @brief Populate PBOD input tensors using CUDA preprocessing with host-visible tensor buffers.
+   */
   bool populateModelInputOnGpu(float* point_features, std::int64_t* pillar_ids, bool* valid_mask, bool* pillar_masks,
                                int num_selected);
+  /**
+   * @brief Populate PBOD input tensors using CUDA preprocessing directly into device tensor buffers.
+   */
   bool populateModelInputOnGpuToDevice(float* point_features, std::int64_t* pillar_ids, bool* valid_mask,
                                        bool* pillar_masks, int num_selected);
 

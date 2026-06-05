@@ -42,6 +42,9 @@ struct AuxiliaryGridMapRequest {
   bool density = false;
   bool occupancy = false;
 
+  /**
+   * @brief Return true when at least one auxiliary grid map should be decoded.
+   */
   [[nodiscard]] bool any() const { return density || occupancy; }
 };
 
@@ -69,6 +72,12 @@ class Model {
       const PointCloud& point_cloud,
       std::vector<std::chrono::time_point<std::chrono::high_resolution_clock>>& timestamps);
 
+  /**
+   * @brief Run model inference on the already prepared input tensors and decode the raw outputs.
+   *
+   * @param timestamps Timing trace that receives entries before and after Triton inference.
+   * @return Decoded bounding boxes.
+   */
   std::vector<BoundingBox> inferAndDecode(
       std::vector<std::chrono::time_point<std::chrono::high_resolution_clock>>& timestamps);
 
@@ -78,18 +87,51 @@ class Model {
    * @return const PointCloud& Reference to the filtered input points
    */
   const PointCloud& getFilteredInputPoints() const;
+  /**
+   * @brief Return the number of points kept after model input filtering.
+   */
   std::size_t getFilteredInputPointCount() const;
+  /**
+   * @brief Configure which optional auxiliary grid-map outputs should be decoded.
+   */
   void setAuxiliaryGridMapRequest(const AuxiliaryGridMapRequest& request) { auxiliary_grid_map_request_ = request; }
+  /**
+   * @brief Return the current auxiliary grid-map output request.
+   */
   const AuxiliaryGridMapRequest& getAuxiliaryGridMapRequest() const { return auxiliary_grid_map_request_; }
 
+  /**
+   * @brief Return output tensor shape overrides for model outputs with runtime-dependent shapes.
+   */
   virtual std::map<std::string, std::vector<int64_t>> getSpecialOutputShapes() { return {}; };
+  /**
+   * @brief Return the latest decoded density grid map if one was requested and produced.
+   */
   virtual const std::optional<AuxiliaryGridMap>& getDensityGridMap() const { return density_grid_map_; }
+  /**
+   * @brief Return the latest decoded occupancy grid map if one was requested and produced.
+   */
   virtual const std::optional<AuxiliaryGridMap>& getOccupancyGridMap() const { return occupancy_grid_map_; }
 
+  /**
+   * @brief Destroy the model interface.
+   */
   virtual ~Model() = default;    // Any method virtual -> destructor virtual
+  /**
+   * @brief Models own Triton tensor state and cannot be copied.
+   */
   Model(const Model&) = delete;  // Rule of five
+  /**
+   * @brief Models own Triton tensor state and cannot be moved.
+   */
   Model(Model&&) = delete;
+  /**
+   * @brief Models own Triton tensor state and cannot be copy-assigned.
+   */
   Model& operator=(const Model&) = delete;
+  /**
+   * @brief Models own Triton tensor state and cannot be move-assigned.
+   */
   Model& operator=(Model&&) = delete;
 
  protected:
@@ -100,7 +142,13 @@ class Model {
   std::optional<AuxiliaryGridMap> density_grid_map_;
   std::optional<AuxiliaryGridMap> occupancy_grid_map_;
 
+  /**
+   * @brief Convert a PCL point cloud into model input tensors.
+   */
   virtual void setupModelInput(const PointCloud& point_cloud) = 0;
+  /**
+   * @brief Decode raw model output tensors into bounding boxes.
+   */
   virtual std::vector<BoundingBox> modelOutputToBoxes() = 0;
 };
 
