@@ -27,8 +27,8 @@ jobs:
           ENABLE_RECURSIVE_VCS_IMPORT: 'false'
           TARGET_CMAKE_ARGS: -DCMAKE_EXPORT_COMPILE_COMMANDS=1
           ADDITIONAL_SLIM_BUILD_ARGS: >-
-            --compose-file ${GITHUB_WORKSPACE}/docker/slim-compose.yml
-            --compose-workdir ${GITHUB_WORKSPACE}
+            --compose-file $GITHUB_WORKSPACE/docker/slim-compose.yml
+            --compose-workdir $GITHUB_WORKSPACE
             --target-compose-svc point-cloud-object-detection
             --target-compose-svc-image ${FAT_IMAGE}
             --dep-exclude-compose-svc-all
