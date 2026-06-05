@@ -1,11 +1,11 @@
 services:
   point-cloud-object-detection:
-    # Mint overrides this image in CI via --target-compose-svc-image ${FAT_IMAGE}.
-    # The default value keeps the compose file meaningful for manual/local use, too.
-    image: ${POINT_CLOUD_OBJECT_DETECTION_IMAGE:-gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/perception/point_cloud_object_detection:latest}
+    # GitLab docker-ros slim jobs export FAT_IMAGE. Set FAT_IMAGE explicitly
+    # for local runs that should slim a different image.
+    image: ${FAT_IMAGE:-gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/perception/point_cloud_object_detection:latest}
     volumes:
       - ${CI_PROJECT_DIR:-..}/demo/models:/models:ro
-      - ${CI_PROJECT_DIR:-.}/docker/slim-probe.params.yml:/params.yml:ro
+      - ${CI_PROJECT_DIR:-..}/docker/slim-probe.params.yml:/params.yml:ro
     command: >
       bash -lc "
       ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py

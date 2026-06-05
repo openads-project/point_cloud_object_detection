@@ -30,5 +30,4 @@ jobs:
             --compose-file ../docker/slim-compose.yml
             --compose-workdir ..
             --target-compose-svc point-cloud-object-detection
-            --target-compose-svc-image $$FAT_IMAGE
             --dep-exclude-compose-svc-all
