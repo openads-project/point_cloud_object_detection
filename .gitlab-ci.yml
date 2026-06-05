@@ -18,8 +18,8 @@ docker-ros:
     ENABLE_RECURSIVE_VCS_IMPORT: 'false'
     COMMAND: ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py
     ADDITIONAL_SLIM_BUILD_ARGS: >-
-      --compose-file $CI_PROJECT_DIR/docker/slim-compose.yml
-      --compose-workdir $CI_PROJECT_DIR
+      --compose-file ../docker/slim-compose.yml
+      --compose-workdir ..
       --target-compose-svc point-cloud-object-detection
       --target-compose-svc-image ${FAT_IMAGE}
       --dep-exclude-compose-svc-all
