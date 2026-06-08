@@ -33,10 +33,10 @@ services:
       interval: 2s
       timeout: 5s
       retries: 15
-      start_period: 10s
+      start_period: 120s
 
   point-cloud-object-detection:
-    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/perception/point_cloud_object_detection:latest-slim-v2.1.0
+    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/perception/point_cloud_object_detection:latest
     depends_on:
       triton-server:
         condition: service_healthy
@@ -47,16 +47,22 @@ services:
     deploy:
       <<: *gpu_reservation
     volumes:
-      - ./point_cloud_object_detection.demo.params.yml:/params.yml:ro
-      - ./models/point-cloud-object-detection:/docker-ros/ws/install/point_cloud_object_detection/share/point_cloud_object_detection/models/point-cloud-object-detection:ro
+      - ./point_cloud_object_detection.demo.params.yml:/docker-ros/ws/install/point_cloud_object_detection/share/point_cloud_object_detection/config/params.yml:ro
+      - ./models:/models:ro
     command: >
       bash -lc "
       ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py
-      params:=/params.yml
       name:=point_cloud_object_detection
       point_cloud_topic:=/demo/points
       object_list_topic:=/demo/objects
+      no_detection_zone_topic:=/demo/no_detection_zone
+      no_detection_zone_points_topic:=/demo/no_detection_zone_points
+      detection_area_topic:=/demo/detection_area
       model_bounds_topic:=/demo/model_bounds
+      density_grid_map_topic:=/demo/density_grid_map
+      occupancy_grid_map_topic:=/demo/occupancy_grid_map
+      combined_grid_map_topic:=/demo/combined_grid_map
+      static_grid_map_topic:=/demo/static_grid_map
       log_level:=info
       use_sim_time:=false
       "
@@ -68,13 +74,13 @@ services:
     environment:
       <<: *ros_common_env
       PCD_DIR: /data
-      PCD_GLOB: fused_cloud_*.pcd
+      PCD_GLOB: "*.pcd"
       PCD_TOPIC: /demo/points
       PCD_FRAME_ID: base_link
-      PCD_PUBLISH_RATE_HZ: 2.0
+      PCD_PUBLISH_RATE_HZ: 1.0
     volumes:
       - ./data:/data:ro
-      - ./pcd-publisher/pcd_loop_publisher.py:/opt/demo/pcd_loop_publisher.py:ro
+      - ./pcd-publisher/pcd_publisher.py:/opt/demo/pcd_publisher.py:ro
 
   rviz:
     image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/monitoring/ros-monitoring:v1.0.0
@@ -94,7 +100,7 @@ services:
 
   ros-parameter-gui:
     image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/monitoring/ros-monitoring:v1.0.0
-    depends_on: [point-cloud-object-detection]
+    depends_on: [rviz]
     environment:
       <<: *ros_common_env
       DISPLAY: ${DISPLAY}
