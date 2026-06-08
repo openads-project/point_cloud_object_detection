@@ -10,6 +10,8 @@ using PointRecord = pcod_common::PillarPreprocessPoint;
 
 namespace {
 
+constexpr float kDensityTransformScale = 10000.0f;
+
 std::uint16_t byteSwap16(std::uint16_t value) { return static_cast<std::uint16_t>((value >> 8) | (value << 8)); }
 
 std::uint32_t byteSwap32(std::uint32_t value) {
@@ -84,16 +86,26 @@ float readPointFieldAsFloat(const std::uint8_t* src, std::uint8_t datatype, bool
 
 bool useCudaPreprocessing(const ModelConfig& model_config) { return model_config.preprocessing_backend == "cuda"; }
 
+float sigmoid(float value) {
+  if (value >= 0.0f) {
+    const float z = std::exp(-value);
+    return 1.0f / (1.0f + z);
+  }
+  const float z = std::exp(value);
+  return z / (1.0f + z);
+}
+
+float densityTransform(float value) {
+  const float normalized = std::asinh(kDensityTransformScale * value) / std::asinh(kDensityTransformScale);
+  return std::clamp(normalized, 0.0f, 1.0f);
+}
+
 }  // namespace
 
 void PBODModel::validateInterface(const triton_cpp::TritonInterface& triton_interface) {
   if (triton_interface.nInputs() != kExpectedInputNames.size()) {
     throw std::runtime_error("PBOD model interface mismatch: expected " + std::to_string(kExpectedInputNames.size()) +
                              " inputs but Triton reports " + std::to_string(triton_interface.nInputs()));
-  }
-  if (triton_interface.nOutputs() != kExpectedOutputNames.size()) {
-    throw std::runtime_error("PBOD model interface mismatch: expected " + std::to_string(kExpectedOutputNames.size()) +
-                             " outputs but Triton reports " + std::to_string(triton_interface.nOutputs()));
   }
 
   for (const char* input_name : kExpectedInputNames) {
@@ -105,13 +117,29 @@ void PBODModel::validateInterface(const triton_cpp::TritonInterface& triton_inte
     }
   }
 
-  for (const char* output_name : kExpectedOutputNames) {
+  for (const char* output_name : {kOutputNameFocal, kOutputNameReg, kOutputNameClass, kOutputNameSize}) {
     try {
       (void)triton_interface.getOutputShape(output_name);
     } catch (const std::invalid_argument& e) {
       throw std::runtime_error("PBOD model is missing expected output tensor '" + std::string(output_name) +
                                "': " + e.what());
     }
+  }
+
+  bool has_density = true;
+  bool has_occupancy = true;
+  try {
+    (void)triton_interface.getOutputShape(kOutputNameDensity);
+  } catch (const std::invalid_argument&) {
+    has_density = false;
+  }
+  try {
+    (void)triton_interface.getOutputShape(kOutputNameOccupancy);
+  } catch (const std::invalid_argument&) {
+    has_occupancy = false;
+  }
+  if (has_density != has_occupancy) {
+    throw std::runtime_error("PBOD model must expose both density_logits and occupancy_logits together.");
   }
 }
 
@@ -211,6 +239,13 @@ PBODModel::PBODModel(triton_cpp::TritonInterface& triton_interface, const ModelC
   tensor_reset_state_.active_pillar_ids.reserve(static_cast<std::size_t>(num_pillars_));
   active_pillar_ids_scratch_.reserve(static_cast<std::size_t>(num_pillars_));
   selected_point_records_.reserve(static_cast<std::size_t>(max_num_points_));
+  try {
+    (void)triton_interface_.getOutputShape(kOutputNameDensity);
+    (void)triton_interface_.getOutputShape(kOutputNameOccupancy);
+    has_auxiliary_grid_map_outputs_ = true;
+  } catch (const std::invalid_argument&) {
+    has_auxiliary_grid_map_outputs_ = false;
+  }
 }
 
 std::map<std::string, std::vector<int64_t>> PBODModel::getSpecialOutputShapes() {
@@ -686,6 +721,55 @@ std::vector<BoundingBox> PBODModel::modelOutputToBoxes() {
   auto focal_logits = triton_interface_.getOutputTensor<float>(kOutputNameFocal, num_pillars);
   auto reg_logits =
       triton_interface_.getOutputTensor<float>(kOutputNameReg, num_pillars, kRegressionValuesPerClass * num_classes);
+  const AuxiliaryGridMapRequest& auxiliary_grid_map_request = getAuxiliaryGridMapRequest();
+  if (has_auxiliary_grid_map_outputs_ && auxiliary_grid_map_request.any()) {
+    const auto build_auxiliary_grid_map = [&](const char* layer) {
+      return AuxiliaryGridMap{layer,
+                              std::vector<float>(static_cast<std::size_t>(num_pillars)),
+                              pillar_grid_.grid_x,
+                              pillar_grid_.grid_y,
+                              x_min_,
+                              x_max_,
+                              y_min_,
+                              y_max_};
+    };
+
+    if (auxiliary_grid_map_request.density && auxiliary_grid_map_request.occupancy) {
+      auto density_logits = triton_interface_.getOutputTensor<float>(kOutputNameDensity, num_pillars);
+      auto occupancy_logits = triton_interface_.getOutputTensor<float>(kOutputNameOccupancy, num_pillars);
+
+      density_grid_map_ = build_auxiliary_grid_map("density");
+      occupancy_grid_map_ = build_auxiliary_grid_map("occupancy");
+
+      for (int ix = 0; ix < pillar_grid_.grid_x; ++ix) {
+        for (int iy = 0; iy < pillar_grid_.grid_y; ++iy) {
+          const std::size_t flat_index = static_cast<std::size_t>(ix * pillar_grid_.grid_y + iy);
+          density_grid_map_->values[flat_index] = densityTransform(sigmoid(density_logits(flat_index)));
+          occupancy_grid_map_->values[flat_index] = sigmoid(occupancy_logits(flat_index));
+        }
+      }
+    } else if (auxiliary_grid_map_request.density) {
+      auto density_logits = triton_interface_.getOutputTensor<float>(kOutputNameDensity, num_pillars);
+
+      density_grid_map_ = build_auxiliary_grid_map("density");
+      for (int ix = 0; ix < pillar_grid_.grid_x; ++ix) {
+        for (int iy = 0; iy < pillar_grid_.grid_y; ++iy) {
+          const std::size_t flat_index = static_cast<std::size_t>(ix * pillar_grid_.grid_y + iy);
+          density_grid_map_->values[flat_index] = densityTransform(sigmoid(density_logits(flat_index)));
+        }
+      }
+    } else if (auxiliary_grid_map_request.occupancy) {
+      auto occupancy_logits = triton_interface_.getOutputTensor<float>(kOutputNameOccupancy, num_pillars);
+
+      occupancy_grid_map_ = build_auxiliary_grid_map("occupancy");
+      for (int ix = 0; ix < pillar_grid_.grid_x; ++ix) {
+        for (int iy = 0; iy < pillar_grid_.grid_y; ++iy) {
+          const std::size_t flat_index = static_cast<std::size_t>(ix * pillar_grid_.grid_y + iy);
+          occupancy_grid_map_->values[flat_index] = sigmoid(occupancy_logits(flat_index));
+        }
+      }
+    }
+  }
 
   pcod_common::PbodOutputsView view;
   view.focal_logits = focal_logits.data();

@@ -8,6 +8,7 @@
     preprocessing.backend: "cuda"
     preprocessing.inference_frame: base_link
     output.frame: base_link
+    output.grid_maps.frame: base_link
     output.sensor_id: 0
     point_cloud_transport: raw
     prediction.use_shm: true
@@ -22,14 +23,15 @@
     output.variances: [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0]
 
     # Model input feature selection
-    input.point_feature_field: "intensity"
+    input.point_feature_field: "reflectivity"
 
     # Runtime overrides for exported manifest defaults.
-    # model_manifest.yml is the source of truth for the exported model contract.
-    # params.yml should only override intentionally tunable runtime behavior.
-    preprocessing.point_feature.value_threshold: 5000.0
+    # preprocessing.detection_area.z_min: -1.0
+    # preprocessing.detection_area.z_max: 4.0
+    preprocessing.point_feature.value_threshold: 100.0
+                                       # car, bus, motorcycle, bicycle, utility, pedestrian, vru, micro, animal
+    postprocessing.nms.score_threshold: [0.5, 0.5, 0.5,        0.5,     0.5,     0.3,        0.5, 0.5,   0.5]
     # postprocessing.class_score_threshold: 0.0
-    postprocessing.nms.score_threshold: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
     # postprocessing.nms.iou_threshold: 0.2
     # postprocessing.nms.max_num_objects: 64
 
@@ -47,6 +49,7 @@
     preprocessing.detection_area.enabled: true
     preprocessing.detection_area.center_x: 0.0
     preprocessing.detection_area.center_y: 0.0
+
     preprocessing.detection_area.radius: 90.0
     preprocessing.detection_area.bearing_deg: 0.0
     preprocessing.detection_area.fov_deg: 360.0
@@ -55,5 +58,17 @@
     preprocessing.detection_area.filter_detections: true
     preprocessing.detection_area.filter_mode: "center"
 
-    # Debug and visualization publishers
+    # Model bounds output
     output.model_bounds.publish_polygon: true
+
+    # Grid-map outputs
+    output.grid_maps.publish_density: true
+    output.grid_maps.publish_occupancy: true
+    output.grid_maps.publish_combined: true
+    output.grid_maps.publish_static: true
+    output.grid_maps.zero_in_no_detection_zone: true
+    output.grid_maps.zero_outside_detection_area: true
+    output.grid_maps.density_gain: 1.0
+    output.grid_maps.occupancy_gain: 1.0
+    output.grid_maps.combined_gain: 1.0
+    output.grid_maps.static_gain: 1.0
