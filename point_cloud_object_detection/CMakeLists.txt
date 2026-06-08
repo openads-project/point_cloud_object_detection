@@ -83,6 +83,7 @@ find_package(perception_msgs_utils REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_path(TRITON_CONFIG_DIR TritonConfig.cmake PATHS "../../upstream/triton_cpp" "/root/upstream_ws/src/triton_cpp"
@@ -127,6 +128,7 @@ ament_target_dependencies(
   perception_msgs_utils
   point_cloud_transport
   geometry_msgs
+  nav_msgs
   rclcpp
   rclcpp_components
   sensor_msgs
