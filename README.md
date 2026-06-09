@@ -91,7 +91,7 @@ At startup, invalid parameter values fail initialization. At runtime, invalid dy
 | --- | --- | --- | --- |
 | `prediction.server_url` | `string` | Triton server host:port combination. | Required at startup. Read-only at runtime. |
 | `prediction.model_repository` | `string` | Path to the exported Triton model repository bundle root. | Required at startup. Must point to a directory containing `model_manifest.yml` and `config.pbtxt`. Can be changed at runtime to reinitialize the model. |
-| `prediction.model_version` | `string` | Requested Triton model version directory inside `prediction.model_repository`. | Optional at startup. If empty at startup, the export default from `model_manifest.yml` is used. Runtime updates must name an existing version directory. |
+| `prediction.model_version` | `string` | Requested Triton model version directory inside `prediction.model_repository`. | Optional at startup. If empty at startup, the export default from `model_manifest.yml` is used. Version-only runtime updates must name an existing version directory. |
 | `prediction.triton_client_timeout_s` | `double` | Client timeout for Triton requests in seconds (`0.0` disables timeout). | Must be in `[0.0, 300.0]`. |
 | `prediction.use_shm` | `bool` | Enable Triton shared-memory transport. | Requires client and Triton on the same host with a shared IPC namespace (e.g., Docker `ipc: host` or equivalent). |
 | `prediction.cuda_input_shm` | `bool` | Require Triton CUDA shared memory for input tensors. Only used when `preprocessing.backend='cuda'`. | If enabled together with `preprocessing.backend='cuda'`, the node fails fast when CUDA SHM is unavailable or the CUDA-SHM path cannot be used. If `preprocessing.backend!='cuda'`, this setting is ignored with a warning. |
