@@ -15,82 +15,65 @@ from tracetools_launch.action import Trace
 
 
 def generate_launch_description():
+    """Generate the point cloud object detection launch description."""
 
     remappable_topics = [
-        DeclareLaunchArgument('point_cloud_topic',
-                              default_value='~/point_cloud',
-                              description='input point cloud topic remap'),
-        DeclareLaunchArgument('object_list_topic',
-                              default_value='~/object_list',
-                              description='output object list topic remap'),
+        DeclareLaunchArgument("point_cloud_topic", default_value="~/point_cloud", description="input point cloud topic remap"),
+        DeclareLaunchArgument("object_list_topic", default_value="~/object_list", description="output object list topic remap"),
         DeclareLaunchArgument(
-            'no_detection_zone_topic',
-            default_value='~/no_detection_zone',
-            description='no-detection zone polygon topic remap'),
+            "no_detection_zone_topic", default_value="~/no_detection_zone", description="no-detection zone polygon topic remap"
+        ),
         DeclareLaunchArgument(
-            'no_detection_zone_points_topic',
-            default_value='~/no_detection_zone_points',
-            description='no-detection zone points topic remap'),
-        DeclareLaunchArgument('detection_area_topic',
-                              default_value='~/detection_area',
-                              description='detection area polygon topic remap'),
-        DeclareLaunchArgument('model_bounds_topic',
-                              default_value='~/model_bounds',
-                              description='model bounds polygon topic remap'),
-        DeclareLaunchArgument('density_grid_map_topic',
-                              default_value='~/density_grid_map',
-                              description='density grid map topic remap'),
-        DeclareLaunchArgument('occupancy_grid_map_topic',
-                              default_value='~/occupancy_grid_map',
-                              description='occupancy grid map topic remap'),
-        DeclareLaunchArgument('combined_grid_map_topic',
-                              default_value='~/combined_grid_map',
-                              description='combined grid map topic remap'),
-        DeclareLaunchArgument('static_grid_map_topic',
-                              default_value='~/static_grid_map',
-                              description='static grid map topic remap'),
+            "no_detection_zone_points_topic",
+            default_value="~/no_detection_zone_points",
+            description="no-detection zone points topic remap",
+        ),
+        DeclareLaunchArgument(
+            "detection_area_topic", default_value="~/detection_area", description="detection area polygon topic remap"
+        ),
+        DeclareLaunchArgument(
+            "model_bounds_topic", default_value="~/model_bounds", description="model bounds polygon topic remap"
+        ),
+        DeclareLaunchArgument(
+            "density_grid_map_topic", default_value="~/density_grid_map", description="density grid map topic remap"
+        ),
+        DeclareLaunchArgument(
+            "occupancy_grid_map_topic", default_value="~/occupancy_grid_map", description="occupancy grid map topic remap"
+        ),
+        DeclareLaunchArgument(
+            "combined_grid_map_topic", default_value="~/combined_grid_map", description="combined grid map topic remap"
+        ),
+        DeclareLaunchArgument(
+            "static_grid_map_topic", default_value="~/static_grid_map", description="static grid map topic remap"
+        ),
     ]
 
     args = [
-        DeclareLaunchArgument('name',
-                              default_value='point_cloud_object_detection',
-                              description='node name'),
-        DeclareLaunchArgument('namespace',
-                              default_value='',
-                              description='node namespace'),
+        DeclareLaunchArgument("name", default_value="point_cloud_object_detection", description="node name"),
+        DeclareLaunchArgument("namespace", default_value="", description="node namespace"),
         DeclareLaunchArgument(
-            'params',
-            default_value=os.path.join(
-                get_package_share_directory('point_cloud_object_detection'),
-                'config', 'params.yml'),
-            description='path to parameter file'),
+            "params",
+            default_value=os.path.join(get_package_share_directory("point_cloud_object_detection"), "config", "params.yml"),
+            description="path to parameter file",
+        ),
         DeclareLaunchArgument(
-            'log_level',
-            default_value='info',
-            description='ROS logging level (debug, info, warn, error, fatal)'),
-        DeclareLaunchArgument('use_sim_time',
-                              default_value='false',
-                              description='use simulation clock'),
-        DeclareLaunchArgument('trace',
-                              default_value='false',
-                              description='Enable tracing'),
+            "log_level", default_value="info", description="ROS logging level (debug, info, warn, error, fatal)"
+        ),
+        DeclareLaunchArgument("use_sim_time", default_value="false", description="use simulation clock"),
+        DeclareLaunchArgument("trace", default_value="false", description="Enable tracing"),
         *remappable_topics,
     ]
 
     nodes = [
         Node(
-            package='point_cloud_object_detection',
-            executable='point_cloud_object_detection',
-            namespace=LaunchConfiguration('namespace'),
-            name=LaunchConfiguration('name'),
-            parameters=[LaunchConfiguration('params')],
-            arguments=[
-                '--ros-args', '--log-level',
-                LaunchConfiguration('log_level')
-            ],
-            remappings=[(la.default_value[0].text, LaunchConfiguration(la.name))
-                        for la in remappable_topics],
-            output='screen',
+            package="point_cloud_object_detection",
+            executable="point_cloud_object_detection",
+            namespace=LaunchConfiguration("namespace"),
+            name=LaunchConfiguration("name"),
+            parameters=[LaunchConfiguration("params")],
+            arguments=["--ros-args", "--log-level", LaunchConfiguration("log_level")],
+            remappings=[(la.default_value[0].text, LaunchConfiguration(la.name)) for la in remappable_topics],
+            output="screen",
             emulate_tty=True,
         )
     ]
@@ -98,13 +81,16 @@ def generate_launch_description():
     if Trace is not None:
         nodes.append(
             Trace(
-                session_name='trace',
+                session_name="trace",
                 dual_session=True,
-                condition=IfCondition(LaunchConfiguration('trace')),
-            ))
+                condition=IfCondition(LaunchConfiguration("trace")),
+            )
+        )
 
-    return LaunchDescription([
-        *args,
-        SetParameter('use_sim_time', LaunchConfiguration('use_sim_time')),
-        *nodes,
-    ])
+    return LaunchDescription(
+        [
+            *args,
+            SetParameter("use_sim_time", LaunchConfiguration("use_sim_time")),
+            *nodes,
+        ]
+    )
