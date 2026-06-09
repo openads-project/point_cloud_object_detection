@@ -1682,8 +1682,9 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
   bool model_change_on_runtime = false;
   bool publishers_changed = false;
   bool repository_changed = false;
+  const bool suppress_reinit = frozen_params_sync_in_progress_.load(std::memory_order_acquire);
   for (const auto& param : parameters) {
-    if (requiresModelReinitializationForParameter(param.get_name())) {
+    if (!suppress_reinit && requiresModelReinitializationForParameter(param.get_name())) {
       model_change_on_runtime = true;
     }
     if (name_in(param.get_name(),
@@ -1721,27 +1722,19 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
         }
       }
 
-      if (repository_changed) {
-        // Preserve user-defined runtime params across manifest reload; only model identity fields
-        // (model_name, model_version if unset, frozen z-range) should be taken from the new manifest.
-        const auto saved_threshold = params_.point_feature_value_threshold;
-        const auto saved_class_score = params_.output_class_score_threshold;
-        const auto saved_iou = params_.nms_iou_threshold;
-        const auto saved_max_objs = params_.nms_max_num_objects;
-        const auto saved_nms_score = params_.nms_score_threshold;
-
-        loadManifestBackedParameterDefaults();
-
-        params_.point_feature_value_threshold = saved_threshold;
-        params_.output_class_score_threshold = saved_class_score;
-        params_.nms_iou_threshold = saved_iou;
-        params_.nms_max_num_objects = saved_max_objs;
-        params_.nms_score_threshold = saved_nms_score;
-      }
-
       const double cscu = pm::object_access::CONTINUOUS_STATE_COVARIANCE_UNKNOWN;
       sanitizeVarianceVector(params_.variance, cscu);
       if (repository_changed) {
+        // Frozen-contract z-range is model-specific and must be taken from the new manifest.
+        // Update params_ before calling refreshResolvedModelConfigLocked, which validates
+        // z_min >= contract_z_min using the current params_ values.
+        const std::string repo_path = resolveModelRepositoryPath(params_.model_repository);
+        const pcod_common::ModelManifest new_manifest =
+            pcod_common::LoadModelManifest(manifestPathFromRepository(repo_path));
+        params_.detection_area_z_min = new_manifest.frozen_contract.preprocessing.z_range[0];
+        params_.detection_area_z_max = new_manifest.frozen_contract.preprocessing.z_range[1];
+        // All runtime-configurable fields are read from the current params_ inside
+        // refreshResolvedModelConfigLocked, so they are preserved across the model switch.
         refreshResolvedModelConfigLocked();
       } else {
         syncModelRuntimeConfigFromParams();
@@ -1769,6 +1762,18 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
   for (const auto& param : applied_parameters) {
     RCLCPP_INFO(this->get_logger(), "Reconfigured parameter '%s' to: %s", param.get_name().c_str(),
                 param.value_to_string().c_str());
+  }
+
+  // Sync frozen-contract z-range back to the ROS parameter server after a repository change.
+  // set_parameters() cannot be called from within a parameter callback, so this is deferred
+  // to the predict() callback. suppress_reinit prevents a spurious model reinit on that call.
+  if (repository_changed) {
+    std::lock_guard<std::mutex> lock(frozen_params_sync_mutex_);
+    pending_frozen_params_ = {
+        rclcpp::Parameter("preprocessing.detection_area.z_min", params_.detection_area_z_min),
+        rclcpp::Parameter("preprocessing.detection_area.z_max", params_.detection_area_z_max),
+    };
+    frozen_params_sync_pending_.store(true, std::memory_order_release);
   }
 
   // Reinitialize model if runtime-critical configuration changed
@@ -2100,6 +2105,17 @@ void PointCloudObjectDetection::boxesToObjectList(const std::vector<BoundingBox>
 void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg) {
   // Guard the whole callback so unexpected runtime errors drop only this frame instead of crashing the node.
   try {
+    if (frozen_params_sync_pending_.exchange(false, std::memory_order_acq_rel)) {
+      std::vector<rclcpp::Parameter> pending;
+      {
+        std::lock_guard<std::mutex> lock(frozen_params_sync_mutex_);
+        pending = pending_frozen_params_;
+      }
+      frozen_params_sync_in_progress_.store(true, std::memory_order_release);
+      this->set_parameters(pending);
+      frozen_params_sync_in_progress_.store(false, std::memory_order_release);
+    }
+
     if (publishers_update_pending_.exchange(false, std::memory_order_acq_rel)) {
       setupPublishers();
     }
