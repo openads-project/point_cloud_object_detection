@@ -688,7 +688,7 @@ void PointCloudObjectDetection::loadBootstrapParameters() {
 
   rcl_interfaces::msg::ParameterDescriptor version_desc;
   version_desc.description =
-      "Requested Triton model version directory inside prediction.model_repository. If empty, the exported "
+      "Requested Triton model version directory inside prediction.model_repository. If empty at startup, the exported "
       "default from model_manifest.yml is used.";
   version_desc.read_only = false;
   this->declare_parameter("prediction.model_version", params_.model_version, version_desc);
