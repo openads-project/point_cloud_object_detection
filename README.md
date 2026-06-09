@@ -90,8 +90,8 @@ At startup, invalid parameter values fail initialization. At runtime, invalid dy
 | Parameter | Type | Description | Constraints |
 | --- | --- | --- | --- |
 | `prediction.server_url` | `string` | Triton server host:port combination. | Required at startup. Read-only at runtime. |
-| `prediction.model_repository` | `string` | Path to the exported Triton model repository bundle root. | Required at startup. Must point to a directory containing `model_manifest.yml` and `config.pbtxt`. Read-only at runtime. |
-| `prediction.model_version` | `string` | Requested Triton model version directory inside `prediction.model_repository`. | Optional. If empty, the export default from `model_manifest.yml` is used. The resolved version directory must exist. Read-only at runtime. |
+| `prediction.model_repository` | `string` | Path to the exported Triton model repository bundle root. | Required at startup. Must point to a directory containing `model_manifest.yml` and `config.pbtxt`. Can be changed at runtime to reinitialize the model. |
+| `prediction.model_version` | `string` | Requested Triton model version directory inside `prediction.model_repository`. | Optional at startup. If empty at startup, the export default from `model_manifest.yml` is used. Runtime updates must name an existing version directory. |
 | `prediction.triton_client_timeout_s` | `double` | Client timeout for Triton requests in seconds (`0.0` disables timeout). | Must be in `[0.0, 300.0]`. |
 | `prediction.use_shm` | `bool` | Enable Triton shared-memory transport. | Requires client and Triton on the same host with a shared IPC namespace (e.g., Docker `ipc: host` or equivalent). |
 | `prediction.cuda_input_shm` | `bool` | Require Triton CUDA shared memory for input tensors. Only used when `preprocessing.backend='cuda'`. | If enabled together with `preprocessing.backend='cuda'`, the node fails fast when CUDA SHM is unavailable or the CUDA-SHM path cannot be used. If `preprocessing.backend!='cuda'`, this setting is ignored with a warning. |
@@ -166,7 +166,7 @@ At startup, invalid parameter values fail initialization. At runtime, invalid dy
 | `output.grid_maps.static_gain` | `double` | Linear gain applied to the published static grid map. | Must be finite and within `[0, 100]`. |
 
 The exported `model_manifest.yml` is the source of truth for the bundle. Its `frozen_contract` section defines the non-overridable model contract used by inference, and its `runtime_defaults` section provides the default values for intentionally tunable runtime behavior.
-`params.yml` is the runtime selection and override file. `prediction.model_repository` selects the exported Triton repository bundle, `prediction.model_version` optionally selects the numbered Triton version directory, and the Triton model name is inferred from `config.pbtxt` inside that repository and validated against `artifact.triton.model_name` in `model_manifest.yml`. Repository directory names do not need to match the Triton model name.
+`params.yml` is the runtime selection and override file. `prediction.model_repository` selects the exported Triton repository bundle, `prediction.model_version` optionally selects the numbered Triton version directory, and the Triton model name is inferred from `config.pbtxt` inside that repository and validated against `artifact.triton.model_name` in `model_manifest.yml`.
 `preprocessing.point_feature.value_threshold`, `postprocessing.class_score_threshold`, `postprocessing.nms.score_threshold`, `postprocessing.nms.iou_threshold`, and `postprocessing.nms.max_num_objects` can override the exported defaults at runtime.
 
 
