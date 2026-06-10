@@ -226,10 +226,6 @@ class PointCloudObjectDetection : public rclcpp::Node {
   pcod_common::NmsConfig nms_config_;
   std::atomic<bool> model_ready_{false};
   std::atomic<bool> publishers_update_pending_{false};
-  std::atomic<bool> frozen_params_sync_pending_{false};
-  std::atomic<bool> frozen_params_sync_in_progress_{false};
-  std::mutex frozen_params_sync_mutex_;
-  std::vector<rclcpp::Parameter> pending_frozen_params_;
 };
 
 }  // namespace point_cloud_object_detection
