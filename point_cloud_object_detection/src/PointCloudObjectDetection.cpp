@@ -918,22 +918,22 @@ void PointCloudObjectDetection::declareParameters() {
                                 "Must be greater than 0 when value_threshold normalization is used.");                  // additional_constraints
   this->declareAndLoadParameter("preprocessing.detection_area.z_min", params_.detection_area_z_min,                     // name
                                 "Effective preprocessing lower z-bound used for point filtering and tensor "
-                                "construction. Defaults to the model manifest z range and may only narrow it.",         // description
+                                "construction. Runtime override; defaults to the model manifest z range. Values"
+                                " outside the manifest z range are accepted with a warning.",                         // description
                                 true,                                                                                   // add_to_auto_reconfigurable_params
                                 false,                                                                                  // is_required
                                 false,                                                                                  // read_only
-                                params_.detection_area_z_min, params_.detection_area_z_max, std::nullopt,               // from_value, to_value, step_value
-                                "Must be finite, smaller than preprocessing.detection_area.z_max, and not below"
-                                " the manifest z_min.");                                                                // additional_constraints
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "Must be finite and smaller than preprocessing.detection_area.z_max.");                 // additional_constraints
   this->declareAndLoadParameter("preprocessing.detection_area.z_max", params_.detection_area_z_max,                     // name
                                 "Effective preprocessing upper z-bound used for point filtering and tensor "
-                                "construction. Defaults to the model manifest z range and may only narrow it.",         // description
+                                "construction. Runtime override; defaults to the model manifest z range. Values"
+                                " outside the manifest z range are accepted with a warning.",                         // description
                                 true,                                                                                   // add_to_auto_reconfigurable_params
                                 false,                                                                                  // is_required
                                 false,                                                                                  // read_only
-                                params_.detection_area_z_min, params_.detection_area_z_max, std::nullopt,               // from_value, to_value, step_value
-                                "Must be finite, greater than preprocessing.detection_area.z_min, and not"
-                                " above the manifest z_max.");                                                          // additional_constraints
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "Must be finite and greater than preprocessing.detection_area.z_min.");                 // additional_constraints
 
   this->declareAndLoadParameter("preprocessing.no_detection_zone.enabled", params_.no_detection_zone_enabled,
                                 "Enable rectangular no-detection zone in inference_frame",                              // description
@@ -1577,11 +1577,12 @@ void PointCloudObjectDetection::validateModelConfigOrThrow(const ModelConfig& mo
   if (!(model_config.contract_z_min < model_config.contract_z_max)) {
     fail("contract_z_min/contract_z_max", "requires contract_z_min < contract_z_max");
   }
-  if (model_config.z_min < model_config.contract_z_min) {
-    fail("preprocessing.detection_area.z_min", "must not be below the manifest z_min");
-  }
-  if (model_config.z_max > model_config.contract_z_max) {
-    fail("preprocessing.detection_area.z_max", "must not exceed the manifest z_max");
+  if (model_config.z_min < model_config.contract_z_min || model_config.z_max > model_config.contract_z_max) {
+    RCLCPP_WARN(this->get_logger(),
+                "preprocessing.detection_area.z_min/z_max [%.3f, %.3f] extends outside the manifest z range "
+                "[%.3f, %.3f]. The node will continue, but inference quality may be degraded.",
+                static_cast<double>(model_config.z_min), static_cast<double>(model_config.z_max),
+                static_cast<double>(model_config.contract_z_min), static_cast<double>(model_config.contract_z_max));
   }
 
   if (model_config.x_grid_size <= 0) {
@@ -1682,9 +1683,8 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
   bool model_change_on_runtime = false;
   bool publishers_changed = false;
   bool repository_changed = false;
-  const bool suppress_reinit = frozen_params_sync_in_progress_.load(std::memory_order_acquire);
   for (const auto& param : parameters) {
-    if (!suppress_reinit && requiresModelReinitializationForParameter(param.get_name())) {
+    if (requiresModelReinitializationForParameter(param.get_name())) {
       model_change_on_runtime = true;
     }
     if (name_in(param.get_name(),
@@ -1725,14 +1725,6 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
       const double cscu = pm::object_access::CONTINUOUS_STATE_COVARIANCE_UNKNOWN;
       sanitizeVarianceVector(params_.variance, cscu);
       if (repository_changed) {
-        // Frozen-contract z-range is model-specific and must be taken from the new manifest.
-        // Update params_ before calling refreshResolvedModelConfigLocked, which validates
-        // z_min >= contract_z_min using the current params_ values.
-        const std::string repo_path = resolveModelRepositoryPath(params_.model_repository);
-        const pcod_common::ModelManifest new_manifest =
-            pcod_common::LoadModelManifest(manifestPathFromRepository(repo_path));
-        params_.detection_area_z_min = new_manifest.frozen_contract.preprocessing.z_range[0];
-        params_.detection_area_z_max = new_manifest.frozen_contract.preprocessing.z_range[1];
         // All runtime-configurable fields are read from the current params_ inside
         // refreshResolvedModelConfigLocked, so they are preserved across the model switch.
         refreshResolvedModelConfigLocked();
@@ -1762,18 +1754,6 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
   for (const auto& param : applied_parameters) {
     RCLCPP_INFO(this->get_logger(), "Reconfigured parameter '%s' to: %s", param.get_name().c_str(),
                 param.value_to_string().c_str());
-  }
-
-  // Sync frozen-contract z-range back to the ROS parameter server after a repository change.
-  // set_parameters() cannot be called from within a parameter callback, so this is deferred
-  // to the predict() callback. suppress_reinit prevents a spurious model reinit on that call.
-  if (repository_changed) {
-    std::lock_guard<std::mutex> lock(frozen_params_sync_mutex_);
-    pending_frozen_params_ = {
-        rclcpp::Parameter("preprocessing.detection_area.z_min", params_.detection_area_z_min),
-        rclcpp::Parameter("preprocessing.detection_area.z_max", params_.detection_area_z_max),
-    };
-    frozen_params_sync_pending_.store(true, std::memory_order_release);
   }
 
   // Reinitialize model if runtime-critical configuration changed
@@ -1814,14 +1794,6 @@ void PointCloudObjectDetection::refreshResolvedModelConfigLocked() {
   params_.model_name = model_name;
   model_config_ = std::move(new_model_config);
   nms_config_ = std::move(new_nms_config);
-  if (std::fabs(static_cast<double>(model_config_.z_min) - static_cast<double>(model_config_.contract_z_min)) > 1e-6 ||
-      std::fabs(static_cast<double>(model_config_.z_max) - static_cast<double>(model_config_.contract_z_max)) > 1e-6) {
-    RCLCPP_WARN(this->get_logger(),
-                "Using preprocessing z override [%.3f, %.3f] instead of manifest z range [%.3f, %.3f]. "
-                "This changes point filtering and tensor construction for inference.",
-                static_cast<double>(model_config_.z_min), static_cast<double>(model_config_.z_max),
-                static_cast<double>(model_config_.contract_z_min), static_cast<double>(model_config_.contract_z_max));
-  }
 }
 
 void PointCloudObjectDetection::initializeModel() {
@@ -2105,17 +2077,6 @@ void PointCloudObjectDetection::boxesToObjectList(const std::vector<BoundingBox>
 void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg) {
   // Guard the whole callback so unexpected runtime errors drop only this frame instead of crashing the node.
   try {
-    if (frozen_params_sync_pending_.exchange(false, std::memory_order_acq_rel)) {
-      std::vector<rclcpp::Parameter> pending;
-      {
-        std::lock_guard<std::mutex> lock(frozen_params_sync_mutex_);
-        pending = pending_frozen_params_;
-      }
-      frozen_params_sync_in_progress_.store(true, std::memory_order_release);
-      this->set_parameters(pending);
-      frozen_params_sync_in_progress_.store(false, std::memory_order_release);
-    }
-
     if (publishers_update_pending_.exchange(false, std::memory_order_acq_rel)) {
       setupPublishers();
     }

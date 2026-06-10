@@ -58,7 +58,7 @@ ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py 
     object_list_topic:=/my_lidar/objects
 ```
 
-Set `prediction.model_repository` in the parameter file to the exported Triton repository bundle you want to use. The repository directory name identifies the exported artifact, while the Triton serving name is read from `config.pbtxt` inside that repository.
+Set `prediction.model_repository` in the parameter file to the exported Triton repository bundle you want to use. The Triton serving name is read from `config.pbtxt` inside that repository.
 
 ### Launch Arguments ###
 
@@ -132,8 +132,8 @@ At startup, invalid parameter values fail initialization. At runtime, invalid dy
 | `preprocessing.detection_area.publish_polygon` | `bool` | Publish the sector as `geometry_msgs/msg/PolygonStamped` on `~/detection_area`. | - |
 | `preprocessing.detection_area.filter_detections` | `bool` | Remove detections outside the configured detection area. Uses the XY sector together with `preprocessing.detection_area.z_min/z_max`. | - |
 | `preprocessing.detection_area.filter_mode` | `string` | Filtering mode. `center` checks the box centroid in XY/Z; `complete` requires the full oriented XY footprint and full vertical extent to remain inside. | Must be either `center` or `complete`. |
-| `preprocessing.detection_area.z_min` | `double` | Effective preprocessing lower z-bound used for point filtering and tensor construction. Defaults to the manifest z-range lower bound. | Must be finite, satisfy `z_min < z_max`, and may only narrow the exported manifest z range. |
-| `preprocessing.detection_area.z_max` | `double` | Effective preprocessing upper z-bound used for point filtering and tensor construction. Defaults to the manifest z-range upper bound. | Must be finite, satisfy `z_min < z_max`, and may only narrow the exported manifest z range. |
+| `preprocessing.detection_area.z_min` | `double` | Runtime override for the effective preprocessing lower z-bound used for point filtering and tensor construction. Defaults to the manifest z-range lower bound. | Must be finite and satisfy `z_min < z_max`. Values outside the manifest z range are accepted with a warning. |
+| `preprocessing.detection_area.z_max` | `double` | Runtime override for the effective preprocessing upper z-bound used for point filtering and tensor construction. Defaults to the manifest z-range upper bound. | Must be finite and satisfy `z_min < z_max`. Values outside the manifest z range are accepted with a warning. |
 | `preprocessing.point_feature.value_threshold` | `double` | Exported default for point-feature value-threshold normalization. | Defaults to `runtime_defaults.preprocessing.point_feature.value_threshold` from `model_manifest.yml`; must be finite and greater than 0 when value-threshold normalization is used. |
 
 **Postprocessing Parameters**
@@ -165,9 +165,10 @@ At startup, invalid parameter values fail initialization. At runtime, invalid dy
 | `output.grid_maps.combined_gain` | `double` | Linear gain applied to the published combined grid map. | Must be finite and within `[0, 100]`. |
 | `output.grid_maps.static_gain` | `double` | Linear gain applied to the published static grid map. | Must be finite and within `[0, 100]`. |
 
-The exported `model_manifest.yml` is the source of truth for the bundle. Its `frozen_contract` section defines the non-overridable model contract used by inference, and its `runtime_defaults` section provides the default values for intentionally tunable runtime behavior.
+The exported `model_manifest.yml` is the source of truth for the bundle. Its `frozen_contract` section defines the exported model contract used by inference, and its `runtime_defaults` section provides the default values for intentionally tunable runtime behavior.
 `params.yml` is the runtime selection and override file. `prediction.model_repository` selects the exported Triton repository bundle, `prediction.model_version` optionally selects the numbered Triton version directory, and the Triton model name is inferred from `config.pbtxt` inside that repository and validated against `artifact.triton.model_name` in `model_manifest.yml`.
-`preprocessing.point_feature.value_threshold`, `postprocessing.class_score_threshold`, `postprocessing.nms.score_threshold`, `postprocessing.nms.iou_threshold`, and `postprocessing.nms.max_num_objects` can override the exported defaults at runtime.
+`preprocessing.detection_area.z_min/z_max`, `preprocessing.point_feature.value_threshold`, `postprocessing.class_score_threshold`, `postprocessing.nms.score_threshold`, `postprocessing.nms.iou_threshold`, and `postprocessing.nms.max_num_objects` can override the exported defaults at runtime.
+Changing `prediction.model_repository` at runtime reinitializes the model and preserves current runtime overrides, including `preprocessing.detection_area.z_min/z_max`.
 
 
 ## Usage of docker-ros Images
