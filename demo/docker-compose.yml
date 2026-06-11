@@ -36,7 +36,7 @@ services:
       start_period: 120s
 
   point-cloud-object-detection:
-    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/perception/point_cloud_object_detection:latest_openads_ci-amd64
+    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/perception/point_cloud_object_detection:latest_openads_ci
     depends_on:
       triton-server:
         condition: service_healthy
@@ -53,7 +53,7 @@ services:
       bash -lc "
       ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py
       name:=point_cloud_object_detection
-      point_cloud_topic:=/demo/points
+      point_cloud_topic:=/lidar_01/point_cloud
       object_list_topic:=/demo/objects
       no_detection_zone_topic:=/demo/no_detection_zone
       no_detection_zone_points_topic:=/demo/no_detection_zone_points
@@ -67,20 +67,51 @@ services:
       use_sim_time:=false
       "
 
-  pcd-publisher:
-    build:
-      context: ./pcd-publisher
-    depends_on: [point-cloud-object-detection]
+  ros-parameter-gui:
+    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/monitoring/ros-monitoring:v1.0.0
     environment:
       <<: *ros_common_env
-      PCD_DIR: /data
-      PCD_GLOB: "*.pcd"
-      PCD_TOPIC: /demo/points
-      PCD_FRAME_ID: base_link
-      PCD_PUBLISH_RATE_HZ: 1.0
+      DISPLAY: ${DISPLAY}
+      QT_X11_NO_MITSHM: "1"
     volumes:
-      - ./data:/data:ro
-      - ./pcd-publisher/pcd_publisher.py:/opt/demo/pcd_publisher.py:ro
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    command: bash -lc "rqt --standalone rqt_reconfigure --ros-args -r __node:=ros_parameter_gui"
+
+  autonomy_datasets:
+    image: ghcr.io/thinking-cars/autonomy_datasets:latest
+    # store your personal [HuggingFace Access Token](https://huggingface.co/docs/hub/security-tokens) in `HF_TOKEN` environment variable
+    command: bash -c "hf auth login --token $${HF_TOKEN} && ros2 launch autonomy_datasets autonomy_datasets.launch.py rviz:=no wait_for_ack:=false dataset:=nvidia_physicalai_av_dataset"
+    environment:
+      RMW_IMPLEMENTATION: rmw_fastrtps_cpp
+      DISPLAY: ${DISPLAY}
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: all
+      HF_TOKEN: ${HF_TOKEN}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ./datasets:/datasets
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # # pcd-publisher:
+  #   build:
+  #     context: ./pcd-publisher
+  #   depends_on: [point-cloud-object-detection]
+  #   environment:
+  #     <<: *ros_common_env
+  #     PCD_DIR: /data
+  #     PCD_GLOB: "*.pcd"
+  #     PCD_TOPIC: /demo/points
+  #     PCD_FRAME_ID: base_link
+  #     PCD_PUBLISH_RATE_HZ: 1.0
+  #   volumes:
+  #     - ./data:/data:ro
+  #     - ./pcd-publisher/pcd_publisher.py:/opt/demo/pcd_publisher.py:ro
 
   rviz:
     image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/monitoring/ros-monitoring:v1.0.0
@@ -97,14 +128,3 @@ services:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - ./rviz/config.rviz:/root/.rviz2/config.rviz
     command: bash -lc "rviz2 -d /root/.rviz2/config.rviz --ros-args -r __node:=rviz"
-
-  ros-parameter-gui:
-    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/monitoring/ros-monitoring:v1.0.0
-    depends_on: [rviz]
-    environment:
-      <<: *ros_common_env
-      DISPLAY: ${DISPLAY}
-      QT_X11_NO_MITSHM: "1"
-    volumes:
-      - /tmp/.X11-unix:/tmp/.X11-unix:rw
-    command: bash -lc "rqt --standalone rqt_reconfigure --ros-args -r __node:=ros_parameter_gui"

@@ -23,14 +23,14 @@
     output.variances: [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0]
 
     # Model input feature selection
-    input.point_feature_field: "reflectivity"
+    input.point_feature_field: "intensity"
 
     # Runtime overrides for exported manifest defaults.
     # preprocessing.detection_area.z_min: -1.0
     # preprocessing.detection_area.z_max: 4.0
     preprocessing.point_feature.value_threshold: 100.0
                                        # car, bus, motorcycle, bicycle, utility, pedestrian, vru, micro, animal
-    postprocessing.nms.score_threshold: [0.5, 0.5, 0.5,        0.5,     0.5,     0.3,        0.5, 0.5,   0.5]
+    postprocessing.nms.score_threshold: [0.5, 0.5, 0.5,        0.5,     0.5,     0.5,        0.5, 0.5,   0.5]
     # postprocessing.class_score_threshold: 0.0
     # postprocessing.nms.iou_threshold: 0.2
     # postprocessing.nms.max_num_objects: 64
