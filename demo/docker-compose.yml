@@ -36,7 +36,7 @@ services:
       start_period: 120s
 
   point-cloud-object-detection:
-    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/perception/point_cloud_object_detection:latest_dynamic-model-upgrade_ci
+    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/perception/point_cloud_object_detection:latest
     depends_on:
       triton-server:
         condition: service_healthy
