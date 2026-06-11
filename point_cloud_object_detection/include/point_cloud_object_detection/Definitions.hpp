@@ -130,7 +130,7 @@ struct Params {
   double detection_area_radius = 0.0;
   double detection_area_bearing_deg = 0.0;  // central azimuth (deg, 0 along +x, CCW)
   double detection_area_fov_deg = 360.0;    // angular width (deg)
-  // Effective z range used during inference-time preprocessing. Defaults to the manifest z range and may only narrow it.
+  // Runtime override for the effective z range used during inference-time preprocessing. Defaults to the manifest z range.
   double detection_area_z_min = 0.0;
   double detection_area_z_max = 0.0;
   bool detection_area_publish_polygon = false;
