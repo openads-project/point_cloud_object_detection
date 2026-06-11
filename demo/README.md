@@ -1,40 +1,56 @@
 # Demo
 
-This directory contains a self-contained demo setup for the `point_cloud_object_detection` node. It replays sample `.pcd` files, serves a Triton model repository, starts the detection node, and opens RViz plus an `rqt` parameter GUI.
+This directory contains a self-contained demo setup for the `point_cloud_object_detection` node. It replays the [NVIDIA PhysicalAI-Autonomous-Vehicles Dataset](https://huggingface.co/datasets/nvidia/PhysicalAI-Autonomous-Vehicles) with the help of the [autonomy_datasets](https://github.com/thinking-cars/autonomy_datasets) ROS package.
 
 ## Components
 
-- `docker-compose.yml`: starts the full demo stack.
-- `data/`: sample point clouds published on `/demo/points`.
-- `models/`: Triton model repository mounted into the Triton server and the detection container.
-- `point_cloud_object_detection.demo.params.yml`: runtime parameters for the detection node used by the demo.
-- `rviz/config.rviz`: RViz configuration for the demo topics.
-- `pcd-publisher/`: small publisher image that loops over the sample `.pcd` files.
+- [`docker-compose.yml`](./docker-compose.yml): Configuration of the demo.
+- [`datasets/`](./datasets): The [NVIDIA PhysicalAI-Autonomous-Vehicles Dataset](https://huggingface.co/datasets/nvidia/PhysicalAI-Autonomous-Vehicles) is converted into Rosbags which are then stored in this directory.
+- [`models/`](./models): The detection model used for inference in the demo.
+- [`point_cloud_object_detection.demo.params.yml`](./point_cloud_object_detection.demo.params.yml): Runtime parameters for the detection node used by the demo.
+- [`rviz/config.rviz`](./rviz/config.rviz): RViz configuration for the demo setup.
 
 ## Services
 
-- `triton-server`: serves the model repository from `./models`.
-- `point-cloud-object-detection`: runs the packaged detection node against the Triton server.
-- `pcd-publisher`: publishes the sample point clouds to `/demo/points`.
-- `rviz`: visualizes `/demo/points`, `/demo/objects`, `/demo/detection_area`, `/demo/no_detection_zone`, `/demo/no_detection_zone_points`, and `/demo/model_bounds`.
-- `ros-parameter-gui`: starts `rqt_reconfigure` for interactive parameter changes.
+- `triton-server`: Serves the model repository from [`./models`](./models).
+- `point-cloud-object-detection`: Runs the packaged detection node against the Triton server.
+- `rviz`: Visualizes `/demo/points`, `/demo/objects`, `/demo/detection_area`, `/demo/no_detection_zone`, `/demo/no_detection_zone_points`, and `/demo/model_bounds`.
+- `ros-parameter-gui`: Starts `rqt_reconfigure` for interactive parameter changes.
 
 ## Run
 
-From this directory:
+1. Register at [HuggingFace](https://huggingface.co/join) and create a read-only [HuggingFace Access Token](https://huggingface.co/settings/tokens/new?tokenType=read).
+2. Store the token in an `.env` file in the demo directory:
 
-```bash
-xhost +local:
-docker compose up
-```
+    ```bash
+    echo "HF_TOKEN=your_token_here" > .env
+    ```
 
-The detection node consumes `/demo/points` and publishes detections on `/demo/objects`. It also publishes polygons on `/demo/detection_area`, `/demo/no_detection_zone`, and `/demo/model_bounds`, no-detection-zone points on `/demo/no_detection_zone_points`, and grid maps on `/demo/density_grid_map`, `/demo/occupancy_grid_map`, `/demo/combined_grid_map`, and `/demo/static_grid_map`.
+3. Accept the terms and conditions for the dataset on [HuggingFace](https://huggingface.co/datasets/nvidia/PhysicalAI-Autonomous-Vehicles).
+
+
+4. Allow local Docker containers to connect to the X server for RViz visualization:
+
+    ```bash
+    xhost +local:
+    ```
+
+5. Start the demo from the demo directory (takes some time on the first run to pull the images and download the dataset): 
+    ```bash
+    docker compose up -d
+    ```
+
+6. Stop the demo from the demo directory once you're done:
+    ```bash
+    docker compose down
+    ``` 
+
+7.  Disable the connection to the X server after you're done with the demo:
+
+    ```bash
+    xhost -local:
+    ```
 
 ## Interacting Through `rqt`
 
-The `ros-parameter-gui` service starts `rqt` with the `rqt_reconfigure` plugin. Use it to inspect and adjust the running parameters of the `point_cloud_object_detection` node while the demo is active.
-
-In the `rqt` window:
-
-- Select the `point_cloud_object_detection` node in the parameter tree.
-- Modify dynamic parameters and observe the result in RViz.
+The `ros-parameter-gui` service starts `rqt` with the `rqt_reconfigure` plugin. You may use it to inspect and adjust the running parameters of the `point_cloud_object_detection` node while the demo is active.
