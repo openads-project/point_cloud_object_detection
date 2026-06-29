@@ -4,7 +4,7 @@
   <a href="https://www.ros.org"><img src="https://img.shields.io/badge/ROS 2-jazzy-22314e"/></a>
 </p>
 
-This repository provides a ROS 2 point-cloud object detection node for automated driving perception stacks. The node subscribes to a `sensor_msgs/msg/PointCloud2`, sends preprocessed point data to a Triton-served detection model, and publishes detected objects as `perception_msgs/msg/ObjectList`.
+This repository provides a ROS 2 point cloud object detection node for automated driving perception stacks. The node subscribes to a `sensor_msgs/msg/PointCloud2`, sends preprocessed point data to a Triton-served detection model, and publishes detected objects as `perception_msgs/msg/ObjectList`.
 
 The detector itself does not host the neural network. A [Triton Inference Server](https://github.com/triton-inference-server/server) with a compatible exported model repository must be available at runtime.
 
@@ -19,21 +19,54 @@ The detector itself does not host the neural network. A [Triton Inference Server
 
 ## 🚀 Quick Start
 
-Run the ready-made demo setup from [`demo`](demo), which starts Triton, the object detection node, a PCD publisher, RViz, and an `rqt` parameter GUI.
+The [`demo`](demo) provides an example setup for the `point_cloud_object_detection` node. It can replay the [NVIDIA PhysicalAI-Autonomous-Vehicles Dataset](https://huggingface.co/datasets/nvidia/PhysicalAI-Autonomous-Vehicles) with the help of the [autonomy_datasets](https://github.com/thinking-cars/autonomy_datasets) ROS package. Alternatively, it can replay local [PCD files](demo/pcds/).
 
-1. Launch the demo Docker Compose setup.
+1. Register at [HuggingFace](https://huggingface.co/join) and create a read-only [HuggingFace Access Token](https://huggingface.co/settings/tokens/new?tokenType=read).
+2. Store the token in an `.env` file in the [demo](/demo) directory:
+
+    ```bash
+    echo "HF_TOKEN=your_token_here" > .env
+    ```
+
+3. Accept the terms and conditions for the dataset on [HuggingFace](https://huggingface.co/datasets/nvidia/PhysicalAI-Autonomous-Vehicles).
+
+
+4. Allow local Docker containers to connect to the X server for RViz visualization:
+
+    ```bash
+    xhost +local:
+    ```
+
+5. Start one of the replay profiles from the demo directory.
+
     ```bash
     cd demo
-    xhost +local:
-    docker compose up
+    docker compose --profile nvidia up -d --remove-orphans
     ```
-1. Inspect the published point cloud, object list, detection area, no-detection zone, model bounds, and optional grid-map outputs in RViz.
-1. Stop the demo and clean up.
-    > *Ctrl+C*
+
+   The `nvidia` profile iteratively downloads parts of the dataset, converts them to ROS bag files and replay the latest bag. Downloads are stopped once the demo is stopped. Downloading is resumed when the demo is resumed.
+   
+   If you want to replay and process provided PCD files instead, run:
+
     ```bash
-    docker compose down
+    docker compose --profile pcd up -d --remove-orphans
+    ```
+
+6. Stop the demo from the demo directory once you're done:
+
+    ```bash
+    docker compose down --remove-orphans
+    ``` 
+
+7.  Disable the connection to the X server after you're done with the demo:
+
+    ```bash
     xhost -local:
     ```
+
+#### Interacting Through `rqt`
+
+The `ros-parameter-gui` service starts `rqt` with the `rqt_reconfigure` plugin. You may use it to inspect and adjust the running parameters of the `point_cloud_object_detection` node while the demo is active.
 
 ## 💻 Development
 
@@ -90,4 +123,8 @@ The source code in this repository is licensed under Apache-2.0, see [LICENSE](L
 
 ## 🙏 Acknowledgements
 
-Development and maintenance of this repository are supported by the Institute for Automotive Engineering (ika) at RWTH Aachen University.
+Development and maintenance of this repository are supported by the following projects. We acknowledge the funding of the respective institutions.
+
+| Project | Funding Institution | Grant Number |
+| --- | --- | --- |
+| [AIGGREGATE](https://aiggregate.eu/) | 🇪🇺 European Union | 101202457 |
