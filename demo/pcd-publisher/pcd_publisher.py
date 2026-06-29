@@ -17,7 +17,6 @@ from sensor_msgs.msg import PointCloud2, PointField
 from sensor_msgs_py import point_cloud2
 from std_msgs.msg import Header
 
-
 _PCD_TO_POINTFIELD_DATATYPES = {
     ("F", 4): PointField.FLOAT32,
     ("F", 8): PointField.FLOAT64,
@@ -35,6 +34,8 @@ _NATURAL_SORT_TOKEN_PATTERN = re.compile(r"\d+|\D+")
 
 @dataclass(frozen=True)
 class PcdHeader:
+    """Metadata parsed from a PCD file header."""
+
     fields: List[str]
     sizes: List[int]
     types: List[str]
@@ -44,9 +45,13 @@ class PcdHeader:
 
     @property
     def point_stride(self) -> int:
+        """Return the size of one point in bytes."""
+
         return sum(size * count for size, count in zip(self.sizes, self.counts))
 
     def point_field_datatype_for_index(self, field_index: int) -> int:
+        """Return the ROS PointField datatype for a PCD field."""
+
         key = (self.types[field_index], self.sizes[field_index])
         point_field_datatype = _PCD_TO_POINTFIELD_DATATYPES.get(key)
         if point_field_datatype is None:
@@ -138,9 +143,7 @@ def _build_output_schema(header: PcdHeader) -> List[PointField]:
     return output_fields
 
 
-def _parse_ascii_points(
-    handle: BinaryIO, header: PcdHeader, path: Path
-) -> List[Tuple[object, ...]]:
+def _parse_ascii_points(handle: BinaryIO, header: PcdHeader, path: Path) -> List[Tuple[object, ...]]:
     points: List[Tuple[object, ...]] = []
 
     for raw_line in handle:
@@ -174,9 +177,7 @@ def _load_binary_pcd_cloud(
     expected_size = header.points * header.point_stride
     point_data = handle.read(expected_size)
     if len(point_data) != expected_size:
-        raise ValueError(
-            f"PCD binary payload size mismatch for {path}: expected {expected_size} bytes, got {len(point_data)}"
-        )
+        raise ValueError(f"PCD binary payload size mismatch for {path}: expected {expected_size} bytes, got {len(point_data)}")
 
     msg = PointCloud2()
     msg.header = Header(frame_id=frame_id, stamp=stamp)
@@ -217,26 +218,31 @@ def _pcd_playback_sort_key(path: Path) -> Tuple[int, object, object]:
     return (1, _natural_sort_key(path.stem), path.name.lower())
 
 
-def _make_cloud(
-    points: Iterable[Tuple[object, ...]], fields: Sequence[PointField], frame_id: str, stamp: Time
-) -> PointCloud2:
+def _make_cloud(points: Iterable[Tuple[object, ...]], fields: Sequence[PointField], frame_id: str, stamp: Time) -> PointCloud2:
     header = Header(frame_id=frame_id, stamp=stamp)
     return point_cloud2.create_cloud(header, list(fields), points)
 
 
 class PcdPublisher(Node):
+    """Publish PCD files as a ROS PointCloud2 stream."""
+
     def __init__(self) -> None:
+        """Initialize the PCD publisher."""
+
         super().__init__("pcd_publisher")
 
-        pcd_dir = Path(os.environ.get("PCD_DIR", "/data"))
+        pcd_dir = Path(os.environ.get("PCD_DIR", "/pcds"))
         pcd_glob = os.environ.get("PCD_GLOB", "*.pcd")
         topic = os.environ.get("PCD_TOPIC", "/demo/points")
         frame_id = os.environ.get("PCD_FRAME_ID", "base_link")
-        publish_rate_hz = float(os.environ.get("PCD_PUBLISH_RATE_HZ", "10.0"))
+        publish_rate_hz = float(os.environ.get("PCD_PUBLISH_RATE_HZ", "5.0"))
+        if publish_rate_hz <= 0.0:
+            raise ValueError("PCD_PUBLISH_RATE_HZ must be greater than zero")
 
         pcd_paths = self._discover_pcd_files(pcd_dir, pcd_glob)
         self._frames = self._load_frames(pcd_paths, frame_id)
         self._frame_index = 0
+        self._playback_direction = 1
 
         qos = QoSProfile(
             depth=1,
@@ -249,7 +255,8 @@ class PcdPublisher(Node):
         cached_bytes = sum(len(frame.data) for frame in self._frames)
         self.get_logger().info(
             f"Cached {len(self._frames)} PCD frames from {pcd_dir} using pattern {pcd_glob} "
-            f"({cached_bytes / 1024 / 1024:.1f} MiB) and publishing on {topic} at {publish_rate_hz:.2f} Hz"
+            f"({cached_bytes / 1024 / 1024:.1f} MiB) and publishing on {topic} "
+            f"forward and backward at {publish_rate_hz:.2f} Hz"
         )
 
     @staticmethod
@@ -268,10 +275,18 @@ class PcdPublisher(Node):
         msg = self._frames[self._frame_index]
         msg.header.stamp = self.get_clock().now().to_msg()
         self._publisher.publish(msg)
-        self._frame_index = (self._frame_index + 1) % len(self._frames)
+
+        if len(self._frames) > 1:
+            next_index = self._frame_index + self._playback_direction
+            if next_index < 0 or next_index >= len(self._frames):
+                self._playback_direction *= -1
+                next_index = self._frame_index + self._playback_direction
+            self._frame_index = next_index
 
 
 def main() -> None:
+    """Run the PCD publisher node."""
+
     rclpy.init()
     node = PcdPublisher()
     try:
