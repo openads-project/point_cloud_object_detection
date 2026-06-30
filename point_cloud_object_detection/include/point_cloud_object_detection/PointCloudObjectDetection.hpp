@@ -97,8 +97,7 @@ class PointCloudObjectDetection : public rclcpp::Node {
   /**
    * @brief Copy NMS-related runtime parameters into model and NMS configuration objects.
    */
-  void syncNmsRuntimeConfigFromParams(ModelConfig& model_config, pcod_common::NmsConfig& nms_config,
-                                      const Params& params) const;
+  void syncNmsRuntimeConfigFromParams(ModelConfig& model_config, pcod_common::NmsConfig& nms_config, const Params& params) const;
   /**
    * @brief Loads all ROS parameters for the model depending on the architecture
   */
@@ -108,9 +107,13 @@ class PointCloudObjectDetection : public rclcpp::Node {
    * @brief Declare a ROS parameter, load its value, and register metadata for dynamic reconfiguration.
    */
   template <typename T>
-  void declareAndLoadParameter(const std::string& name, T& param, const std::string& description,
-                               const bool add_to_auto_reconfigurable_params = true, const bool is_required = false,
-                               const bool read_only = false, const std::optional<double>& from_value = std::nullopt,
+  void declareAndLoadParameter(const std::string& name,
+                               T& param,
+                               const std::string& description,
+                               const bool add_to_auto_reconfigurable_params = true,
+                               const bool is_required = false,
+                               const bool read_only = false,
+                               const std::optional<double>& from_value = std::nullopt,
                                const std::optional<double>& to_value = std::nullopt,
                                const std::optional<double>& step_value = std::nullopt,
                                const std::string& additional_constraints = "");
@@ -160,15 +163,19 @@ class PointCloudObjectDetection : public rclcpp::Node {
    * @param msg               Point cloud data in ROS message type format
    * @param point_cloud       Point cloud in pcl format -> Return reference
    */
-  void processPointCloud(const sensor_msgs::msg::PointCloud2::ConstSharedPtr msg, const ModelConfig& model_config,
-                         const Params& params, PointCloud& point_cloud);
+  void processPointCloud(const sensor_msgs::msg::PointCloud2::ConstSharedPtr msg,
+                         const ModelConfig& model_config,
+                         const Params& params,
+                         PointCloud& point_cloud);
   /**
    * @brief Create object list message type format using bounding box data
    *
    * @param bboxes            Vector containing all bounding boxes
    * @param object_list       Object list -> Return reference
    */
-  void boxesToObjectList(const std::vector<BoundingBox>& bboxes, const ModelConfig& model_config, const Params& params,
+  void boxesToObjectList(const std::vector<BoundingBox>& bboxes,
+                         const ModelConfig& model_config,
+                         const Params& params,
                          perception_msgs::msg::ObjectList& object_list);
 
   /**

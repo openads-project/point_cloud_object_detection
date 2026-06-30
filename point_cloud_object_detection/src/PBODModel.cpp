@@ -115,8 +115,7 @@ void PBODModel::validateInterface(const triton_cpp::TritonInterface& triton_inte
     try {
       (void)triton_interface.getInputShape(input_name);
     } catch (const std::invalid_argument& e) {
-      throw std::runtime_error("PBOD model is missing expected input tensor '" + std::string(input_name) +
-                               "': " + e.what());
+      throw std::runtime_error("PBOD model is missing expected input tensor '" + std::string(input_name) + "': " + e.what());
     }
   }
 
@@ -124,8 +123,7 @@ void PBODModel::validateInterface(const triton_cpp::TritonInterface& triton_inte
     try {
       (void)triton_interface.getOutputShape(output_name);
     } catch (const std::invalid_argument& e) {
-      throw std::runtime_error("PBOD model is missing expected output tensor '" + std::string(output_name) +
-                               "': " + e.what());
+      throw std::runtime_error("PBOD model is missing expected output tensor '" + std::string(output_name) + "': " + e.what());
     }
   }
 
@@ -159,8 +157,7 @@ PBODModel::PBODModel(triton_cpp::TritonInterface& triton_interface, const ModelC
       voxel_x_{static_cast<float>(model_config_.voxel_x)},
       voxel_y_{static_cast<float>(model_config_.voxel_y)},
       voxel_z_{static_cast<float>(model_config_.voxel_z)},
-      normalization_type_{
-          pcod_common::ParsePointFeatureNormalizationType(model_config_.point_feature_normalization_type)},
+      normalization_type_{pcod_common::ParsePointFeatureNormalizationType(model_config_.point_feature_normalization_type)},
       value_threshold_{model_config_.point_feature_value_threshold},
       min_value_{model_config_.point_feature_min_value},
       max_value_{model_config_.point_feature_max_value},
@@ -219,12 +216,11 @@ PBODModel::PBODModel(triton_cpp::TritonInterface& triton_interface, const ModelC
       pillar_indices_[idx + 1] = iy;
     }
   }
-  pillar_grid_ =
-      pcod_common::BuildPillarGrid({grid_x, grid_y},
-                                   {{{model_config_.pillar_map_range[0][0], model_config_.pillar_map_range[0][1]},
-                                     {model_config_.pillar_map_range[1][0], model_config_.pillar_map_range[1][1]},
-                                     {model_config_.pillar_map_range[2][0], model_config_.pillar_map_range[2][1]}}},
-                                   model_config_.first_up_stride, stride);
+  pillar_grid_ = pcod_common::BuildPillarGrid({grid_x, grid_y},
+                                              {{{model_config_.pillar_map_range[0][0], model_config_.pillar_map_range[0][1]},
+                                                {model_config_.pillar_map_range[1][0], model_config_.pillar_map_range[1][1]},
+                                                {model_config_.pillar_map_range[2][0], model_config_.pillar_map_range[2][1]}}},
+                                              model_config_.first_up_stride, stride);
   postprocess_config_.class_names = model_config_.predicted_class_names;
   postprocess_config_.score_thresholds.reserve(model_config_.nms_score_threshold.size());
   for (double value : model_config_.nms_score_threshold) {
@@ -269,8 +265,12 @@ void PBODModel::setupModelInput(const PointCloud& point_cloud) {
 }
 
 void PBODModel::prepareModelInputFromPointCloud2(const sensor_msgs::msg::PointCloud2& point_cloud_msg,
-                                                 uint32_t x_offset, uint32_t y_offset, uint32_t z_offset,
-                                                 uint32_t feature_offset, uint8_t feature_datatype, bool needs_swap,
+                                                 uint32_t x_offset,
+                                                 uint32_t y_offset,
+                                                 uint32_t z_offset,
+                                                 uint32_t feature_offset,
+                                                 uint8_t feature_datatype,
+                                                 bool needs_swap,
                                                  bool materialize_filtered_points) {
   const std::size_t width = point_cloud_msg.width;
   const std::size_t row_step = static_cast<std::size_t>(point_cloud_msg.row_step);
@@ -282,8 +282,7 @@ void PBODModel::prepareModelInputFromPointCloud2(const sensor_msgs::msg::PointCl
         const std::size_t row = index / width;
         const std::size_t col = index % width;
         const std::uint8_t* point_ptr = point_cloud_msg.data.data() + row * row_step + col * point_step;
-        return PointRecord{readFloat32At(point_ptr + x_offset, needs_swap),
-                           readFloat32At(point_ptr + y_offset, needs_swap),
+        return PointRecord{readFloat32At(point_ptr + x_offset, needs_swap), readFloat32At(point_ptr + y_offset, needs_swap),
                            readFloat32At(point_ptr + z_offset, needs_swap),
                            readPointFieldAsFloat(point_ptr + feature_offset, feature_datatype, needs_swap)};
       },
@@ -291,8 +290,7 @@ void PBODModel::prepareModelInputFromPointCloud2(const sensor_msgs::msg::PointCl
 }
 
 template <typename PointGetter>
-void PBODModel::setupModelInputFromGetter(int n_cloud_points, PointGetter&& get_point,
-                                          bool materialize_filtered_points) {
+void PBODModel::setupModelInputFromGetter(int n_cloud_points, PointGetter&& get_point, bool materialize_filtered_points) {
   auto makePoint = [](const PointRecord& point_record) {
     Point point;
     point.x = point_record.x;
@@ -314,10 +312,8 @@ void PBODModel::setupModelInputFromGetter(int n_cloud_points, PointGetter&& get_
   bool* pillar_masks_host = nullptr;
 
   if (use_cuda_input_shm) {
-    point_features_device =
-        reinterpret_cast<float*>(triton_interface_.getInputTensorDevice(kInputNamePointFeatures).first);
-    pillar_ids_device =
-        reinterpret_cast<std::int64_t*>(triton_interface_.getInputTensorDevice(kInputNamePillarIds).first);
+    point_features_device = reinterpret_cast<float*>(triton_interface_.getInputTensorDevice(kInputNamePointFeatures).first);
+    pillar_ids_device = reinterpret_cast<std::int64_t*>(triton_interface_.getInputTensorDevice(kInputNamePillarIds).first);
     valid_mask_device = reinterpret_cast<bool*>(triton_interface_.getInputTensorDevice(kInputNameValidMask).first);
     pillar_masks_device = reinterpret_cast<bool*>(triton_interface_.getInputTensorDevice(kInputNamePillarMasks).first);
     if (!pillar_indices_initialized_) {
@@ -331,8 +327,7 @@ void PBODModel::setupModelInputFromGetter(int n_cloud_points, PointGetter&& get_
     auto pillar_ids_map = triton_interface_.getInputTensor<int64_t>(kInputNamePillarIds, max_num_points_);
     auto valid_mask_map = triton_interface_.getInputTensor<bool>(kInputNameValidMask, max_num_points_);
     auto pillar_masks_map = triton_interface_.getInputTensor<bool>(kInputNamePillarMasks, num_pillars_);
-    auto pillar_indices_map =
-        triton_interface_.getInputTensor<int64_t>(kInputNamePillarIndices, num_pillars_, kPillarIndexDim);
+    auto pillar_indices_map = triton_interface_.getInputTensor<int64_t>(kInputNamePillarIndices, num_pillars_, kPillarIndexDim);
     point_features_host = point_features_map.data();
     pillar_ids_host = pillar_ids_map.data();
     valid_mask_host = valid_mask_map.data();
@@ -450,8 +445,8 @@ void PBODModel::setupModelInputFromGetter(int n_cloud_points, PointGetter&& get_
   }
 
   if (use_cuda_input_shm) {
-    if (populateModelInputOnGpuToDevice(point_features_device, pillar_ids_device, valid_mask_device,
-                                        pillar_masks_device, num_selected)) {
+    if (populateModelInputOnGpuToDevice(point_features_device, pillar_ids_device, valid_mask_device, pillar_masks_device,
+                                        num_selected)) {
       return;
     }
     throw std::runtime_error(
@@ -471,8 +466,8 @@ void PBODModel::setupModelInputFromGetter(int n_cloud_points, PointGetter&& get_
   populateModelInputOnCpu(point_features_host, pillar_ids_host, valid_mask_host, pillar_masks_host, num_selected);
 }
 
-void PBODModel::populateModelInputOnCpu(float* point_features, std::int64_t* pillar_ids, bool* valid_mask,
-                                        bool* pillar_masks, int num_selected) {
+void PBODModel::populateModelInputOnCpu(
+    float* point_features, std::int64_t* pillar_ids, bool* valid_mask, bool* pillar_masks, int num_selected) {
   constexpr float kRadiusEpsilon = 1e-6f;
   const float inv_voxel_x = 1.0f / voxel_x_;
   const float inv_voxel_y = 1.0f / voxel_y_;
@@ -574,8 +569,7 @@ void PBODModel::populateModelInputOnCpu(float* point_features, std::int64_t* pil
     }
     const float normalized_point_feature = point_preprocessor_.NormalizePointFeature(point.intensity);
 
-    float* feature_row =
-        point_features + static_cast<std::size_t>(i) * static_cast<std::size_t>(preprocessed_feature_dim_);
+    float* feature_row = point_features + static_cast<std::size_t>(i) * static_cast<std::size_t>(preprocessed_feature_dim_);
     feature_row[kFeatureX] = point.x;
     feature_row[kFeatureY] = point.y;
     feature_row[kFeatureZ] = point.z;
@@ -601,8 +595,8 @@ void PBODModel::populateModelInputOnCpu(float* point_features, std::int64_t* pil
   }
 }
 
-bool PBODModel::populateModelInputOnGpu(float* point_features, std::int64_t* pillar_ids, bool* valid_mask,
-                                        bool* pillar_masks, int num_selected) {
+bool PBODModel::populateModelInputOnGpu(
+    float* point_features, std::int64_t* pillar_ids, bool* valid_mask, bool* pillar_masks, int num_selected) {
   pcod_common::PillarPreprocessCudaConfig config;
   config.x_min = x_min_;
   config.x_max = x_max_;
@@ -663,8 +657,8 @@ bool PBODModel::populateModelInputOnGpu(float* point_features, std::int64_t* pil
   return true;
 }
 
-bool PBODModel::populateModelInputOnGpuToDevice(float* point_features, std::int64_t* pillar_ids, bool* valid_mask,
-                                                bool* pillar_masks, int num_selected) {
+bool PBODModel::populateModelInputOnGpuToDevice(
+    float* point_features, std::int64_t* pillar_ids, bool* valid_mask, bool* pillar_masks, int num_selected) {
   pcod_common::PillarPreprocessCudaConfig config;
   config.x_min = x_min_;
   config.x_max = x_max_;
@@ -705,10 +699,8 @@ bool PBODModel::populateModelInputOnGpuToDevice(float* point_features, std::int6
 
   const pcod_common::PillarPreprocessCudaDeviceOutputs outputs{point_features, pillar_ids, valid_mask, pillar_masks};
   std::string error_message;
-  if (!cuda_preprocess_context_.runToDevice(selected_point_records_.data(), num_selected, config, outputs,
-                                            &error_message)) {
-    RCLCPP_ERROR(rclcpp::get_logger("PBODModel"), "CUDA input shared memory preprocessing failed: %s",
-                 error_message.c_str());
+  if (!cuda_preprocess_context_.runToDevice(selected_point_records_.data(), num_selected, config, outputs, &error_message)) {
+    RCLCPP_ERROR(rclcpp::get_logger("PBODModel"), "CUDA input shared memory preprocessing failed: %s", error_message.c_str());
     return false;
   }
 
@@ -719,8 +711,7 @@ std::vector<BoundingBox> PBODModel::modelOutputToBoxes() {
   const int num_pillars = pillar_grid_.grid_x * pillar_grid_.grid_y;
   const int num_classes = static_cast<int>(model_config_.predicted_class_names.size());
   auto class_logits = triton_interface_.getOutputTensor<float>(kOutputNameClass, num_pillars, num_classes);
-  auto size_posterior =
-      triton_interface_.getOutputTensor<float>(kOutputNameSize, num_pillars, kSizeValuesPerClass * num_classes);
+  auto size_posterior = triton_interface_.getOutputTensor<float>(kOutputNameSize, num_pillars, kSizeValuesPerClass * num_classes);
   auto focal_logits = triton_interface_.getOutputTensor<float>(kOutputNameFocal, num_pillars);
   auto reg_logits =
       triton_interface_.getOutputTensor<float>(kOutputNameReg, num_pillars, kRegressionValuesPerClass * num_classes);

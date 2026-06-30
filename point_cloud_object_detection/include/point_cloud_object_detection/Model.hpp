@@ -68,9 +68,8 @@ class Model {
    * @param timestamps                            Vector with instants of time regarding different steps of the prediction. This function will add two time points: before and after the inference
    * @return std::vector<BoundingBox>       Model output: Vector with predicted bounding boxes
    */
-  std::vector<BoundingBox> operator()(
-      const PointCloud& point_cloud,
-      std::vector<std::chrono::time_point<std::chrono::high_resolution_clock>>& timestamps);
+  std::vector<BoundingBox> operator()(const PointCloud& point_cloud,
+                                      std::vector<std::chrono::time_point<std::chrono::high_resolution_clock>>& timestamps);
 
   /**
    * @brief Run model inference on the already prepared input tensors and decode the raw outputs.
@@ -78,8 +77,7 @@ class Model {
    * @param timestamps Timing trace that receives entries before and after Triton inference.
    * @return Decoded bounding boxes.
    */
-  std::vector<BoundingBox> inferAndDecode(
-      std::vector<std::chrono::time_point<std::chrono::high_resolution_clock>>& timestamps);
+  std::vector<BoundingBox> inferAndDecode(std::vector<std::chrono::time_point<std::chrono::high_resolution_clock>>& timestamps);
 
   /**
    * @brief Get the points that were actually used as input to the model after filtering
@@ -116,7 +114,7 @@ class Model {
   /**
    * @brief Destroy the model interface.
    */
-  virtual ~Model() = default;    // Any method virtual -> destructor virtual
+  virtual ~Model() = default;  // Any method virtual -> destructor virtual
   /**
    * @brief Models own Triton tensor state and cannot be copied.
    */
