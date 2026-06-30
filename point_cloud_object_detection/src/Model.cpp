@@ -6,9 +6,8 @@
 namespace point_cloud_object_detection {
 Model::Model(triton_cpp::TritonInterface& triton_interface) : triton_interface_{triton_interface} {}
 
-std::vector<BoundingBox> Model::operator()(
-    const PointCloud& point_cloud,
-    std::vector<std::chrono::time_point<std::chrono::high_resolution_clock>>& timestamps) {
+std::vector<BoundingBox> Model::operator()(const PointCloud& point_cloud,
+                                           std::vector<std::chrono::time_point<std::chrono::high_resolution_clock>>& timestamps) {
   // input Tensor creation
   setupModelInput(point_cloud);
   timestamps.push_back(std::chrono::high_resolution_clock::now());  // after input tensor creation, before inference

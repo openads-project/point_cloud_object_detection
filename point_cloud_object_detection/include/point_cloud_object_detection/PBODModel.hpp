@@ -67,11 +67,10 @@ class PBODModel : public Model {
     kFeatureCenterOffsetZ
   };
 
-  static constexpr std::array<const char*, 5> kExpectedInputNames{kInputNamePointFeatures, kInputNamePillarIds,
-                                                                  kInputNameValidMask, kInputNamePillarMasks,
-                                                                  kInputNamePillarIndices};
-  static constexpr std::array<const char*, 6> kExpectedOutputNames{
-      kOutputNameFocal, kOutputNameReg, kOutputNameClass, kOutputNameSize, kOutputNameDensity, kOutputNameOccupancy};
+  static constexpr std::array<const char*, 5> kExpectedInputNames{
+      kInputNamePointFeatures, kInputNamePillarIds, kInputNameValidMask, kInputNamePillarMasks, kInputNamePillarIndices};
+  static constexpr std::array<const char*, 6> kExpectedOutputNames{kOutputNameFocal, kOutputNameReg,     kOutputNameClass,
+                                                                   kOutputNameSize,  kOutputNameDensity, kOutputNameOccupancy};
 
   /**
    * @brief Validate that the loaded Triton model exposes the expected PBOD input and output tensors.
@@ -90,9 +89,14 @@ class PBODModel : public Model {
   /**
    * @brief Build model input tensors directly from a ROS PointCloud2 message.
    */
-  void prepareModelInputFromPointCloud2(const sensor_msgs::msg::PointCloud2& point_cloud_msg, uint32_t x_offset,
-                                        uint32_t y_offset, uint32_t z_offset, uint32_t feature_offset,
-                                        uint8_t feature_datatype, bool needs_swap, bool materialize_filtered_points);
+  void prepareModelInputFromPointCloud2(const sensor_msgs::msg::PointCloud2& point_cloud_msg,
+                                        uint32_t x_offset,
+                                        uint32_t y_offset,
+                                        uint32_t z_offset,
+                                        uint32_t feature_offset,
+                                        uint8_t feature_datatype,
+                                        bool needs_swap,
+                                        bool materialize_filtered_points);
   /**
    * @brief Destroy the PBOD model wrapper.
    */
@@ -139,18 +143,18 @@ class PBODModel : public Model {
   /**
    * @brief Populate PBOD input tensors using the CPU preprocessing path.
    */
-  void populateModelInputOnCpu(float* point_features, std::int64_t* pillar_ids, bool* valid_mask, bool* pillar_masks,
-                               int num_selected);
+  void populateModelInputOnCpu(
+      float* point_features, std::int64_t* pillar_ids, bool* valid_mask, bool* pillar_masks, int num_selected);
   /**
    * @brief Populate PBOD input tensors using CUDA preprocessing with host-visible tensor buffers.
    */
-  bool populateModelInputOnGpu(float* point_features, std::int64_t* pillar_ids, bool* valid_mask, bool* pillar_masks,
-                               int num_selected);
+  bool populateModelInputOnGpu(
+      float* point_features, std::int64_t* pillar_ids, bool* valid_mask, bool* pillar_masks, int num_selected);
   /**
    * @brief Populate PBOD input tensors using CUDA preprocessing directly into device tensor buffers.
    */
-  bool populateModelInputOnGpuToDevice(float* point_features, std::int64_t* pillar_ids, bool* valid_mask,
-                                       bool* pillar_masks, int num_selected);
+  bool populateModelInputOnGpuToDevice(
+      float* point_features, std::int64_t* pillar_ids, bool* valid_mask, bool* pillar_masks, int num_selected);
 
   const ModelConfig model_config_;
   pcod_common::PillarGrid pillar_grid_;
