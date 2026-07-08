@@ -56,18 +56,23 @@ namespace pm = perception_msgs;
 class PointCloudObjectDetection : public rclcpp::Node {
  public:
   /**
-  * @brief Constructor getting its options e.g. from ComposableNodeContainer
-  * @param options NodeOptions
-  */
+   * @brief Constructor getting its options e.g. from ComposableNodeContainer
+   * @param options NodeOptions
+   */
   explicit PointCloudObjectDetection(const rclcpp::NodeOptions& options);
   /**
    * @brief Destroy the node and release model/client resources.
    */
   ~PointCloudObjectDetection() override;
+  PointCloudObjectDetection(const PointCloudObjectDetection&) = delete;
+  PointCloudObjectDetection(PointCloudObjectDetection&&) = delete;
+  PointCloudObjectDetection& operator=(const PointCloudObjectDetection&) = delete;
+  PointCloudObjectDetection& operator=(PointCloudObjectDetection&&) = delete;
 
  protected:
   /**
-   * @brief Declares all parameters that this node uses no matter which architecture is used
+   * @brief Declares all parameters that this node uses no matter which
+   * architecture is used
    */
   void declareParameters();
   /**
@@ -75,36 +80,42 @@ class PointCloudObjectDetection : public rclcpp::Node {
    */
   void loadParameters();
   /**
-   * @brief Load the minimal parameters required before model-manifest defaults are available.
+   * @brief Load the minimal parameters required before model-manifest defaults
+   * are available.
    */
   void loadBootstrapParameters();
   /**
-   * @brief Load parameter defaults that are defined by the selected model manifest.
+   * @brief Load parameter defaults that are defined by the selected model
+   * manifest.
    */
   void loadManifestBackedParameterDefaults();
   /**
    * @brief Synchronize model runtime options from the loaded node parameters
-  */
+   */
   void syncModelRuntimeConfigFromParams();
   /**
-   * @brief Copy model-related runtime parameters into a model configuration object.
+   * @brief Copy model-related runtime parameters into a model configuration
+   * object.
    */
-  void syncModelRuntimeConfigFromParams(ModelConfig& model_config, const Params& params) const;
+  static void syncModelRuntimeConfigFromParams(ModelConfig& model_config, const Params& params);
   /**
-   * @brief Apply optional NMS overrides from node params onto manifest-derived model config
-  */
+   * @brief Apply optional NMS overrides from node params onto manifest-derived
+   * model config
+   */
   void syncNmsRuntimeConfigFromParams();
   /**
-   * @brief Copy NMS-related runtime parameters into model and NMS configuration objects.
+   * @brief Copy NMS-related runtime parameters into model and NMS configuration
+   * objects.
    */
   void syncNmsRuntimeConfigFromParams(ModelConfig& model_config, pcod_common::NmsConfig& nms_config, const Params& params) const;
   /**
    * @brief Loads all ROS parameters for the model depending on the architecture
-  */
+   */
   ModelConfig loadModelConfig(const Params& params, std::string& model_name, pcod_common::NmsConfig& nms_config) const;
 
   /**
-   * @brief Declare a ROS parameter, load its value, and register metadata for dynamic reconfiguration.
+   * @brief Declare a ROS parameter, load its value, and register metadata for
+   * dynamic reconfiguration.
    */
   template <typename T>
   void declareAndLoadParameter(const std::string& name,
@@ -119,10 +130,13 @@ class PointCloudObjectDetection : public rclcpp::Node {
                                const std::string& additional_constraints = "");
 
   /**
-   * @brief Callback for configurable parameters: Is executed every time a ROS parameter is modified
+   * @brief Callback for configurable parameters: Is executed every time a ROS
+   * parameter is modified
    *
-   * @param parameters                                    Vector with all ROS parameters
-   * @return rcl_interfaces::msg::SetParametersResult     Result of parameter modification
+   * @param parameters                                    Vector with all ROS
+   * parameters
+   * @return rcl_interfaces::msg::SetParametersResult     Result of parameter
+   * modification
    */
   rcl_interfaces::msg::SetParametersResult parametersCallback(const std::vector<rclcpp::Parameter>& parameters);
 
@@ -130,7 +144,8 @@ class PointCloudObjectDetection : public rclcpp::Node {
    * @brief Tries to update the score thresholds for non-maximum suppression
    *
    * @param score_thresholds
-   * @return true if the update was successful, i.e. the vector has the same size as the number of classes or 1
+   * @return true if the update was successful, i.e. the vector has the same
+   * size as the number of classes or 1
    */
   bool updateNMSScoreThreshold(std::vector<double>& score_thresholds,
                                const std::vector<std::string>& predicted_class_names) const;
@@ -142,12 +157,14 @@ class PointCloudObjectDetection : public rclcpp::Node {
   void setup();
 
   /**
-   * @brief Initialize the Triton interface and detection model with new model name/version
+   * @brief Initialize the Triton interface and detection model with new model
+   * name/version
    *
    */
   void initializeModel();
   /**
-   * @brief Recompute the effective model configuration while holding the model mutex.
+   * @brief Recompute the effective model configuration while holding the model
+   * mutex.
    */
   void refreshResolvedModelConfigLocked();
 
@@ -158,7 +175,8 @@ class PointCloudObjectDetection : public rclcpp::Node {
   void setupPublishers();
 
   /**
-   * @brief Transformation of point cloud coordinates into specified inference frame and transformation into pcl data type
+   * @brief Transformation of point cloud coordinates into specified inference
+   * frame and transformation into pcl data type
    *
    * @param msg               Point cloud data in ROS message type format
    * @param point_cloud       Point cloud in pcl format -> Return reference
@@ -179,14 +197,16 @@ class PointCloudObjectDetection : public rclcpp::Node {
                          perception_msgs::msg::ObjectList& object_list);
 
   /**
-   * @brief Callback executing the prediction every time a point cloud message is received by the ROS node
+   * @brief Callback executing the prediction every time a point cloud message
+   * is received by the ROS node
    *
    * @param msg       ROS point cloud message
    */
   void predict(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& pcl_msg);
 
   /**
-   * @brief Validate currently loaded node parameters and throw on invalid values.
+   * @brief Validate currently loaded node parameters and throw on invalid
+   * values.
    */
   void validateParamsOrThrow() const;
   /**
@@ -194,7 +214,8 @@ class PointCloudObjectDetection : public rclcpp::Node {
    */
   void validateModelConfigOrThrow(const ModelConfig& model_config) const;
   /**
-   * @brief Validate the currently resolved model configuration and throw on invalid values.
+   * @brief Validate the currently resolved model configuration and throw on
+   * invalid values.
    */
   void validateModelConfigOrThrow() const;
 
@@ -234,8 +255,8 @@ class PointCloudObjectDetection : public rclcpp::Node {
   OnSetParametersCallbackHandle::SharedPtr parameters_callback_;
   std::vector<std::tuple<std::string, std::function<void(const rclcpp::Parameter&)>>> auto_reconfigurable_params_;
 
-  // Keep the transport factory alive for the full node lifetime so plugin loaders
-  // outlive transport publishers/subscribers created from it.
+  // Keep the transport factory alive for the full node lifetime so plugin
+  // loaders outlive transport publishers/subscribers created from it.
   std::unique_ptr<point_cloud_transport::PointCloudTransport> point_cloud_transport_;
 
   // publisher and subscriber

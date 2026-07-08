@@ -17,26 +17,36 @@ namespace point_cloud_object_detection {
 std::string sanitizeTopicName(const std::string& class_name);
 
 /**
- * @brief Own implementation of std::clamp, since this is only available starting from C++17
+ * @brief Own implementation of std::clamp, since this is only available
+ * starting from C++17
  *
  */
 template <class T>
-constexpr const inline T& clamp(const T& value, const T& low, const T& high) {
+constexpr const T& clamp(const T& value, const T& low, const T& high) {
   assert(!(high < low));
-  return (value < low) ? low : (high < value) ? high : value;
+  if (value < low) {
+    return low;
+  }
+  if (high < value) {
+    return high;
+  }
+  return value;
 }
 
 /**
- * @brief This method cleans up the classifications that are outputted by the model.
- * 
+ * @brief This method cleans up the classifications that are outputted by the
+ * model.
+ *
  * First, it performs a softmax on the scores, if needed (for PBOD).
  * Then, it removes all classes with a score below the threshold.
  * Finally, the remaining classes are sorted and their scores normalized.
  * If no class is above the threshold, the UNKNOWN class is assigned.
- * 
- * @param classifications Original classifications together with their scores, will be modified in place
+ *
+ * @param classifications Original classifications together with their scores,
+ * will be modified in place
  * @param threshold The threshold to use for removing classes
- * @param softmax Flag to indicate if a softmax should be performed on the scores, default is false.
+ * @param softmax Flag to indicate if a softmax should be performed on the
+ * scores, default is false.
  */
 void sanitize_classifications(std::vector<perception_msgs::msg::ObjectClassification>& classifications,
                               float threshold,
@@ -44,7 +54,7 @@ void sanitize_classifications(std::vector<perception_msgs::msg::ObjectClassifica
 
 /**
  * @brief Computes log(exp(x)+exp(y)) in a numerically stable way.
- * 
+ *
  * @tparam T floating point type
  * @param x summand 1 as logit
  * @param y summand 2 as logit

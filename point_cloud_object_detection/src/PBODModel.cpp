@@ -13,27 +13,27 @@ using PointRecord = pcod_common::PillarPreprocessPoint;
 
 namespace {
 
-constexpr float kDensityTransformScale = 10000.0f;
+constexpr float kDensityTransformScale = 10000.0F;
 
 std::uint16_t byteSwap16(std::uint16_t value) { return static_cast<std::uint16_t>((value >> 8) | (value << 8)); }
 
 std::uint32_t byteSwap32(std::uint32_t value) {
-  return ((value & 0x000000FFu) << 24) | ((value & 0x0000FF00u) << 8) | ((value & 0x00FF0000u) >> 8) |
-         ((value & 0xFF000000u) >> 24);
+  return ((value & 0x000000FFU) << 24) | ((value & 0x0000FF00U) << 8) | ((value & 0x00FF0000U) >> 8) |
+         ((value & 0xFF000000U) >> 24);
 }
 
 std::uint64_t byteSwap64(std::uint64_t value) {
-  return ((value & 0x00000000000000FFull) << 56) | ((value & 0x000000000000FF00ull) << 40) |
-         ((value & 0x0000000000FF0000ull) << 24) | ((value & 0x00000000FF000000ull) << 8) |
-         ((value & 0x000000FF00000000ull) >> 8) | ((value & 0x0000FF0000000000ull) >> 24) |
-         ((value & 0x00FF000000000000ull) >> 40) | ((value & 0xFF00000000000000ull) >> 56);
+  return ((value & 0x00000000000000FFULL) << 56) | ((value & 0x000000000000FF00ULL) << 40) |
+         ((value & 0x0000000000FF0000ULL) << 24) | ((value & 0x00000000FF000000ULL) << 8) |
+         ((value & 0x000000FF00000000ULL) >> 8) | ((value & 0x0000FF0000000000ULL) >> 24) |
+         ((value & 0x00FF000000000000ULL) >> 40) | ((value & 0xFF00000000000000ULL) >> 56);
 }
 
 float readFloat32At(const std::uint8_t* src, bool needs_swap) {
   std::uint32_t bits = 0;
   std::memcpy(&bits, src, sizeof(bits));
   if (needs_swap) bits = byteSwap32(bits);
-  float out = 0.0f;
+  float out = 0.0F;
   std::memcpy(&out, &bits, sizeof(out));
   return out;
 }
@@ -90,17 +90,17 @@ float readPointFieldAsFloat(const std::uint8_t* src, std::uint8_t datatype, bool
 bool useCudaPreprocessing(const ModelConfig& model_config) { return model_config.preprocessing_backend == "cuda"; }
 
 float sigmoid(float value) {
-  if (value >= 0.0f) {
+  if (value >= 0.0F) {
     const float z = std::exp(-value);
-    return 1.0f / (1.0f + z);
+    return 1.0F / (1.0F + z);
   }
   const float z = std::exp(value);
-  return z / (1.0f + z);
+  return z / (1.0F + z);
 }
 
 float densityTransform(float value) {
   const float normalized = std::asinh(kDensityTransformScale * value) / std::asinh(kDensityTransformScale);
-  return std::clamp(normalized, 0.0f, 1.0f);
+  return std::clamp(normalized, 0.0F, 1.0F);
 }
 
 }  // namespace
@@ -140,7 +140,9 @@ void PBODModel::validateInterface(const triton_cpp::TritonInterface& triton_inte
     has_occupancy = false;
   }
   if (has_density != has_occupancy) {
-    throw std::runtime_error("PBOD model must expose both density_logits and occupancy_logits together.");
+    throw std::runtime_error(
+        "PBOD model must expose both density_logits and "
+        "occupancy_logits together.");
   }
 }
 
@@ -156,7 +158,6 @@ PBODModel::PBODModel(triton_cpp::TritonInterface& triton_interface, const ModelC
       z_max_{model_config_.pillar_map_range[2][1]},
       voxel_x_{static_cast<float>(model_config_.voxel_x)},
       voxel_y_{static_cast<float>(model_config_.voxel_y)},
-      voxel_z_{static_cast<float>(model_config_.voxel_z)},
       normalization_type_{pcod_common::ParsePointFeatureNormalizationType(model_config_.point_feature_normalization_type)},
       value_threshold_{model_config_.point_feature_value_threshold},
       min_value_{model_config_.point_feature_min_value},
@@ -201,7 +202,8 @@ PBODModel::PBODModel(triton_cpp::TritonInterface& triton_interface, const ModelC
                            da_fov_rad_}) {
   if (useCudaPreprocessing(model_config_) && !cuda_preprocess_context_.isAvailable()) {
     throw std::runtime_error(
-        "CUDA preprocessing was requested via preprocessing.backend='cuda', but CUDA preprocessing support is not "
+        "CUDA preprocessing was requested via preprocessing.backend='cuda', "
+        "but CUDA preprocessing support is not "
         "available in this build/runtime");
   }
 
@@ -227,10 +229,10 @@ PBODModel::PBODModel(triton_cpp::TritonInterface& triton_interface, const ModelC
     postprocess_config_.score_thresholds.push_back(static_cast<float>(value));
   }
   pillar_counts_.resize(static_cast<std::size_t>(num_pillars_), 0);
-  pillar_sum_.resize(static_cast<std::size_t>(num_pillars_) * kPointCoordinateDim, 0.0f);
-  pillar_sq_sum_.resize(static_cast<std::size_t>(num_pillars_) * kPointCoordinateDim, 0.0f);
-  pillar_mean_.resize(static_cast<std::size_t>(num_pillars_) * kPointCoordinateDim, 0.0f);
-  pillar_var_.resize(static_cast<std::size_t>(num_pillars_) * kPointCoordinateDim, 0.0f);
+  pillar_sum_.resize(static_cast<std::size_t>(num_pillars_) * kPointCoordinateDim, 0.0F);
+  pillar_sq_sum_.resize(static_cast<std::size_t>(num_pillars_) * kPointCoordinateDim, 0.0F);
+  pillar_mean_.resize(static_cast<std::size_t>(num_pillars_) * kPointCoordinateDim, 0.0F);
+  pillar_var_.resize(static_cast<std::size_t>(num_pillars_) * kPointCoordinateDim, 0.0F);
   pillar_ids_raw_.resize(static_cast<std::size_t>(max_num_points_), -1);
   pillar_ix_raw_.resize(static_cast<std::size_t>(max_num_points_), -1);
   pillar_iy_raw_.resize(static_cast<std::size_t>(max_num_points_), -1);
@@ -290,7 +292,7 @@ void PBODModel::prepareModelInputFromPointCloud2(const sensor_msgs::msg::PointCl
 }
 
 template <typename PointGetter>
-void PBODModel::setupModelInputFromGetter(int n_cloud_points, PointGetter&& get_point, bool materialize_filtered_points) {
+void PBODModel::setupModelInputFromGetter(int n_cloud_points, PointGetter get_point, bool materialize_filtered_points) {
   auto makePoint = [](const PointRecord& point_record) {
     Point point;
     point.x = point_record.x;
@@ -427,7 +429,7 @@ void PBODModel::setupModelInputFromGetter(int n_cloud_points, PointGetter&& get_
       for (int row : tensor_reset_state_.active_point_rows) {
         for (int feature_idx = 0; feature_idx < preprocessed_feature_dim_; ++feature_idx) {
           point_features_host[static_cast<std::size_t>(row) * static_cast<std::size_t>(preprocessed_feature_dim_) +
-                              static_cast<std::size_t>(feature_idx)] = 0.0f;
+                              static_cast<std::size_t>(feature_idx)] = 0.0F;
         }
         valid_mask_host[row] = false;
         pillar_ids_host[row] = pillar_id_sentinel_;
@@ -450,7 +452,8 @@ void PBODModel::setupModelInputFromGetter(int n_cloud_points, PointGetter&& get_
       return;
     }
     throw std::runtime_error(
-        "Failed to populate PBOD input tensors via CUDA shared memory after prediction.cuda_input_shm was enabled");
+        "Failed to populate PBOD input tensors via CUDA shared memory after "
+        "prediction.cuda_input_shm was enabled");
   }
 
   if (useCudaPreprocessing(model_config_) &&
@@ -460,7 +463,8 @@ void PBODModel::setupModelInputFromGetter(int n_cloud_points, PointGetter&& get_
 
   if (useCudaPreprocessing(model_config_)) {
     throw std::runtime_error(
-        "Failed to populate PBOD input tensors via CUDA preprocessing after preprocessing.backend='cuda' was enabled");
+        "Failed to populate PBOD input tensors via CUDA preprocessing after "
+        "preprocessing.backend='cuda' was enabled");
   }
 
   populateModelInputOnCpu(point_features_host, pillar_ids_host, valid_mask_host, pillar_masks_host, num_selected);
@@ -468,27 +472,27 @@ void PBODModel::setupModelInputFromGetter(int n_cloud_points, PointGetter&& get_
 
 void PBODModel::populateModelInputOnCpu(
     float* point_features, std::int64_t* pillar_ids, bool* valid_mask, bool* pillar_masks, int num_selected) {
-  constexpr float kRadiusEpsilon = 1e-6f;
-  const float inv_voxel_x = 1.0f / voxel_x_;
-  const float inv_voxel_y = 1.0f / voxel_y_;
+  constexpr float kRadiusEpsilon = 1e-6F;
+  const float inv_voxel_x = 1.0F / voxel_x_;
+  const float inv_voxel_y = 1.0F / voxel_y_;
   const int grid_y = static_cast<int>(model_config_.pillar_map_size[1]);
-  const float center_z = z_min_ + (z_max_ - z_min_) * 0.5f;
+  const float center_z = z_min_ + (z_max_ - z_min_) * 0.5F;
 
   for (int pillar_id : active_pillar_ids_scratch_) {
     const std::size_t sum_offset = static_cast<std::size_t>(pillar_id) * kPointCoordinateDim;
     pillar_counts_[static_cast<std::size_t>(pillar_id)] = 0;
-    pillar_sum_[sum_offset + 0] = 0.0f;
-    pillar_sum_[sum_offset + 1] = 0.0f;
-    pillar_sum_[sum_offset + 2] = 0.0f;
-    pillar_sq_sum_[sum_offset + 0] = 0.0f;
-    pillar_sq_sum_[sum_offset + 1] = 0.0f;
-    pillar_sq_sum_[sum_offset + 2] = 0.0f;
-    pillar_mean_[sum_offset + 0] = 0.0f;
-    pillar_mean_[sum_offset + 1] = 0.0f;
-    pillar_mean_[sum_offset + 2] = 0.0f;
-    pillar_var_[sum_offset + 0] = 0.0f;
-    pillar_var_[sum_offset + 1] = 0.0f;
-    pillar_var_[sum_offset + 2] = 0.0f;
+    pillar_sum_[sum_offset + 0] = 0.0F;
+    pillar_sum_[sum_offset + 1] = 0.0F;
+    pillar_sum_[sum_offset + 2] = 0.0F;
+    pillar_sq_sum_[sum_offset + 0] = 0.0F;
+    pillar_sq_sum_[sum_offset + 1] = 0.0F;
+    pillar_sq_sum_[sum_offset + 2] = 0.0F;
+    pillar_mean_[sum_offset + 0] = 0.0F;
+    pillar_mean_[sum_offset + 1] = 0.0F;
+    pillar_mean_[sum_offset + 2] = 0.0F;
+    pillar_var_[sum_offset + 0] = 0.0F;
+    pillar_var_[sum_offset + 1] = 0.0F;
+    pillar_var_[sum_offset + 2] = 0.0F;
   }
   active_pillar_ids_scratch_.clear();
 
@@ -521,7 +525,7 @@ void PBODModel::populateModelInputOnCpu(
     const std::size_t count_offset = static_cast<std::size_t>(pillar_id);
     const int32_t count = pillar_counts_[count_offset];
     const std::size_t sum_offset = count_offset * kPointCoordinateDim;
-    const float inv_count = 1.0f / static_cast<float>(count);
+    const float inv_count = 1.0F / static_cast<float>(count);
     const float mean_x = pillar_sum_[sum_offset + 0] * inv_count;
     const float mean_y = pillar_sum_[sum_offset + 1] * inv_count;
     const float mean_z = pillar_sum_[sum_offset + 2] * inv_count;
@@ -531,9 +535,9 @@ void PBODModel::populateModelInputOnCpu(
     pillar_mean_[sum_offset + 0] = mean_x;
     pillar_mean_[sum_offset + 1] = mean_y;
     pillar_mean_[sum_offset + 2] = mean_z;
-    pillar_var_[sum_offset + 0] = std::max(mean_x2 - mean_x * mean_x, 0.0f);
-    pillar_var_[sum_offset + 1] = std::max(mean_y2 - mean_y * mean_y, 0.0f);
-    pillar_var_[sum_offset + 2] = std::max(mean_z2 - mean_z * mean_z, 0.0f);
+    pillar_var_[sum_offset + 0] = std::max(mean_x2 - mean_x * mean_x, 0.0F);
+    pillar_var_[sum_offset + 1] = std::max(mean_y2 - mean_y * mean_y, 0.0F);
+    pillar_var_[sum_offset + 2] = std::max(mean_z2 - mean_z * mean_z, 0.0F);
   }
 
   tensor_reset_state_.active_point_rows.reserve(static_cast<std::size_t>(num_selected));
@@ -544,8 +548,8 @@ void PBODModel::populateModelInputOnCpu(
     const int ix = pillar_ix_raw_[static_cast<std::size_t>(i)];
     const int iy = pillar_iy_raw_[static_cast<std::size_t>(i)];
 
-    const float center_x = x_min_ + (static_cast<float>(ix) + 0.5f) * voxel_x_;
-    const float center_y = y_min_ + (static_cast<float>(iy) + 0.5f) * voxel_y_;
+    const float center_x = x_min_ + (static_cast<float>(ix) + 0.5F) * voxel_x_;
+    const float center_y = y_min_ + (static_cast<float>(iy) + 0.5F) * voxel_y_;
     const float mean_x = pillar_mean_[sum_offset + 0];
     const float mean_y = pillar_mean_[sum_offset + 1];
     const float mean_z = pillar_mean_[sum_offset + 2];
@@ -559,11 +563,11 @@ void PBODModel::populateModelInputOnCpu(
     const float r2 = point.x * point.x + point.y * point.y;
     const float r = std::sqrt(r2);
     const float z_rel = point.z - z_min_;
-    const float inv_r = 1.0f / (r > kRadiusEpsilon ? r : kRadiusEpsilon);
-    float sin_theta = 0.0f;
-    float cos_theta = 1.0f;
-    if (r > 0.0f) {
-      const float inv_norm = 1.0f / r;
+    const float inv_r = 1.0F / (r > kRadiusEpsilon ? r : kRadiusEpsilon);
+    float sin_theta = 0.0F;
+    float cos_theta = 1.0F;
+    if (r > 0.0F) {
+      const float inv_norm = 1.0F / r;
       sin_theta = point.y * inv_norm;
       cos_theta = point.x * inv_norm;
     }
@@ -610,17 +614,18 @@ bool PBODModel::populateModelInputOnGpu(
   config.min_value = min_value_;
   config.max_value = max_value_;
   config.epsilon = norm_epsilon_;
-  config.center_z = z_min_ + (z_max_ - z_min_) * 0.5f;
+  config.center_z = z_min_ + (z_max_ - z_min_) * 0.5F;
   config.grid_x = static_cast<std::int32_t>(model_config_.pillar_map_size[0]);
   config.grid_y = static_cast<std::int32_t>(model_config_.pillar_map_size[1]);
   config.num_pillars = num_pillars_;
   config.max_num_points = max_num_points_;
   config.feature_dim = preprocessed_feature_dim_;
   config.normalization_type = normalization_type_;
-  config.z_score_mean = 0.0f;
-  config.z_score_std = 1.0f;
+  config.z_score_mean = 0.0F;
+  config.z_score_std = 1.0F;
 
-  // Recompute z-score stats directly for the CUDA config without changing point_preprocessor_ semantics.
+  // Recompute z-score stats directly for the CUDA config without changing
+  // point_preprocessor_ semantics.
   if (normalization_type_ == pcod_common::PointFeatureNormalizationType::kZScore) {
     double sum = 0.0;
     double sum_sq = 0.0;
@@ -672,15 +677,15 @@ bool PBODModel::populateModelInputOnGpuToDevice(
   config.min_value = min_value_;
   config.max_value = max_value_;
   config.epsilon = norm_epsilon_;
-  config.center_z = z_min_ + (z_max_ - z_min_) * 0.5f;
+  config.center_z = z_min_ + (z_max_ - z_min_) * 0.5F;
   config.grid_x = static_cast<std::int32_t>(model_config_.pillar_map_size[0]);
   config.grid_y = static_cast<std::int32_t>(model_config_.pillar_map_size[1]);
   config.num_pillars = num_pillars_;
   config.max_num_points = max_num_points_;
   config.feature_dim = preprocessed_feature_dim_;
   config.normalization_type = normalization_type_;
-  config.z_score_mean = 0.0f;
-  config.z_score_std = 1.0f;
+  config.z_score_mean = 0.0F;
+  config.z_score_std = 1.0F;
 
   if (normalization_type_ == pcod_common::PointFeatureNormalizationType::kZScore) {
     double sum = 0.0;
@@ -738,8 +743,9 @@ std::vector<BoundingBox> PBODModel::modelOutputToBoxes() {
       for (int ix = 0; ix < pillar_grid_.grid_x; ++ix) {
         for (int iy = 0; iy < pillar_grid_.grid_y; ++iy) {
           const std::size_t flat_index = static_cast<std::size_t>(ix * pillar_grid_.grid_y + iy);
-          density_grid_map_->values[flat_index] = densityTransform(sigmoid(density_logits(flat_index)));
-          occupancy_grid_map_->values[flat_index] = sigmoid(occupancy_logits(flat_index));
+          const Eigen::Index tensor_index = static_cast<Eigen::Index>(flat_index);
+          density_grid_map_->values[flat_index] = densityTransform(sigmoid(density_logits(tensor_index)));
+          occupancy_grid_map_->values[flat_index] = sigmoid(occupancy_logits(tensor_index));
         }
       }
     } else if (auxiliary_grid_map_request.density) {
@@ -749,7 +755,8 @@ std::vector<BoundingBox> PBODModel::modelOutputToBoxes() {
       for (int ix = 0; ix < pillar_grid_.grid_x; ++ix) {
         for (int iy = 0; iy < pillar_grid_.grid_y; ++iy) {
           const std::size_t flat_index = static_cast<std::size_t>(ix * pillar_grid_.grid_y + iy);
-          density_grid_map_->values[flat_index] = densityTransform(sigmoid(density_logits(flat_index)));
+          density_grid_map_->values[flat_index] =
+              densityTransform(sigmoid(density_logits(static_cast<Eigen::Index>(flat_index))));
         }
       }
     } else if (auxiliary_grid_map_request.occupancy) {
@@ -759,7 +766,7 @@ std::vector<BoundingBox> PBODModel::modelOutputToBoxes() {
       for (int ix = 0; ix < pillar_grid_.grid_x; ++ix) {
         for (int iy = 0; iy < pillar_grid_.grid_y; ++iy) {
           const std::size_t flat_index = static_cast<std::size_t>(ix * pillar_grid_.grid_y + iy);
-          occupancy_grid_map_->values[flat_index] = sigmoid(occupancy_logits(flat_index));
+          occupancy_grid_map_->values[flat_index] = sigmoid(occupancy_logits(static_cast<Eigen::Index>(flat_index)));
         }
       }
     }

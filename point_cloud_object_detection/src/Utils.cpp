@@ -4,7 +4,8 @@
 #include "point_cloud_object_detection/Utils.hpp"
 
 namespace point_cloud_object_detection {
-// Sanitizes a ROS topic name by removing leading special characters and replacing invalid characters with underscores.
+// Sanitizes a ROS topic name by removing leading special characters and
+// replacing invalid characters with underscores.
 std::string sanitizeTopicName(const std::string& name) {
   std::string sanitized = name;
 
@@ -14,7 +15,7 @@ std::string sanitizeTopicName(const std::string& name) {
 
   // Replace invalid characters with underscores.
   for (char& c : sanitized) {
-    if (!std::isalnum(static_cast<unsigned char>(c)) && c != '_' && c != '~' && c != '{' && c != '}') {
+    if ((std::isalnum(static_cast<unsigned char>(c)) == 0) && c != '_' && c != '~' && c != '{' && c != '}') {
       c = '_';
     }
   }
@@ -37,7 +38,8 @@ void sanitize_classifications(std::vector<perception_msgs::msg::ObjectClassifica
     }
   }
 
-  // Remove classifications with a score lower than the threshold and count the sum of remaining scores
+  // Remove classifications with a score lower than the threshold and count the
+  // sum of remaining scores
   double total_score = 0;
   for (auto classification = classifications.begin(); classification != classifications.end();) {
     if (classification->probability < threshold) {
@@ -49,7 +51,8 @@ void sanitize_classifications(std::vector<perception_msgs::msg::ObjectClassifica
   }
 
   if (classifications.empty()) {
-    // If no type has a score of more than the threshold, use unknwon (which is actually made for exactly this case)
+    // If no type has a score of more than the threshold, use unknwon (which is
+    // actually made for exactly this case)
     perception_msgs::msg::ObjectClassification classification;
     classification.probability = 1;
     classification.type = perception_msgs::msg::ObjectClassification::UNKNOWN;
