@@ -16,6 +16,9 @@ void expectNear(float actual, float expected) {
 
 }  // namespace
 
+/**
+ * @brief Run PBOD feature-row utility regression checks.
+ */
 int main() {
   using namespace point_cloud_object_detection;
 

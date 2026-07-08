@@ -16,6 +16,9 @@ void expectNear(float actual, float expected) {
 
 }  // namespace
 
+/**
+ * @brief Run PCL point utility regression checks.
+ */
 int main() {
   const auto point = point_cloud_object_detection::makePoint(1.25F, -2.5F, 3.75F, 42.0F);
 

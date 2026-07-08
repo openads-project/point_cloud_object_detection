@@ -61,6 +61,9 @@ void writeFloat64(std::vector<std::uint8_t>& data, std::size_t offset, double va
 
 }  // namespace
 
+/**
+ * @brief Run PointCloud2 utility regression checks.
+ */
 int main() {
   using point_cloud_object_detection::readPointCloud2PointRecord;
   using point_cloud_object_detection::readPointFieldAsFloat;
