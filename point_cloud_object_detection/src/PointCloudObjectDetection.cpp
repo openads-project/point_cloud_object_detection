@@ -55,22 +55,26 @@ bool isAllowedPreprocessingBackend(const std::string& backend) {
 
 std::string allowedPointFeatureFieldsString() {
   std::ostringstream oss;
-  for (std::size_t i = 0; i < kAllowedPointFeatureFields.size(); ++i) {
-    if (i > 0) {
+  bool first = true;
+  for (const char* field : kAllowedPointFeatureFields) {
+    if (!first) {
       oss << ", ";
     }
-    oss << "'" << kAllowedPointFeatureFields[i] << "'";
+    first = false;
+    oss << "'" << field << "'";
   }
   return oss.str();
 }
 
 std::string allowedPreprocessingBackendsString() {
   std::ostringstream oss;
-  for (std::size_t i = 0; i < kAllowedPreprocessingBackends.size(); ++i) {
-    if (i > 0) {
+  bool first = true;
+  for (const char* backend : kAllowedPreprocessingBackends) {
+    if (!first) {
       oss << ", ";
     }
-    oss << "'" << kAllowedPreprocessingBackends[i] << "'";
+    first = false;
+    oss << "'" << backend << "'";
   }
   return oss.str();
 }
@@ -80,9 +84,10 @@ bool isSupportedManifestPrecision(const std::string& precision) {
                      [&](const char* supported) { return precision == supported; });
 }
 
-// Keep this list aligned with any runtime parameter that is cached inside PBODModel.
-// If a parameter influences model-side cached state, either add it here for reinit
-// or update the live model instance explicitly in the parameter callback.
+// Keep this list aligned with any runtime parameter that is cached inside
+// PBODModel. If a parameter influences model-side cached state, either add it
+// here for reinit or update the live model instance explicitly in the parameter
+// callback.
 bool requiresModelReinitializationForParameter(const std::string& name) {
   return name == "prediction.triton_client_timeout_s" || name == "prediction.use_shm" || name == "prediction.cuda_input_shm" ||
          name == "preprocessing.backend" || name == "preprocessing.point_feature.value_threshold" ||
@@ -141,13 +146,15 @@ std::string parseTritonModelNameFromConfig(const std::string& config_path) {
 }
 
 std::string resolvePrimaryFeatureField(const ModelConfig& model_config, const Params& params) {
-  // Kept model-aware on purpose: future model families may map feature channels differently.
+  // Kept model-aware on purpose: future model families may map feature channels
+  // differently.
   (void)model_config;
   return params.point_feature_field;
 }
 
 void sanitizeVarianceVector(std::vector<double>& variance, double sentinel) {
-  // Accept slightly-off "-1" encodings from YAML/ROS transport and normalize to the exact sentinel.
+  // Accept slightly-off "-1" encodings from YAML/ROS transport and normalize to
+  // the exact sentinel.
   for (double& value : variance) {
     if (value < 0.0 && std::fabs(value + 1.0) <= 1e-9) {
       value = sentinel;
@@ -193,7 +200,7 @@ float applyAuxiliaryGridMapGainToValue(float value, double gain) {
   if (shouldApplyAuxiliaryGridMapGain(gain)) {
     value *= static_cast<float>(gain);
   }
-  return clamp(value, 0.0f, 1.0f);
+  return clamp(value, 0.0F, 1.0F);
 }
 
 bool haveCompatibleAuxiliaryGridMaps(const AuxiliaryGridMap& first, const AuxiliaryGridMap& second) {
@@ -247,7 +254,7 @@ std::optional<nav_msgs::msg::OccupancyGrid> initializeAuxiliaryOccupancyGridMess
 }
 
 int8_t toOccupancyGridCellValue(float value, double gain = 1.0) {
-  return static_cast<int8_t>(std::lround(applyAuxiliaryGridMapGainToValue(value, gain) * 100.0f));
+  return static_cast<int8_t>(std::lround(applyAuxiliaryGridMapGainToValue(value, gain) * 100.0F));
 }
 
 std::optional<nav_msgs::msg::OccupancyGrid> buildAuxiliaryOccupancyGridMessage(const AuxiliaryGridMap& grid_map_output,
@@ -301,7 +308,9 @@ std::optional<geometry_msgs::msg::Pose> transformAuxiliaryGridMapOriginPose(cons
   try {
     transform = tf_buffer.lookupTransform(target_frame, source_frame, header.stamp);
   } catch (tf2::TransformException& e) {
-    RCLCPP_ERROR(logger, "Cannot transform grid map: Transformation from source frame (%s) to output frame (%s) not found: %s",
+    RCLCPP_ERROR(logger,
+                 "Cannot transform grid map: Transformation from source frame "
+                 "(%s) to output frame (%s) not found: %s",
                  source_frame.c_str(), target_frame.c_str(), e.what());
     return std::nullopt;
   }
@@ -342,9 +351,9 @@ std::optional<AuxiliaryGridMap> buildCombinedAuxiliaryGridMap(const AuxiliaryGri
 
   AuxiliaryGridMap combined_grid_map = makeAuxiliaryGridMapLike(density_grid_map, "combined");
   for (std::size_t i = 0; i < combined_grid_map.values.size(); ++i) {
-    const float density = clamp(density_grid_map.values[i], 0.0f, 1.0f);
-    const float occupancy = clamp(occupancy_grid_map.values[i], 0.0f, 1.0f);
-    combined_grid_map.values[i] = occupancy + 0.5f * density * (1.0f - occupancy);
+    const float density = clamp(density_grid_map.values[i], 0.0F, 1.0F);
+    const float occupancy = clamp(occupancy_grid_map.values[i], 0.0F, 1.0F);
+    combined_grid_map.values[i] = occupancy + 0.5F * density * (1.0F - occupancy);
   }
   return combined_grid_map;
 }
@@ -356,7 +365,7 @@ void applyAuxiliaryGridMapGain(AuxiliaryGridMap& grid_map_output, double gain) {
 
   const float gain_f = static_cast<float>(gain);
   for (float& value : grid_map_output.values) {
-    value = clamp(value * gain_f, 0.0f, 1.0f);
+    value = clamp(value * gain_f, 0.0F, 1.0F);
   }
 }
 
@@ -368,9 +377,9 @@ std::optional<AuxiliaryGridMap> buildStaticAuxiliaryGridMap(const AuxiliaryGridM
 
   AuxiliaryGridMap static_grid_map = makeAuxiliaryGridMapLike(density_grid_map, "static");
   for (std::size_t i = 0; i < static_grid_map.values.size(); ++i) {
-    const float density = clamp(density_grid_map.values[i], 0.0f, 1.0f);
-    const float occupancy = clamp(occupancy_grid_map.values[i], 0.0f, 1.0f);
-    static_grid_map.values[i] = density * (1.0f - occupancy);
+    const float density = clamp(density_grid_map.values[i], 0.0F, 1.0F);
+    const float occupancy = clamp(occupancy_grid_map.values[i], 0.0F, 1.0F);
+    static_grid_map.values[i] = density * (1.0F - occupancy);
   }
   return static_grid_map;
 }
@@ -436,7 +445,7 @@ void applyAuxiliaryGridMapMasks(AuxiliaryGridMap& grid_map_output, const Params&
 
       if (in_no_detection_zone || outside_detection_area) {
         const std::size_t flat_index = static_cast<std::size_t>(ix * grid_map_output.grid_y + iy);
-        grid_map_output.values[flat_index] = 0.0f;
+        grid_map_output.values[flat_index] = 0.0F;
       }
     }
   }
@@ -445,23 +454,24 @@ void applyAuxiliaryGridMapMasks(AuxiliaryGridMap& grid_map_output, const Params&
 std::uint16_t byteSwap16(std::uint16_t value) { return static_cast<std::uint16_t>((value >> 8) | (value << 8)); }
 
 std::uint32_t byteSwap32(std::uint32_t value) {
-  return ((value & 0x000000FFu) << 24) | ((value & 0x0000FF00u) << 8) | ((value & 0x00FF0000u) >> 8) |
-         ((value & 0xFF000000u) >> 24);
+  return ((value & 0x000000FFU) << 24) | ((value & 0x0000FF00U) << 8) | ((value & 0x00FF0000U) >> 8) |
+         ((value & 0xFF000000U) >> 24);
 }
 
 std::uint64_t byteSwap64(std::uint64_t value) {
-  return ((value & 0x00000000000000FFull) << 56) | ((value & 0x000000000000FF00ull) << 40) |
-         ((value & 0x0000000000FF0000ull) << 24) | ((value & 0x00000000FF000000ull) << 8) |
-         ((value & 0x000000FF00000000ull) >> 8) | ((value & 0x0000FF0000000000ull) >> 24) |
-         ((value & 0x00FF000000000000ull) >> 40) | ((value & 0xFF00000000000000ull) >> 56);
+  return ((value & 0x00000000000000FFULL) << 56) | ((value & 0x000000000000FF00ULL) << 40) |
+         ((value & 0x0000000000FF0000ULL) << 24) | ((value & 0x00000000FF000000ULL) << 8) |
+         ((value & 0x000000FF00000000ULL) >> 8) | ((value & 0x0000FF0000000000ULL) >> 24) |
+         ((value & 0x00FF000000000000ULL) >> 40) | ((value & 0xFF00000000000000ULL) >> 56);
 }
 
 float readFloat32At(const std::uint8_t* src, bool needs_swap) {
-  // Use memcpy for aliasing/alignment-safe bit reinterpretation from packed PointCloud2 buffers.
+  // Use memcpy for aliasing/alignment-safe bit reinterpretation from packed
+  // PointCloud2 buffers.
   std::uint32_t bits = 0;
   std::memcpy(&bits, src, sizeof(bits));
   if (needs_swap) bits = byteSwap32(bits);
-  float out = 0.0f;
+  float out = 0.0F;
   std::memcpy(&out, &bits, sizeof(out));
   return out;
 }
@@ -542,7 +552,8 @@ PreparedPointCloudInput preparePointCloudInput(const sensor_msgs::msg::PointClou
       prepared.msg = prepared.transformed_owner;
     } catch (tf2::TransformException& e) {
       RCLCPP_ERROR(logger,
-                   "Cannot tranform Pointcloud: Transformation from its frame (%s) to inference_frame "
+                   "Cannot tranform Pointcloud: Transformation from its frame "
+                   "(%s) to inference_frame "
                    "(%s) not found: %s",
                    msg->header.frame_id.c_str(), params.inference_frame.c_str(), e.what());
       throw;
@@ -564,11 +575,11 @@ PreparedPointCloudInput preparePointCloudInput(const sensor_msgs::msg::PointClou
   const auto* z_field = findField("z");
   const auto* primary_feature = findField(primary_feature_field);
 
-  if (!x_field || !y_field || !z_field) {
+  if ((x_field == nullptr) || (y_field == nullptr) || (z_field == nullptr)) {
     RCLCPP_FATAL(logger, "Point fields 'x', 'y', 'z' are required in PointCloud2 input");
     throw std::runtime_error("Missing required PointCloud2 coordinate fields");
   }
-  if (!primary_feature) {
+  if (primary_feature == nullptr) {
     RCLCPP_FATAL(logger, "Point field '%s' is required for primary feature extraction", primary_feature_field.c_str());
     throw std::runtime_error("Missing required PointCloud2 field: " + primary_feature_field);
   }
@@ -594,7 +605,8 @@ PreparedPointCloudInput preparePointCloudInput(const sensor_msgs::msg::PointClou
       break;
     default:
       RCLCPP_FATAL(logger,
-                   "Point field '%s' has unsupported datatype %u (%s). Supported: INT8, UINT8, INT16, UINT16, "
+                   "Point field '%s' has unsupported datatype %u (%s). "
+                   "Supported: INT8, UINT8, INT16, UINT16, "
                    "INT32, UINT32, FLOAT32, FLOAT64",
                    primary_feature_field.c_str(), primary_feature->datatype,
                    pointFieldDatatypeToString(primary_feature->datatype));
@@ -678,15 +690,20 @@ PointCloudObjectDetection::PointCloudObjectDetection(const rclcpp::NodeOptions& 
 
 void PointCloudObjectDetection::loadBootstrapParameters() {
   rcl_interfaces::msg::ParameterDescriptor repository_desc;
-  repository_desc.description = "Path to the exported Triton model repository bundle root (absolute or package-relative).";
-  repository_desc.additional_constraints = "Must point to a directory containing model_manifest.yml and config.pbtxt.";
+  repository_desc.description =
+      "Path to the exported Triton model repository "
+      "bundle root (absolute or package-relative).";
+  repository_desc.additional_constraints =
+      "Must point to a directory containing model_manifest.yml and "
+      "config.pbtxt.";
   repository_desc.read_only = false;
   this->declare_parameter("prediction.model_repository", params_.model_repository, repository_desc);
   params_.model_repository = this->get_parameter("prediction.model_repository").as_string();
 
   rcl_interfaces::msg::ParameterDescriptor version_desc;
   version_desc.description =
-      "Requested Triton model version directory inside prediction.model_repository. If empty at startup, the exported "
+      "Requested Triton model version directory inside "
+      "prediction.model_repository. If empty at startup, the exported "
       "default from model_manifest.yml is used.";
   version_desc.read_only = false;
   this->declare_parameter("prediction.model_version", params_.model_version, version_desc);
@@ -745,7 +762,10 @@ void PointCloudObjectDetection::declareAndLoadParameter(const std::string& name,
       if (step_value.has_value()) range.set__step(static_cast<T>(step_value.value()));
       param_desc.floating_point_range = {range};
     } else {
-      RCLCPP_WARN(this->get_logger(), "Parameter type of parameter '%s' does not support specifying a range", name.c_str());
+      RCLCPP_WARN(this->get_logger(),
+                  "Parameter type of parameter '%s' does not support "
+                  "specifying a range",
+                  name.c_str());
     }
   }
 
@@ -1161,7 +1181,7 @@ void PointCloudObjectDetection::declareParameters() {
 
 void PointCloudObjectDetection::syncModelRuntimeConfigFromParams() { syncModelRuntimeConfigFromParams(model_config_, params_); }
 
-void PointCloudObjectDetection::syncModelRuntimeConfigFromParams(ModelConfig& model_config, const Params& params) const {
+void PointCloudObjectDetection::syncModelRuntimeConfigFromParams(ModelConfig& model_config, const Params& params) {
   model_config.preprocessing_backend = params.preprocessing_backend;
   model_config.point_feature_value_threshold = static_cast<float>(params.point_feature_value_threshold);
   model_config.z_min = static_cast<float>(params.detection_area_z_min);
@@ -1204,7 +1224,7 @@ void PointCloudObjectDetection::syncNmsRuntimeConfigFromParams(ModelConfig& mode
   model_config.nms_iou_threshold = static_cast<float>(params.nms_iou_threshold);
   model_config.nms_max_num_objects = static_cast<int>(params.nms_max_num_objects);
 
-  nms_config.iou_threshold = static_cast<float>(model_config.nms_iou_threshold);
+  nms_config.iou_threshold = model_config.nms_iou_threshold;
   nms_config.max_detections = model_config.nms_max_num_objects;
   nms_config.score_thresholds.clear();
   for (double thresh : model_config.nms_score_threshold) {
@@ -1251,14 +1271,16 @@ void PointCloudObjectDetection::loadManifestBackedParameterDefaults() {
   }
   if (params_.model_name != manifest.artifact.triton.model_name) {
     fail("prediction.model_repository",
-         "config.pbtxt model name does not match artifact.triton.model_name in model_manifest.yml");
+         "config.pbtxt model name does not match artifact.triton.model_name in "
+         "model_manifest.yml");
   }
 
   if (params_.model_version.empty()) {
     params_.model_version = manifest.artifact.triton.model_version;
   } else if (params_.model_version != manifest.artifact.triton.model_version) {
     RCLCPP_WARN(this->get_logger(),
-                "prediction.model_version='%s' differs from manifest default '%s'; using the requested version.",
+                "prediction.model_version='%s' differs from manifest default "
+                "'%s'; using the requested version.",
                 params_.model_version.c_str(), manifest.artifact.triton.model_version.c_str());
   }
   params_.point_feature_value_threshold = manifest.runtime_defaults.preprocessing.point_feature.value_threshold;
@@ -1287,7 +1309,9 @@ void PointCloudObjectDetection::validateParamsOrThrow() const {
       fail("output.variances", "all entries must be finite");
     }
     if (value < 0.0 && std::fabs(value - cscu) > 1e-9) {
-      fail("output.variances", "entries must be non-negative or equal to CONTINUOUS_STATE_COVARIANCE_UNKNOWN (-1)");
+      fail("output.variances",
+           "entries must be non-negative or equal to "
+           "CONTINUOUS_STATE_COVARIANCE_UNKNOWN (-1)");
     }
   }
 
@@ -1366,7 +1390,9 @@ void PointCloudObjectDetection::validateParamsOrThrow() const {
   }
   const std::filesystem::path version_path = std::filesystem::path(resolved_repository_path) / params_.model_version;
   if (!std::filesystem::exists(version_path) || !std::filesystem::is_directory(version_path)) {
-    fail("prediction.model_version", "requested model version directory does not exist inside model_repository");
+    fail("prediction.model_version",
+         "requested model version directory does "
+         "not exist inside model_repository");
   }
 
   if (!isFinite(params_.no_detection_zone_x_min) || !isFinite(params_.no_detection_zone_x_max) ||
@@ -1407,13 +1433,15 @@ bool PointCloudObjectDetection::updateNMSScoreThreshold(std::vector<double>& sco
                                                         const std::vector<std::string>& predicted_class_names) const {
   if (score_thresholds.size() == 1) {
     for (std::size_t i = 1; i < predicted_class_names.size(); i++) {
-      // If a single NMS score threshold is provided, replicate it for each class.
+      // If a single NMS score threshold is provided, replicate it for each
+      // class.
       score_thresholds.push_back(score_thresholds[0]);
     }
   }
   if (score_thresholds.size() != predicted_class_names.size()) {
     RCLCPP_ERROR(this->get_logger(),
-                 "NMS score threshold count mismatch: got %zu value(s), expected 1 or %zu (one per predicted class).",
+                 "NMS score threshold count mismatch: got %zu value(s), "
+                 "expected 1 or %zu (one per predicted class).",
                  score_thresholds.size(), predicted_class_names.size());
     return false;
   }
@@ -1441,7 +1469,8 @@ ModelConfig PointCloudObjectDetection::loadModelConfig(const Params& params,
   if (!manifest.artifact.triton.enabled || manifest.artifact.triton.model_name.empty() ||
       manifest.artifact.triton.model_version.empty()) {
     throwParameterError(this->get_logger(), "prediction.model_repository",
-                        "manifest must define artifact.triton.model_name and artifact.triton.model_version");
+                        "manifest must define artifact.triton.model_name and "
+                        "artifact.triton.model_version");
   }
   const std::filesystem::path config_path = std::filesystem::path(repository_path) / manifest.artifact.files.triton_config;
   if (manifest.artifact.files.triton_config.empty() || !std::filesystem::exists(config_path)) {
@@ -1541,7 +1570,9 @@ void PointCloudObjectDetection::validateModelConfigOrThrow(const ModelConfig& mo
     fail("preprocessing.backend", "must be one of: " + allowedPreprocessingBackendsString());
   }
   if (model_config.preprocessing_backend == "cuda" && !pcod_common::HasCudaPillarPreprocessSupport()) {
-    fail("preprocessing.backend", "is set to 'cuda' but CUDA preprocessing support is not available in this build/runtime");
+    fail("preprocessing.backend",
+         "is set to 'cuda' but CUDA preprocessing support is not available in "
+         "this build/runtime");
   }
   if (!isFinite(model_config.x_min) || !isFinite(model_config.x_max)) {
     fail("x_min/x_max", "must be finite");
@@ -1571,8 +1602,10 @@ void PointCloudObjectDetection::validateModelConfigOrThrow(const ModelConfig& mo
   }
   if (model_config.z_min < model_config.contract_z_min || model_config.z_max > model_config.contract_z_max) {
     RCLCPP_WARN(this->get_logger(),
-                "preprocessing.detection_area.z_min/z_max [%.3f, %.3f] extends outside the manifest z range "
-                "[%.3f, %.3f]. The node will continue, but inference quality may be degraded.",
+                "preprocessing.detection_area.z_min/z_max [%.3f, %.3f] extends "
+                "outside the manifest z range "
+                "[%.3f, %.3f]. The node will continue, but inference quality "
+                "may be degraded.",
                 static_cast<double>(model_config.z_min), static_cast<double>(model_config.z_max),
                 static_cast<double>(model_config.contract_z_min), static_cast<double>(model_config.contract_z_max));
   }
@@ -1613,7 +1646,7 @@ void PointCloudObjectDetection::validateModelConfigOrThrow(const ModelConfig& mo
   if (model_config.nms_max_num_objects < 0) {
     fail("postprocessing.nms.max_num_objects", "must be zero or positive");
   }
-  if (model_config.point_feature_normalization_type == "value_threshold" && model_config.point_feature_value_threshold <= 0.0f) {
+  if (model_config.point_feature_normalization_type == "value_threshold" && model_config.point_feature_value_threshold <= 0.0F) {
     fail("preprocessing.point_feature.value_threshold", "must be greater than 0");
   }
 
@@ -1714,8 +1747,9 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
       const double cscu = pm::object_access::CONTINUOUS_STATE_COVARIANCE_UNKNOWN;
       sanitizeVarianceVector(params_.variance, cscu);
       if (repository_changed) {
-        // All runtime-configurable fields are read from the current params_ inside
-        // refreshResolvedModelConfigLocked, so they are preserved across the model switch.
+        // All runtime-configurable fields are read from the current params_
+        // inside refreshResolvedModelConfigLocked, so they are preserved across
+        // the model switch.
         refreshResolvedModelConfigLocked();
       } else {
         syncModelRuntimeConfigFromParams();
@@ -1766,7 +1800,8 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
   }
 
   // Defer publisher reconfiguration to normal execution context.
-  // Some transport publishers may declare/set parameters internally, which is forbidden in set-parameter callbacks.
+  // Some transport publishers may declare/set parameters internally, which is
+  // forbidden in set-parameter callbacks.
   if (publishers_changed) {
     publishers_update_pending_.store(true, std::memory_order_release);
   }
@@ -1800,7 +1835,8 @@ void PointCloudObjectDetection::initializeModel() {
   if (params_snapshot.cuda_input_shm && model_config_.preprocessing_backend != "cuda") {
     RCLCPP_WARN(this->get_logger(),
                 "prediction.cuda_input_shm is enabled but preprocessing.backend='%s'. "
-                "CUDA input shared memory is only used with preprocessing.backend='cuda'; "
+                "CUDA input shared memory is only used with "
+                "preprocessing.backend='cuda'; "
                 "continuing with the normal CPU input transport.",
                 model_config_.preprocessing_backend.c_str());
   }
@@ -1815,7 +1851,9 @@ void PointCloudObjectDetection::initializeModel() {
           params_snapshot.cuda_input_shm && model_config_.preprocessing_backend == "cuda");
       break;
     } catch (const std::exception& e) {
-      RCLCPP_WARN(this->get_logger(), "Failed to connect to Triton server '%s' for model '%s:%s': %s. Retrying in %.1fs.",
+      RCLCPP_WARN(this->get_logger(),
+                  "Failed to connect to Triton server '%s' for model '%s:%s': "
+                  "%s. Retrying in %.1fs.",
                   params_snapshot.server_url.c_str(), model_name.c_str(), model_version.c_str(), e.what(),
                   std::chrono::duration<double>(kRetryDelay).count());
       rclcpp::sleep_for(kRetryDelay);
@@ -1832,7 +1870,7 @@ void PointCloudObjectDetection::initializeModel() {
 
   // create model architecture
   PBODModel::validateInterface(*new_triton_interface);
-  new_detection_model = std::make_unique<PBODModel>(*new_triton_interface.get(), new_model_config);
+  new_detection_model = std::make_unique<PBODModel>(*new_triton_interface, new_model_config);
   new_triton_interface->initInOutputs(new_detection_model->getSpecialOutputShapes());
   triton_interface_ = std::move(new_triton_interface);
   detection_model_ = std::move(new_detection_model);
@@ -1928,9 +1966,10 @@ void PointCloudObjectDetection::setupPublishers() {
 }
 
 void PointCloudObjectDetection::setup() {
-  // Preload manifest-derived model config before any parameter-driven transport setup.
-  // point_cloud_transport may set parameters during subscribe/advertise, and those callbacks
-  // validate NMS settings against the predicted class list from the manifest.
+  // Preload manifest-derived model config before any parameter-driven transport
+  // setup. point_cloud_transport may set parameters during subscribe/advertise,
+  // and those callbacks validate NMS settings against the predicted class list
+  // from the manifest.
   {
     std::lock_guard<std::mutex> model_lock(model_mutex_);
     refreshResolvedModelConfigLocked();
@@ -1944,7 +1983,8 @@ void PointCloudObjectDetection::setup() {
   tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
   tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
-  // Use a non-owning node handle to avoid ownership cycles with transport plugins.
+  // Use a non-owning node handle to avoid ownership cycles with transport
+  // plugins.
   auto node_handle = std::shared_ptr<rclcpp::Node>(this, [](rclcpp::Node*) {});
   point_cloud_transport_ = std::make_unique<point_cloud_transport::PointCloudTransport>(node_handle);
 
@@ -1960,8 +2000,9 @@ void PointCloudObjectDetection::setup() {
   // Setup all publishers
   setupPublishers();
 
-  // Initialize the model after transport endpoints exist so runtime dependencies
-  // are exercised during startup even if Triton is temporarily unavailable.
+  // Initialize the model after transport endpoints exist so runtime
+  // dependencies are exercised during startup even if Triton is temporarily
+  // unavailable.
   initializeModel();
 }
 
@@ -1978,7 +2019,7 @@ void PointCloudObjectDetection::boxesToObjectList(const std::vector<BoundingBox>
                                                   const Params& params,
                                                   pm::msg::ObjectList& object_list) {
   // iterate over all boxes
-  for (int idx = 0; idx < int(bboxes.size()); ++idx) {
+  for (int idx = 0; idx < static_cast<int>(bboxes.size()); ++idx) {
     pm::msg::Object object;
     pm::object_access::initializeState(object, pm::msg::ISCACTR::MODEL_ID);
 
@@ -2032,7 +2073,7 @@ void PointCloudObjectDetection::boxesToObjectList(const std::vector<BoundingBox>
       }
     }
     // normalize class probabilities and remove unlikely classes
-    sanitize_classifications(object.state.classifications, params.output_class_score_threshold, true);
+    sanitize_classifications(object.state.classifications, static_cast<float>(params.output_class_score_threshold), true);
     // add to object list
     object_list.objects.push_back(object);
   }
@@ -2044,7 +2085,8 @@ void PointCloudObjectDetection::boxesToObjectList(const std::vector<BoundingBox>
       t = tf_buffer_->lookupTransform(params.output_frame, params.inference_frame, object_list.header.stamp);
     } catch (tf2::TransformException& e) {
       RCLCPP_ERROR(this->get_logger(),
-                   "Cannot transform Object list: Transformation from inference_frame (%s) to output_frame "
+                   "Cannot transform Object list: Transformation from "
+                   "inference_frame (%s) to output_frame "
                    "(%s) not found: %s",
                    params.inference_frame.c_str(), params.output_frame.c_str(), e.what());
       return;
@@ -2054,16 +2096,19 @@ void PointCloudObjectDetection::boxesToObjectList(const std::vector<BoundingBox>
     object_list = object_list_trans;
     object_list.header.frame_id = params.output_frame;
   } else if (!params.output_frame.empty()) {
-    // if inference = output frame, just change frame in header, but no transform needed
+    // if inference = output frame, just change frame in header, but no
+    // transform needed
     object_list.header.frame_id = params.output_frame;
   } else if (!params.inference_frame.empty()) {
-    // if output frame is empty and inference frame is not empty, just change frame in header, but no transform needed
+    // if output frame is empty and inference frame is not empty, just change
+    // frame in header, but no transform needed
     object_list.header.frame_id = params.inference_frame;
   }
 }
 
 void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg) {
-  // Guard the whole callback so unexpected runtime errors drop only this frame instead of crashing the node.
+  // Guard the whole callback so unexpected runtime errors drop only this frame
+  // instead of crashing the node.
   try {
     if (publishers_update_pending_.exchange(false, std::memory_order_acq_rel)) {
       setupPublishers();
@@ -2071,7 +2116,8 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
 
     if (!model_ready_.load(std::memory_order_acquire)) {
       RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
-                           "Detection model is not ready yet. Dropping incoming point cloud frame.");
+                           "Detection model is not ready yet. Dropping "
+                           "incoming point cloud frame.");
       return;
     }
 
@@ -2117,7 +2163,8 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
     if (need_point_cloud) {
       decodePreparedPointCloudToPcl(prepared_input, point_cloud);
     }
-    timestamps.push_back(std::chrono::high_resolution_clock::now());  // index: 1, after pcl preprocessing
+    timestamps.push_back(std::chrono::high_resolution_clock::now());  // index: 1, after pcl
+                                                                      // preprocessing
 
     // Optionally publish raw points inside the no-detection zone
     if (need_point_cloud) {
@@ -2153,7 +2200,7 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
       // (x_min, y_min)
       polygon_point.x = static_cast<float>(params_snapshot.no_detection_zone_x_min);
       polygon_point.y = static_cast<float>(params_snapshot.no_detection_zone_y_min);
-      polygon_point.z = 0.0f;
+      polygon_point.z = 0.0F;
       polygon_message.polygon.points.push_back(polygon_point);
       // (x_max, y_min)
       polygon_point.x = static_cast<float>(params_snapshot.no_detection_zone_x_max);
@@ -2180,21 +2227,21 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
 
       geometry_msgs::msg::Point32 p;
       // (x_min, y_min)
-      p.x = static_cast<float>(model_config_snapshot.x_min);
-      p.y = static_cast<float>(model_config_snapshot.y_min);
-      p.z = 0.0f;
+      p.x = model_config_snapshot.x_min;
+      p.y = model_config_snapshot.y_min;
+      p.z = 0.0F;
       polygon_message.polygon.points.push_back(p);
       // (x_max, y_min)
-      p.x = static_cast<float>(model_config_snapshot.x_max);
-      p.y = static_cast<float>(model_config_snapshot.y_min);
+      p.x = model_config_snapshot.x_max;
+      p.y = model_config_snapshot.y_min;
       polygon_message.polygon.points.push_back(p);
       // (x_max, y_max)
-      p.x = static_cast<float>(model_config_snapshot.x_max);
-      p.y = static_cast<float>(model_config_snapshot.y_max);
+      p.x = model_config_snapshot.x_max;
+      p.y = model_config_snapshot.y_max;
       polygon_message.polygon.points.push_back(p);
       // (x_min, y_max)
-      p.x = static_cast<float>(model_config_snapshot.x_min);
-      p.y = static_cast<float>(model_config_snapshot.y_max);
+      p.x = model_config_snapshot.x_min;
+      p.y = model_config_snapshot.y_max;
       polygon_message.polygon.points.push_back(p);
 
       model_bounds_pub->publish(polygon_message);
@@ -2215,7 +2262,8 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
       const int num_segments =
           std::max(static_cast<int>(kMinDetectionAreaNumSegments), params_snapshot.detection_area_num_segments);
 
-      // Build a sector polygon first; for a full 360-degree FOV, use only the perimeter so no spoke closes to center.
+      // Build a sector polygon first; for a full 360-degree FOV, use only the
+      // perimeter so no spoke closes to center.
       std::vector<geometry_msgs::msg::Point32> sector_poly;
       {
         const double start_angle_deg = sector_bearing_deg - 0.5 * sector_fov_deg;
@@ -2226,7 +2274,7 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
           geometry_msgs::msg::Point32 pt;
           pt.x = static_cast<float>(sector_center_x);
           pt.y = static_cast<float>(sector_center_y);
-          pt.z = 0.0f;
+          pt.z = 0.0F;
           sector_poly.push_back(pt);
         }
 
@@ -2237,13 +2285,14 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
           geometry_msgs::msg::Point32 arc_point;
           arc_point.x = static_cast<float>(sector_center_x + sector_radius * std::cos(angle_rad));
           arc_point.y = static_cast<float>(sector_center_y + sector_radius * std::sin(angle_rad));
-          arc_point.z = 0.0f;
+          arc_point.z = 0.0F;
           sector_poly.push_back(arc_point);
         }
       }
 
-      // Sutherland-Hodgman clipping: each pass clips against one rectangle side and carries
-      // generated intersection vertices forward, yielding a robust clipped polygon.
+      // Sutherland-Hodgman clipping: each pass clips against one rectangle side
+      // and carries generated intersection vertices forward, yielding a robust
+      // clipped polygon.
       auto clip_poly_to_halfplane = [](const std::vector<geometry_msgs::msg::Point32>& poly, auto inside, auto intersect) {
         std::vector<geometry_msgs::msg::Point32> output;
         if (poly.empty()) return output;
@@ -2269,14 +2318,15 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
       const double ry_min = static_cast<double>(model_config_snapshot.y_min);
       const double ry_max = static_cast<double>(model_config_snapshot.y_max);
 
-      // Explicit line intersections keep clipping numerically stable for nearly axis-aligned edges.
+      // Explicit line intersections keep clipping numerically stable for nearly
+      // axis-aligned edges.
       auto intersect_x = [](const geometry_msgs::msg::Point32& a, const geometry_msgs::msg::Point32& b, double x_val) {
         geometry_msgs::msg::Point32 out;
         const double dx = static_cast<double>(b.x) - static_cast<double>(a.x);
         const double t = (std::abs(dx) < 1e-9) ? 0.0 : (x_val - static_cast<double>(a.x)) / dx;
         out.x = static_cast<float>(x_val);
         out.y = static_cast<float>(static_cast<double>(a.y) + t * (static_cast<double>(b.y) - static_cast<double>(a.y)));
-        out.z = 0.0f;
+        out.z = 0.0F;
         return out;
       };
       auto intersect_y = [](const geometry_msgs::msg::Point32& a, const geometry_msgs::msg::Point32& b, double y_val) {
@@ -2285,12 +2335,13 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
         const double t = (std::abs(dy) < 1e-9) ? 0.0 : (y_val - static_cast<double>(a.y)) / dy;
         out.y = static_cast<float>(y_val);
         out.x = static_cast<float>(static_cast<double>(a.x) + t * (static_cast<double>(b.x) - static_cast<double>(a.x)));
-        out.z = 0.0f;
+        out.z = 0.0F;
         return out;
       };
 
-      // Clip in order: left, right, bottom, top. Order is arbitrary for convex clip polygons,
-      // but keeping it fixed makes behavior easier to reason about.
+      // Clip in order: left, right, bottom, top. Order is arbitrary for convex
+      // clip polygons, but keeping it fixed makes behavior easier to reason
+      // about.
       std::vector<geometry_msgs::msg::Point32> clipped = sector_poly;
       clipped = clip_poly_to_halfplane(
           clipped, [&](const auto& p) { return static_cast<double>(p.x) >= rx_min; },
@@ -2315,9 +2366,10 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
     }
 
     // pointcloudToBoxes
-    // Timing layout is fixed to keep debug logs comparable across runs and with model-internal timings.
-    // 0=start, 1=after point cloud conversion, 2=after model input prep, 3=after inference,
-    // 4=after output decode, 5=after NMS, 6=after geometric filtering, 7=after msg conversion, 8=after publish.
+    // Timing layout is fixed to keep debug logs comparable across runs and with
+    // model-internal timings. 0=start, 1=after point cloud conversion, 2=after
+    // model input prep, 3=after inference, 4=after output decode, 5=after NMS,
+    // 6=after geometric filtering, 7=after msg conversion, 8=after publish.
     // Index 2 and 3 are appended by the model implementation itself.
     std::vector<BoundingBox> center_boxes;
     std::optional<AuxiliaryGridMap> density_grid_map;
@@ -2357,23 +2409,28 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
         occupancy_grid_map = detection_model_->getOccupancyGridMap();
       }
     } catch (const std::exception& e) {
-      RCLCPP_WARN(this->get_logger(), "Lost Triton connection for '%s:%s' on server '%s': %s. Attempting to reconnect.",
+      RCLCPP_WARN(this->get_logger(),
+                  "Lost Triton connection for '%s:%s' on server '%s': %s. "
+                  "Attempting to reconnect.",
                   params_snapshot.model_name.c_str(), params_snapshot.model_version.c_str(), params_snapshot.server_url.c_str(),
                   e.what());
       try {
         initializeModel();
-        RCLCPP_WARN(this->get_logger(), "Recovered Triton connection for '%s:%s'. Dropping current frame and continuing.",
+        RCLCPP_WARN(this->get_logger(),
+                    "Recovered Triton connection for '%s:%s'. Dropping current "
+                    "frame and continuing.",
                     params_snapshot.model_name.c_str(), params_snapshot.model_version.c_str());
       } catch (const std::exception& reconnect_error) {
         RCLCPP_ERROR(this->get_logger(), "Triton reconnection attempt failed: %s", reconnect_error.what());
       }
       return;
     }
-    timestamps.push_back(std::chrono::high_resolution_clock::now());  // index: 4, after output tensor creation
+    timestamps.push_back(std::chrono::high_resolution_clock::now());  // index: 4, after output
+                                                                      // tensor creation
 
-    // Build derived maps from raw model outputs before applying per-map display gains.
-    // The combination formulas require probability-scale inputs [0, 1]; applying gain
-    // beforehand would distort those semantics.
+    // Build derived maps from raw model outputs before applying per-map display
+    // gains. The combination formulas require probability-scale inputs [0, 1];
+    // applying gain beforehand would distort those semantics.
     const std::string grid_map_source_frame = resolveAuxiliaryGridMapSourceFrame(params_snapshot, header);
     const std::string grid_map_target_frame = resolveAuxiliaryGridMapTargetFrame(params_snapshot, grid_map_source_frame);
     std::optional<geometry_msgs::msg::Pose> grid_map_origin;
@@ -2387,28 +2444,33 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
     }
     if (params_snapshot.publish_density_grid_map && !density_grid_map.has_value()) {
       RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
-                           "Density grid map publication was requested, but the model did not provide "
+                           "Density grid map publication was requested, but "
+                           "the model did not provide "
                            "density_logits output.");
     }
     if (params_snapshot.publish_occupancy_grid_map && !occupancy_grid_map.has_value()) {
       RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
-                           "Occupancy grid map publication was requested, but the model did not provide "
+                           "Occupancy grid map publication was requested, but "
+                           "the model did not provide "
                            "occupancy_logits output.");
     }
     if (params_snapshot.publish_combined_grid_map && !combined_grid_map.has_value()) {
       if (!density_grid_map.has_value() || !occupancy_grid_map.has_value()) {
         RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
-                             "Combined grid map publication was requested, but density_logits and occupancy_logits "
+                             "Combined grid map publication was requested, but "
+                             "density_logits and occupancy_logits "
                              "outputs are not both available.");
       } else {
         RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
-                             "Failed to build combined grid map from incompatible model outputs.");
+                             "Failed to build combined grid map from "
+                             "incompatible model outputs.");
       }
     }
     if (params_snapshot.publish_static_grid_map && !static_grid_map.has_value()) {
       if (!density_grid_map.has_value() || !occupancy_grid_map.has_value()) {
         RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
-                             "Static grid map publication was requested, but density_logits and occupancy_logits "
+                             "Static grid map publication was requested, but "
+                             "density_logits and occupancy_logits "
                              "outputs are not both available.");
       } else {
         RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
@@ -2511,19 +2573,20 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
       const float rect_x_max = static_cast<float>(params_snapshot.no_detection_zone_x_max);
       const float rect_y_min = static_cast<float>(params_snapshot.no_detection_zone_y_min);
       const float rect_y_max = static_cast<float>(params_snapshot.no_detection_zone_y_max);
-      no_detection_rectangle.center = {0.5f * (rect_x_min + rect_x_max), 0.5f * (rect_y_min + rect_y_max)};
-      no_detection_rectangle.z = 0.0f;
+      no_detection_rectangle.center = {0.5F * (rect_x_min + rect_x_max), 0.5F * (rect_y_min + rect_y_max)};
+      no_detection_rectangle.z = 0.0F;
       no_detection_rectangle.length = (rect_x_max - rect_x_min);
       no_detection_rectangle.width = (rect_y_max - rect_y_min);
-      no_detection_rectangle.height = 0.0f;  // not used for 2D intersection
-      no_detection_rectangle.yaw = 0.0f;     // axis-aligned rectangle in inference_frame
-      no_detection_rectangle.existence_probability = 1.0f;
+      no_detection_rectangle.height = 0.0F;  // not used for 2D intersection
+      no_detection_rectangle.yaw = 0.0F;     // axis-aligned rectangle in inference_frame
+      no_detection_rectangle.existence_probability = 1.0F;
 
-      // Remove any overlapping detection, not just detections whose center lies in the zone.
+      // Remove any overlapping detection, not just detections whose center lies
+      // in the zone.
       auto num_boxes_before = center_boxes.size();
       center_boxes.erase(std::remove_if(center_boxes.begin(), center_boxes.end(),
                                         [&no_detection_rectangle](const BoundingBox& bbox) {
-                                          return bbox.intersection_area(no_detection_rectangle) > 0.0f;
+                                          return bbox.intersection_area(no_detection_rectangle) > 0.0F;
                                         }),
                          center_boxes.end());
       auto removed = num_boxes_before - center_boxes.size();
@@ -2550,7 +2613,8 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
         if (squared_distance_to_center > sector_radius * sector_radius) return false;
         double angle_to_center = std::atan2(delta_y, delta_x);
         double angle_offset = angle_to_center - sector_bearing_rad;
-        // Normalize to [-pi, pi] so wrap-around at +/-pi does not misclassify boundary angles.
+        // Normalize to [-pi, pi] so wrap-around at +/-pi does not misclassify
+        // boundary angles.
         while (angle_offset > M_PI) angle_offset -= 2.0 * M_PI;
         while (angle_offset < -M_PI) angle_offset += 2.0 * M_PI;
         return std::abs(angle_offset) <= (sector_fov_rad * 0.5 + 1e-9);
@@ -2569,10 +2633,12 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
 
       auto is_bounding_box_inside_sector = [&](const BoundingBox& bbox) -> bool {
         if (!require_complete_box_inside) {
-          // "center": cheaper and less strict; keeps boxes with centroids inside the XY sector and z range.
+          // "center": cheaper and less strict; keeps boxes with centroids
+          // inside the XY sector and z range.
           return is_point_inside_sector(bbox.center[0], bbox.center[1]) && is_z_center_inside_range(bbox);
         }
-        // "complete": conservative; all 4 oriented box corners and the full vertical extent must remain inside.
+        // "complete": conservative; all 4 oriented box corners and the full
+        // vertical extent must remain inside.
         auto vertices = bbox.rectangle_vertices();
         for (const auto& vertex : vertices) {
           if (!is_point_inside_sector(vertex.x, vertex.y)) return false;
@@ -2590,13 +2656,15 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
                     params_snapshot.detection_area_filter_mode.c_str());
       }
     }
-    timestamps.push_back(std::chrono::high_resolution_clock::now());  // index: 6, after detection filters
+    timestamps.push_back(std::chrono::high_resolution_clock::now());  // index: 6, after detection
+                                                                      // filters
 
     // boxesToObjectList
     pm::msg::ObjectList::UniquePtr object_list = std::make_unique<pm::msg::ObjectList>();
     object_list->header = header;
     boxesToObjectList(center_boxes, model_config_snapshot, params_snapshot, *object_list);
-    timestamps.push_back(std::chrono::high_resolution_clock::now());  // index: 7, after object-list conversion
+    timestamps.push_back(std::chrono::high_resolution_clock::now());  // index: 7, after
+                                                                      // object-list conversion
 
     // get size for logging, as publishing invalidates the message here
     std::size_t size = object_list->objects.size();
@@ -2613,8 +2681,10 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
     const auto to_ms = [](const auto& duration) { return std::chrono::duration<double, std::milli>(duration).count(); };
     const char* event_name = "pcod_timing";
     RCLCPP_DEBUG(this->get_logger(),
-                 "%s points=%zu used_points=%zu boxes_in=%zu boxes_nms=%zu boxes_out=%zu objects=%zu "
-                 "e2e_ms=%.3f pcl_pre_ms=%.3f model_input_ms=%.3f infer_ms=%.3f decode_ms=%.3f "
+                 "%s points=%zu used_points=%zu boxes_in=%zu boxes_nms=%zu "
+                 "boxes_out=%zu objects=%zu "
+                 "e2e_ms=%.3f pcl_pre_ms=%.3f model_input_ms=%.3f infer_ms=%.3f "
+                 "decode_ms=%.3f "
                  "nms_ms=%.3f filter_ms=%.3f boxes_to_msg_ms=%.3f publish_ms=%.3f",
                  event_name, prepared_input.total_points, used_points, boxes_before_nms, boxes_after_nms, center_boxes.size(),
                  size, to_ms(timestamps[8] - timestamps[0]), to_ms(timestamps[1] - timestamps[0]),

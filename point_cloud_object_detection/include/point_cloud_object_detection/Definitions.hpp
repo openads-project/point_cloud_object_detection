@@ -30,10 +30,10 @@ struct ModelConfig {
   // Preprocessing
   std::string preprocessing_backend = "cpu";
   std::string point_feature_normalization_type = "none";
-  float point_feature_value_threshold = 0.0f;
-  float point_feature_min_value = 0.0f;
-  float point_feature_max_value = 0.0f;
-  float point_feature_norm_epsilon = 1e-6f;
+  float point_feature_value_threshold = 0.0F;
+  float point_feature_min_value = 0.0F;
+  float point_feature_max_value = 0.0F;
+  float point_feature_norm_epsilon = 1e-6F;
 
   // Postprocessing
   std::vector<std::string> predicted_class_names;
@@ -46,13 +46,13 @@ struct ModelConfig {
   float y_max;
   float z_min;
   float z_max;
-  float contract_z_min = 0.0f;
-  float contract_z_max = 0.0f;
+  float contract_z_min = 0.0F;
+  float contract_z_max = 0.0F;
   int x_grid_size;
   int y_grid_size;
-  float voxel_x = 0.0f;
-  float voxel_y = 0.0f;
-  float voxel_z = 0.0f;
+  float voxel_x = 0.0F;
+  float voxel_y = 0.0F;
+  float voxel_z = 0.0F;
 
   // NMS
   int nms_max_num_objects;
@@ -102,7 +102,8 @@ struct Params {
 
   std::vector<double> variance = std::vector<double>(12, -1.0);  // CONTINUOUS_STATE_COVARIANCE_UNKNOWN sentinel
 
-  // Exported runtime defaults from model_manifest.yml, overridable via ROS parameters.
+  // Exported runtime defaults from model_manifest.yml, overridable via ROS
+  // parameters.
   double nms_iou_threshold = 0.0;
   int64_t nms_max_num_objects = 0;
   std::vector<double> nms_score_threshold;
@@ -110,7 +111,8 @@ struct Params {
   double point_feature_value_threshold = 0.0;
   std::string point_feature_field = "intensity";
 
-  // Optional no-detection rectangle (in inference_frame) where detections are not allowed
+  // Optional no-detection rectangle (in inference_frame) where detections are
+  // not allowed
   bool no_detection_zone_enabled = false;
   // If true, remove raw points in the no-detection zone from model input
   bool no_detection_zone_remove_points = false;
@@ -123,25 +125,29 @@ struct Params {
   // If true, publish raw points that lie inside the no-detection zone
   bool no_detection_zone_publish_points = false;
 
-  // Detection area (circular sector) in inference_frame where detections are allowed
+  // Detection area (circular sector) in inference_frame where detections are
+  // allowed
   bool detection_area_enabled = false;  // turns on sector-based filtering/publishing
   double detection_area_center_x = 0.0;
   double detection_area_center_y = 0.0;
   double detection_area_radius = 0.0;
   double detection_area_bearing_deg = 0.0;  // central azimuth (deg, 0 along +x, CCW)
   double detection_area_fov_deg = 360.0;    // angular width (deg)
-  // Runtime override for the effective z range used during inference-time preprocessing. Defaults to the manifest z range.
+  // Runtime override for the effective z range used during inference-time
+  // preprocessing. Defaults to the manifest z range.
   double detection_area_z_min = 0.0;
   double detection_area_z_max = 0.0;
   bool detection_area_publish_polygon = false;
   int detection_area_num_segments = 32;  // polygon approximation of arc
 
   // Detection filtering mode
-  // If enabled, remove detections that lie outside the area either by center or completely
+  // If enabled, remove detections that lie outside the area either by center or
+  // completely
   bool detection_area_filter_detections = false;      // enable detection filtering by sector
   std::string detection_area_filter_mode = "center";  // "center" or "complete"
 
-  // Model bounds polygon publication (XY rectangle from x_min/x_max/y_min/y_max)
+  // Model bounds polygon publication (XY rectangle from
+  // x_min/x_max/y_min/y_max)
   bool model_bounds_publish_polygon = false;
 
   // Auxiliary grid-map publications
