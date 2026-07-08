@@ -70,7 +70,7 @@ flowchart LR
 | `postprocessing.nms.iou_threshold` | `float` | - | NMS IoU threshold. Defaults to runtime_defaults.postprocessing.nms.iou_threshold from the model manifest. |
 | `postprocessing.nms.max_num_objects` | `int` | - | Maximum number of objects after NMS. Defaults to runtime_defaults.postprocessing.nms.max_num_objects from the model manifest. |
 | `input.point_feature_field` | `string` | `"intensity"` | Single-feature source: 'intensity' or 'reflectivity' |
-| `preprocessing.point_feature.value_threshold` | `float` | `0.0f` | Point-feature value threshold. Defaults to runtime_defaults.preprocessing.point_feature.value_threshold from the model manifest. |
+| `preprocessing.point_feature.value_threshold` | `float` | `0.0F` | Point-feature value threshold. Defaults to runtime_defaults.preprocessing.point_feature.value_threshold from the model manifest. |
 | `preprocessing.detection_area.z_min` | `float` | `0.0` | Effective preprocessing lower z-bound used for point filtering and tensor construction. Runtime override; defaults to the model manifest z range. Values outside the manifest z range are accepted with a warning. |
 | `preprocessing.detection_area.z_max` | `float` | `0.0` | Effective preprocessing upper z-bound used for point filtering and tensor construction. Runtime override; defaults to the model manifest z range. Values outside the manifest z range are accepted with a warning. |
 | `preprocessing.no_detection_zone.enabled` | `bool` | `false` | Enable rectangular no-detection zone in inference_frame |
