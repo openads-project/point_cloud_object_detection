@@ -207,6 +207,9 @@ class PointCloudObjectDetection : public rclcpp::Node {
                          const ModelConfig& model_config,
                          const Params& params,
                          perception_msgs::msg::ObjectList& object_list);
+  /**
+   * @brief Publish optional visualization overlays derived before inference.
+   */
   static void publishPredictOverlays(
       const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg,
       const Params& params,
@@ -217,6 +220,9 @@ class PointCloudObjectDetection : public rclcpp::Node {
       const rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr& detection_area_pub,
       const rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr& model_bounds_pub,
       const std::shared_ptr<point_cloud_transport::Publisher>& no_detection_zone_points_publisher);
+  /**
+   * @brief Apply display processing and publish requested auxiliary grid maps.
+   */
   void publishAuxiliaryGridMaps(const Params& params,
                                 const std_msgs::msg::Header& header,
                                 std::optional<AuxiliaryGridMap>& density_grid_map,

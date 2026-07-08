@@ -10,34 +10,52 @@
 
 namespace point_cloud_object_detection {
 
+/**
+ * @brief Return the x coordinate from the configured PCL point type.
+ */
 inline float getPointX(const Point& point) {
   float value = 0.0F;
   pcl::getFieldValue(point, pcl::traits::offset<Point, pcl::fields::x>::value, value);
   return value;
 }
 
+/**
+ * @brief Return the y coordinate from the configured PCL point type.
+ */
 inline float getPointY(const Point& point) {
   float value = 0.0F;
   pcl::getFieldValue(point, pcl::traits::offset<Point, pcl::fields::y>::value, value);
   return value;
 }
 
+/**
+ * @brief Return the z coordinate from the configured PCL point type.
+ */
 inline float getPointZ(const Point& point) {
   float value = 0.0F;
   pcl::getFieldValue(point, pcl::traits::offset<Point, pcl::fields::z>::value, value);
   return value;
 }
 
+/**
+ * @brief Return the intensity field from the configured PCL point type.
+ */
 inline float getPointIntensity(const Point& point) {
   float value = 0.0F;
   pcl::getFieldValue(point, pcl::traits::offset<Point, pcl::fields::intensity>::value, value);
   return value;
 }
 
+/**
+ * @brief Set one float field in the configured PCL point type by byte offset.
+ */
 inline void setPointFloatField(Point& point, std::size_t field_offset, float field_value) {
   pcl::setFieldValue(point, field_offset, field_value);
 }
 
+/**
+ * @brief Create a configured PCL point with XYZ and intensity fields set.
+ */
 inline Point makePoint(float x, float y, float z, float intensity) {
   Point point;
   constexpr std::size_t x_offset = pcl::traits::offset<Point, pcl::fields::x>::value;

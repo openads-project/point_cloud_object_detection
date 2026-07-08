@@ -8,8 +8,14 @@
 
 namespace point_cloud_object_detection {
 
+/**
+ * @brief Number of model input features per preprocessed PBOD point.
+ */
 constexpr int kPbodPreprocessedFeatureDim = 18;
 
+/**
+ * @brief Indices of the preprocessed PBOD feature row.
+ */
 enum PbodFeatureIndex : int {
   kPbodFeatureX = 0,
   kPbodFeatureY,
@@ -31,6 +37,9 @@ enum PbodFeatureIndex : int {
   kPbodFeatureCenterOffsetZ
 };
 
+/**
+ * @brief Inputs required to compute one preprocessed PBOD feature row.
+ */
 struct PbodFeatureRowInputs {
   float x = 0.0F;
   float y = 0.0F;
@@ -48,6 +57,9 @@ struct PbodFeatureRowInputs {
   float z_min = 0.0F;
 };
 
+/**
+ * @brief Build one PBOD feature row from raw point, cluster, and grid-center values.
+ */
 inline std::array<float, kPbodPreprocessedFeatureDim> makePbodFeatureRow(const PbodFeatureRowInputs& inputs) {
   constexpr float kRadiusEpsilon = 1e-6F;
   const float cluster_x = inputs.x - inputs.mean_x;
