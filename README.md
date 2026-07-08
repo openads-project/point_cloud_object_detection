@@ -49,7 +49,7 @@ The [`demo`](demo) provides an example setup for the `point_cloud_object_detecti
    If you want to replay and process provided PCD files instead, run:
 
     ```bash
-    docker compose --profile pcd up -d --remove-orphans
+    docker compose --profile pcds up -d --remove-orphans
     ```
 
 6. Stop the demo from the demo directory once you're done:
