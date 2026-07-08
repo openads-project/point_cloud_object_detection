@@ -22,7 +22,7 @@ docker-ros:
       --compose-workdir ..
       --target-compose-svc point-cloud-object-detection
       --dep-exclude-compose-svc-all
-    ENABLE_INDUSTRIAL_CI: 'false'
+    ENABLE_INDUSTRIAL_CI: 'true'
     TARGET_CMAKE_ARGS: '-DCMAKE_EXPORT_COMPILE_COMMANDS=1'
 
 compose-oci:
