@@ -64,9 +64,21 @@ class PointCloudObjectDetection : public rclcpp::Node {
    * @brief Destroy the node and release model/client resources.
    */
   ~PointCloudObjectDetection() override;
+  /**
+   * @brief Copy construction is disabled because the node owns ROS entities.
+   */
   PointCloudObjectDetection(const PointCloudObjectDetection&) = delete;
+  /**
+   * @brief Move construction is disabled because the node owns ROS entities.
+   */
   PointCloudObjectDetection(PointCloudObjectDetection&&) = delete;
+  /**
+   * @brief Copy assignment is disabled because the node owns ROS entities.
+   */
   PointCloudObjectDetection& operator=(const PointCloudObjectDetection&) = delete;
+  /**
+   * @brief Move assignment is disabled because the node owns ROS entities.
+   */
   PointCloudObjectDetection& operator=(PointCloudObjectDetection&&) = delete;
 
  protected:
