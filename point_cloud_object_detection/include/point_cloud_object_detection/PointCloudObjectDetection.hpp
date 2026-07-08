@@ -195,6 +195,24 @@ class PointCloudObjectDetection : public rclcpp::Node {
                          const ModelConfig& model_config,
                          const Params& params,
                          perception_msgs::msg::ObjectList& object_list);
+  static void publishPredictOverlays(
+      const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg,
+      const Params& params,
+      const ModelConfig& model_config,
+      const PointCloud& point_cloud,
+      bool publish_no_detection_zone_points,
+      const rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr& no_detection_zone_pub,
+      const rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr& detection_area_pub,
+      const rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr& model_bounds_pub,
+      const std::shared_ptr<point_cloud_transport::Publisher>& no_detection_zone_points_publisher);
+  void publishAuxiliaryGridMaps(const Params& params,
+                                const std_msgs::msg::Header& header,
+                                std::optional<AuxiliaryGridMap>& density_grid_map,
+                                std::optional<AuxiliaryGridMap>& occupancy_grid_map,
+                                const rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr& density_grid_pub,
+                                const rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr& occupancy_grid_pub,
+                                const rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr& combined_grid_pub,
+                                const rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr& static_grid_pub);
 
   /**
    * @brief Callback executing the prediction every time a point cloud message

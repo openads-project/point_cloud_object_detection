@@ -86,48 +86,25 @@ struct ModelConfig {
 
 // parameters
 struct Params {
-  std::string preprocessing_backend = "cpu";
-  std::string model_repository;
-  std::string model_name;
-  std::string model_version;
-  std::string server_url;  // required
   double triton_client_timeout_s = 2.0;
-  bool use_shm = false;
-  bool cuda_input_shm = false;
-
-  std::string inference_frame;  // required
-  std::string output_frame;     // required
-
   int64_t sensor_id = 0;
-
-  std::vector<double> variance = std::vector<double>(12, -1.0);  // CONTINUOUS_STATE_COVARIANCE_UNKNOWN sentinel
 
   // Exported runtime defaults from model_manifest.yml, overridable via ROS
   // parameters.
   double nms_iou_threshold = 0.0;
   int64_t nms_max_num_objects = 0;
-  std::vector<double> nms_score_threshold;
   double output_class_score_threshold = 0.0;
   double point_feature_value_threshold = 0.0;
-  std::string point_feature_field = "intensity";
 
   // Optional no-detection rectangle (in inference_frame) where detections are
   // not allowed
-  bool no_detection_zone_enabled = false;
-  // If true, remove raw points in the no-detection zone from model input
-  bool no_detection_zone_remove_points = false;
   double no_detection_zone_x_min = 0.0;
   double no_detection_zone_x_max = 0.0;
   double no_detection_zone_y_min = 0.0;
   double no_detection_zone_y_max = 0.0;
-  // If true, publish the bounds of the no-detection zone as a PolygonStamped
-  bool no_detection_zone_publish_polygon = false;
-  // If true, publish raw points that lie inside the no-detection zone
-  bool no_detection_zone_publish_points = false;
 
   // Detection area (circular sector) in inference_frame where detections are
   // allowed
-  bool detection_area_enabled = false;  // turns on sector-based filtering/publishing
   double detection_area_center_x = 0.0;
   double detection_area_center_y = 0.0;
   double detection_area_radius = 0.0;
@@ -137,31 +114,57 @@ struct Params {
   // preprocessing. Defaults to the manifest z range.
   double detection_area_z_min = 0.0;
   double detection_area_z_max = 0.0;
-  bool detection_area_publish_polygon = false;
+
+  // Auxiliary grid-map publications
+  double density_grid_map_gain = 1.0;
+  double occupancy_grid_map_gain = 1.0;
+  double combined_grid_map_gain = 1.0;
+  double static_grid_map_gain = 1.0;
+
+  std::vector<double> variance = std::vector<double>(12, -1.0);  // CONTINUOUS_STATE_COVARIANCE_UNKNOWN sentinel
+  std::vector<double> nms_score_threshold;
+
+  std::string preprocessing_backend = "cpu";
+  std::string model_repository;
+  std::string model_name;
+  std::string model_version;
+  std::string server_url;       // required
+  std::string inference_frame;  // required
+  std::string output_frame;     // required
+  std::string point_feature_field = "intensity";
+  std::string detection_area_filter_mode = "center";  // "center" or "complete"
+  std::string grid_map_frame;
+
   int detection_area_num_segments = 32;  // polygon approximation of arc
 
+  bool use_shm = false;
+  bool cuda_input_shm = false;
+
+  bool no_detection_zone_enabled = false;
+  // If true, remove raw points in the no-detection zone from model input
+  bool no_detection_zone_remove_points = false;
+  // If true, publish the bounds of the no-detection zone as a PolygonStamped
+  bool no_detection_zone_publish_polygon = false;
+  // If true, publish raw points that lie inside the no-detection zone
+  bool no_detection_zone_publish_points = false;
+
+  bool detection_area_enabled = false;  // turns on sector-based filtering/publishing
+  bool detection_area_publish_polygon = false;
   // Detection filtering mode
   // If enabled, remove detections that lie outside the area either by center or
   // completely
-  bool detection_area_filter_detections = false;      // enable detection filtering by sector
-  std::string detection_area_filter_mode = "center";  // "center" or "complete"
+  bool detection_area_filter_detections = false;  // enable detection filtering by sector
 
   // Model bounds polygon publication (XY rectangle from
   // x_min/x_max/y_min/y_max)
   bool model_bounds_publish_polygon = false;
 
-  // Auxiliary grid-map publications
-  std::string grid_map_frame;
   bool publish_density_grid_map = false;
   bool publish_occupancy_grid_map = false;
   bool publish_combined_grid_map = false;
   bool publish_static_grid_map = false;
   bool zero_grid_map_cells_in_no_detection_zone = false;
   bool zero_grid_map_cells_outside_detection_area = false;
-  double density_grid_map_gain = 1.0;
-  double occupancy_grid_map_gain = 1.0;
-  double combined_grid_map_gain = 1.0;
-  double static_grid_map_gain = 1.0;
 };
 
 }  // namespace point_cloud_object_detection
