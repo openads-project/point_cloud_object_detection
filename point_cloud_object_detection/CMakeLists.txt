@@ -169,6 +169,22 @@ install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})
 install(DIRECTORY config DESTINATION share/${PROJECT_NAME})
 
 if(BUILD_TESTING)
+  find_package(ament_cmake_test REQUIRED)
+
+  add_executable(test_pbod_feature_utils tests/test_pbod_feature_utils.cpp)
+  target_include_directories(test_pbod_feature_utils PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  ament_add_test(test_pbod_feature_utils COMMAND $<TARGET_FILE:test_pbod_feature_utils> GENERATE_RESULT_FOR_RETURN_CODE_ZERO)
+
+  add_executable(test_point_utils tests/test_point_utils.cpp)
+  target_include_directories(test_point_utils PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  ament_target_dependencies(test_point_utils pcl_ros)
+  ament_add_test(test_point_utils COMMAND $<TARGET_FILE:test_point_utils> GENERATE_RESULT_FOR_RETURN_CODE_ZERO)
+
+  add_executable(test_point_cloud2_utils tests/test_point_cloud2_utils.cpp)
+  target_include_directories(test_point_cloud2_utils PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  ament_target_dependencies(test_point_cloud2_utils sensor_msgs)
+  ament_add_test(test_point_cloud2_utils COMMAND $<TARGET_FILE:test_point_cloud2_utils> GENERATE_RESULT_FOR_RETURN_CODE_ZERO)
+
   find_package(ament_lint_auto REQUIRED)
   set(ament_cmake_clang_format_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../.vscode/format/.clang-format)
   set(ament_cmake_clang_tidy_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../.vscode/lint/.clang-tidy)

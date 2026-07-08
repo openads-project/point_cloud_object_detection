@@ -17,6 +17,7 @@
 
 #include "Definitions.hpp"
 #include "Model.hpp"
+#include "PBODFeatureUtils.hpp"
 #include "PointTypes.hpp"
 
 #include "pcod_common/pbod_postprocess.hpp"
@@ -41,30 +42,30 @@ class PBODModel : public Model {
   static constexpr const char* kOutputNameDensity = "density_logits";
   static constexpr const char* kOutputNameOccupancy = "occupancy_logits";
 
-  static constexpr int kPreprocessedFeatureDim = 18;
+  static constexpr int kPreprocessedFeatureDim = kPbodPreprocessedFeatureDim;
   static constexpr int kPillarIndexDim = 2;
   static constexpr int kPointCoordinateDim = 3;
   static constexpr int kRegressionValuesPerClass = 7;
   static constexpr int kSizeValuesPerClass = 3;
   enum FeatureIndex : int {
-    kFeatureX = 0,
-    kFeatureY,
-    kFeatureZ,
-    kFeatureRadius,
-    kFeatureZRelative,
-    kFeatureInverseRadius,
-    kFeatureSinTheta,
-    kFeatureCosTheta,
-    kFeatureVarianceX,
-    kFeatureVarianceY,
-    kFeatureVarianceZ,
-    kFeatureIntensity,
-    kFeatureClusterOffsetX,
-    kFeatureClusterOffsetY,
-    kFeatureClusterOffsetZ,
-    kFeatureCenterOffsetX,
-    kFeatureCenterOffsetY,
-    kFeatureCenterOffsetZ
+    kFeatureX = kPbodFeatureX,
+    kFeatureY = kPbodFeatureY,
+    kFeatureZ = kPbodFeatureZ,
+    kFeatureRadius = kPbodFeatureRadius,
+    kFeatureZRelative = kPbodFeatureZRelative,
+    kFeatureInverseRadius = kPbodFeatureInverseRadius,
+    kFeatureSinTheta = kPbodFeatureSinTheta,
+    kFeatureCosTheta = kPbodFeatureCosTheta,
+    kFeatureVarianceX = kPbodFeatureVarianceX,
+    kFeatureVarianceY = kPbodFeatureVarianceY,
+    kFeatureVarianceZ = kPbodFeatureVarianceZ,
+    kFeatureIntensity = kPbodFeatureIntensity,
+    kFeatureClusterOffsetX = kPbodFeatureClusterOffsetX,
+    kFeatureClusterOffsetY = kPbodFeatureClusterOffsetY,
+    kFeatureClusterOffsetZ = kPbodFeatureClusterOffsetZ,
+    kFeatureCenterOffsetX = kPbodFeatureCenterOffsetX,
+    kFeatureCenterOffsetY = kPbodFeatureCenterOffsetY,
+    kFeatureCenterOffsetZ = kPbodFeatureCenterOffsetZ
   };
 
   static constexpr std::array<const char*, 5> kExpectedInputNames{

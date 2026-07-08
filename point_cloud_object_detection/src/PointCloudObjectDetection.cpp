@@ -28,6 +28,8 @@
 #include <stdexcept>
 
 #include "pcod_common/model_manifest.hpp"
+#include "point_cloud_object_detection/PointCloud2Utils.hpp"
+#include "point_cloud_object_detection/PointUtils.hpp"
 #include "point_cloud_object_detection/Utils.hpp"
 
 namespace point_cloud_object_detection {
@@ -188,7 +190,9 @@ const char* pointFieldDatatypeToString(uint8_t datatype) {
 
 bool isHostLittleEndian() {
   const std::uint16_t value = 1;
-  return *reinterpret_cast<const std::uint8_t*>(&value) == 1;
+  std::uint8_t first_byte = 0;
+  std::memcpy(&first_byte, &value, sizeof(first_byte));
+  return first_byte == 1;
 }
 
 constexpr double kAuxiliaryGridMapUnityGainEpsilon = 1e-6;
@@ -451,80 +455,6 @@ void applyAuxiliaryGridMapMasks(AuxiliaryGridMap& grid_map_output, const Params&
   }
 }
 
-std::uint16_t byteSwap16(std::uint16_t value) { return static_cast<std::uint16_t>((value >> 8) | (value << 8)); }
-
-std::uint32_t byteSwap32(std::uint32_t value) {
-  return ((value & 0x000000FFU) << 24) | ((value & 0x0000FF00U) << 8) | ((value & 0x00FF0000U) >> 8) |
-         ((value & 0xFF000000U) >> 24);
-}
-
-std::uint64_t byteSwap64(std::uint64_t value) {
-  return ((value & 0x00000000000000FFULL) << 56) | ((value & 0x000000000000FF00ULL) << 40) |
-         ((value & 0x0000000000FF0000ULL) << 24) | ((value & 0x00000000FF000000ULL) << 8) |
-         ((value & 0x000000FF00000000ULL) >> 8) | ((value & 0x0000FF0000000000ULL) >> 24) |
-         ((value & 0x00FF000000000000ULL) >> 40) | ((value & 0xFF00000000000000ULL) >> 56);
-}
-
-float readFloat32At(const std::uint8_t* src, bool needs_swap) {
-  // Use memcpy for aliasing/alignment-safe bit reinterpretation from packed
-  // PointCloud2 buffers.
-  std::uint32_t bits = 0;
-  std::memcpy(&bits, src, sizeof(bits));
-  if (needs_swap) bits = byteSwap32(bits);
-  float out = 0.0F;
-  std::memcpy(&out, &bits, sizeof(out));
-  return out;
-}
-
-float readFloat64AsFloatAt(const std::uint8_t* src, bool needs_swap) {
-  std::uint64_t bits = 0;
-  std::memcpy(&bits, src, sizeof(bits));
-  if (needs_swap) bits = byteSwap64(bits);
-  double out = 0.0;
-  std::memcpy(&out, &bits, sizeof(out));
-  return static_cast<float>(out);
-}
-
-float readPointFieldAsFloat(const std::uint8_t* src, std::uint8_t datatype, bool needs_swap) {
-  using PF = sensor_msgs::msg::PointField;
-  switch (datatype) {
-    case PF::FLOAT32:
-      return readFloat32At(src, needs_swap);
-    case PF::FLOAT64:
-      return readFloat64AsFloatAt(src, needs_swap);
-    case PF::UINT16: {
-      std::uint16_t value = 0;
-      std::memcpy(&value, src, sizeof(value));
-      if (needs_swap) value = byteSwap16(value);
-      return static_cast<float>(value);
-    }
-    case PF::UINT8:
-      return static_cast<float>(*src);
-    case PF::INT16: {
-      std::uint16_t raw = 0;
-      std::memcpy(&raw, src, sizeof(raw));
-      if (needs_swap) raw = byteSwap16(raw);
-      return static_cast<float>(static_cast<std::int16_t>(raw));
-    }
-    case PF::INT8:
-      return static_cast<float>(static_cast<std::int8_t>(*src));
-    case PF::UINT32: {
-      std::uint32_t value = 0;
-      std::memcpy(&value, src, sizeof(value));
-      if (needs_swap) value = byteSwap32(value);
-      return static_cast<float>(value);
-    }
-    case PF::INT32: {
-      std::uint32_t raw = 0;
-      std::memcpy(&raw, src, sizeof(raw));
-      if (needs_swap) raw = byteSwap32(raw);
-      return static_cast<float>(static_cast<std::int32_t>(raw));
-    }
-    default:
-      throw std::runtime_error("Unsupported PointCloud2 datatype");
-  }
-}
-
 struct PreparedPointCloudInput {
   sensor_msgs::msg::PointCloud2::ConstSharedPtr msg;
   sensor_msgs::msg::PointCloud2::SharedPtr transformed_owner;
@@ -633,17 +563,13 @@ void decodePreparedPointCloudToPcl(const PreparedPointCloudInput& prepared, Poin
   point_cloud.points.resize(prepared.total_points);
 
   std::size_t out_idx = 0;
-  const std::size_t row_step = static_cast<std::size_t>(msg_ref.row_step);
-  const std::size_t point_step = static_cast<std::size_t>(msg_ref.point_step);
   for (std::size_t row = 0; row < msg_ref.height; ++row) {
-    const std::uint8_t* row_ptr = msg_ref.data.data() + row * row_step;
     for (std::size_t col = 0; col < msg_ref.width; ++col) {
-      const std::uint8_t* point_ptr = row_ptr + col * point_step;
-      auto& dst = point_cloud.points[out_idx++];
-      dst.x = readFloat32At(point_ptr + prepared.x_offset, prepared.needs_swap);
-      dst.y = readFloat32At(point_ptr + prepared.y_offset, prepared.needs_swap);
-      dst.z = readFloat32At(point_ptr + prepared.z_offset, prepared.needs_swap);
-      dst.intensity = readPointFieldAsFloat(point_ptr + prepared.feature_offset, prepared.feature_datatype, prepared.needs_swap);
+      const std::size_t point_index = row * static_cast<std::size_t>(msg_ref.width) + col;
+      const PointCloud2PointRecord point_record =
+          readPointCloud2PointRecord(msg_ref, point_index, prepared.x_offset, prepared.y_offset, prepared.z_offset,
+                                     prepared.feature_offset, prepared.feature_datatype, prepared.needs_swap);
+      point_cloud.points[out_idx++] = makePoint(point_record.x, point_record.y, point_record.z, point_record.feature);
     }
   }
 }
@@ -2106,6 +2032,323 @@ void PointCloudObjectDetection::boxesToObjectList(const std::vector<BoundingBox>
   }
 }
 
+void PointCloudObjectDetection::publishPredictOverlays(
+    const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg,
+    const Params& params,
+    const ModelConfig& model_config,
+    const PointCloud& point_cloud,
+    bool publish_no_detection_zone_points,
+    const rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr& no_detection_zone_pub,
+    const rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr& detection_area_pub,
+    const rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr& model_bounds_pub,
+    const std::shared_ptr<point_cloud_transport::Publisher>& no_detection_zone_points_publisher) {
+  if (publish_no_detection_zone_points) {
+    PointCloud ndz_points;
+    ndz_points.header.frame_id = params.inference_frame.empty() ? msg->header.frame_id : params.inference_frame;
+    pcl_conversions::toPCL(msg->header.stamp, ndz_points.header.stamp);
+    const double x_min = params.no_detection_zone_x_min;
+    const double x_max = params.no_detection_zone_x_max;
+    const double y_min = params.no_detection_zone_y_min;
+    const double y_max = params.no_detection_zone_y_max;
+    for (const auto& p : point_cloud) {
+      const float point_x = getPointX(p);
+      const float point_y = getPointY(p);
+      if (point_x >= x_min && point_x <= x_max && point_y >= y_min && point_y <= y_max) {
+        ndz_points.push_back(p);
+      }
+    }
+    sensor_msgs::msg::PointCloud2 ros_msg;
+    pcl::toROSMsg(ndz_points, ros_msg);
+    ros_msg.header.stamp = msg->header.stamp;
+    ros_msg.header.frame_id = ndz_points.header.frame_id;
+    no_detection_zone_points_publisher->publish(ros_msg);
+  }
+
+  if (params.no_detection_zone_publish_polygon && params.no_detection_zone_enabled && no_detection_zone_pub) {
+    geometry_msgs::msg::PolygonStamped polygon_message;
+    polygon_message.header.stamp = msg->header.stamp;
+    polygon_message.header.frame_id = params.inference_frame.empty() ? msg->header.frame_id : params.inference_frame;
+
+    geometry_msgs::msg::Point32 polygon_point;
+    polygon_point.x = static_cast<float>(params.no_detection_zone_x_min);
+    polygon_point.y = static_cast<float>(params.no_detection_zone_y_min);
+    polygon_point.z = 0.0F;
+    polygon_message.polygon.points.push_back(polygon_point);
+    polygon_point.x = static_cast<float>(params.no_detection_zone_x_max);
+    polygon_point.y = static_cast<float>(params.no_detection_zone_y_min);
+    polygon_message.polygon.points.push_back(polygon_point);
+    polygon_point.x = static_cast<float>(params.no_detection_zone_x_max);
+    polygon_point.y = static_cast<float>(params.no_detection_zone_y_max);
+    polygon_message.polygon.points.push_back(polygon_point);
+    polygon_point.x = static_cast<float>(params.no_detection_zone_x_min);
+    polygon_point.y = static_cast<float>(params.no_detection_zone_y_max);
+    polygon_message.polygon.points.push_back(polygon_point);
+
+    no_detection_zone_pub->publish(polygon_message);
+  }
+
+  if (params.model_bounds_publish_polygon && model_bounds_pub) {
+    geometry_msgs::msg::PolygonStamped polygon_message;
+    polygon_message.header.stamp = msg->header.stamp;
+    polygon_message.header.frame_id = params.inference_frame.empty() ? msg->header.frame_id : params.inference_frame;
+
+    geometry_msgs::msg::Point32 p;
+    p.x = model_config.x_min;
+    p.y = model_config.y_min;
+    p.z = 0.0F;
+    polygon_message.polygon.points.push_back(p);
+    p.x = model_config.x_max;
+    p.y = model_config.y_min;
+    polygon_message.polygon.points.push_back(p);
+    p.x = model_config.x_max;
+    p.y = model_config.y_max;
+    polygon_message.polygon.points.push_back(p);
+    p.x = model_config.x_min;
+    p.y = model_config.y_max;
+    polygon_message.polygon.points.push_back(p);
+
+    model_bounds_pub->publish(polygon_message);
+  }
+
+  if (params.detection_area_publish_polygon && params.detection_area_enabled && detection_area_pub) {
+    geometry_msgs::msg::PolygonStamped polygon_message;
+    polygon_message.header.stamp = msg->header.stamp;
+    polygon_message.header.frame_id = params.inference_frame.empty() ? msg->header.frame_id : params.inference_frame;
+
+    const double sector_center_x = params.detection_area_center_x;
+    const double sector_center_y = params.detection_area_center_y;
+    const double sector_radius = params.detection_area_radius;
+    const double sector_bearing_deg = params.detection_area_bearing_deg;
+    const double sector_fov_deg = params.detection_area_fov_deg;
+    const int num_segments = std::max(static_cast<int>(kMinDetectionAreaNumSegments), params.detection_area_num_segments);
+
+    std::vector<geometry_msgs::msg::Point32> sector_poly;
+    {
+      const double start_angle_deg = sector_bearing_deg - 0.5 * sector_fov_deg;
+      const double end_angle_deg = sector_bearing_deg + 0.5 * sector_fov_deg;
+      constexpr double kFullCircleToleranceDeg = 1e-3;
+      const bool is_full_circle = std::abs(sector_fov_deg - kMaxDetectionAreaFovDeg) <= kFullCircleToleranceDeg;
+      if (!is_full_circle) {
+        geometry_msgs::msg::Point32 pt;
+        pt.x = static_cast<float>(sector_center_x);
+        pt.y = static_cast<float>(sector_center_y);
+        pt.z = 0.0F;
+        sector_poly.push_back(pt);
+      }
+
+      const int arc_samples = is_full_circle ? num_segments : num_segments + 1;
+      for (int i = 0; i < arc_samples; ++i) {
+        const double angle_deg = start_angle_deg + (end_angle_deg - start_angle_deg) * static_cast<double>(i) / num_segments;
+        const double angle_rad = angle_deg * M_PI / 180.0;
+        geometry_msgs::msg::Point32 arc_point;
+        arc_point.x = static_cast<float>(sector_center_x + sector_radius * std::cos(angle_rad));
+        arc_point.y = static_cast<float>(sector_center_y + sector_radius * std::sin(angle_rad));
+        arc_point.z = 0.0F;
+        sector_poly.push_back(arc_point);
+      }
+    }
+
+    auto clip_poly_to_halfplane = [](const std::vector<geometry_msgs::msg::Point32>& poly, auto inside, auto intersect) {
+      std::vector<geometry_msgs::msg::Point32> output;
+      if (poly.empty()) return output;
+      for (size_t i = 0; i < poly.size(); ++i) {
+        const auto& current = poly[i];
+        const auto& prev = poly[(i + poly.size() - 1) % poly.size()];
+        const bool curr_in = inside(current);
+        const bool prev_in = inside(prev);
+        if (curr_in) {
+          if (!prev_in) {
+            output.push_back(intersect(prev, current));
+          }
+          output.push_back(current);
+        } else if (prev_in) {
+          output.push_back(intersect(prev, current));
+        }
+      }
+      return output;
+    };
+
+    const double rx_min = static_cast<double>(model_config.x_min);
+    const double rx_max = static_cast<double>(model_config.x_max);
+    const double ry_min = static_cast<double>(model_config.y_min);
+    const double ry_max = static_cast<double>(model_config.y_max);
+
+    auto intersect_x = [](const geometry_msgs::msg::Point32& a, const geometry_msgs::msg::Point32& b, double x_val) {
+      geometry_msgs::msg::Point32 out;
+      const double dx = static_cast<double>(b.x) - static_cast<double>(a.x);
+      const double t = (std::abs(dx) < 1e-9) ? 0.0 : (x_val - static_cast<double>(a.x)) / dx;
+      out.x = static_cast<float>(x_val);
+      out.y = static_cast<float>(static_cast<double>(a.y) + t * (static_cast<double>(b.y) - static_cast<double>(a.y)));
+      out.z = 0.0F;
+      return out;
+    };
+    auto intersect_y = [](const geometry_msgs::msg::Point32& a, const geometry_msgs::msg::Point32& b, double y_val) {
+      geometry_msgs::msg::Point32 out;
+      const double dy = static_cast<double>(b.y) - static_cast<double>(a.y);
+      const double t = (std::abs(dy) < 1e-9) ? 0.0 : (y_val - static_cast<double>(a.y)) / dy;
+      out.y = static_cast<float>(y_val);
+      out.x = static_cast<float>(static_cast<double>(a.x) + t * (static_cast<double>(b.x) - static_cast<double>(a.x)));
+      out.z = 0.0F;
+      return out;
+    };
+
+    std::vector<geometry_msgs::msg::Point32> clipped = sector_poly;
+    clipped = clip_poly_to_halfplane(
+        clipped, [&](const auto& p) { return static_cast<double>(p.x) >= rx_min; },
+        [&](const auto& a, const auto& b) { return intersect_x(a, b, rx_min); });
+    clipped = clip_poly_to_halfplane(
+        clipped, [&](const auto& p) { return static_cast<double>(p.x) <= rx_max; },
+        [&](const auto& a, const auto& b) { return intersect_x(a, b, rx_max); });
+    clipped = clip_poly_to_halfplane(
+        clipped, [&](const auto& p) { return static_cast<double>(p.y) >= ry_min; },
+        [&](const auto& a, const auto& b) { return intersect_y(a, b, ry_min); });
+    clipped = clip_poly_to_halfplane(
+        clipped, [&](const auto& p) { return static_cast<double>(p.y) <= ry_max; },
+        [&](const auto& a, const auto& b) { return intersect_y(a, b, ry_max); });
+
+    if (!clipped.empty()) {
+      polygon_message.polygon.points = clipped;
+      detection_area_pub->publish(polygon_message);
+    }
+  }
+}
+
+void PointCloudObjectDetection::publishAuxiliaryGridMaps(
+    const Params& params,
+    const std_msgs::msg::Header& header,
+    std::optional<AuxiliaryGridMap>& density_grid_map,
+    std::optional<AuxiliaryGridMap>& occupancy_grid_map,
+    const rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr& density_grid_pub,
+    const rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr& occupancy_grid_pub,
+    const rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr& combined_grid_pub,
+    const rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr& static_grid_pub) {
+  std::optional<AuxiliaryGridMap> combined_grid_map;
+  std::optional<AuxiliaryGridMap> static_grid_map;
+  const std::string grid_map_source_frame = resolveAuxiliaryGridMapSourceFrame(params, header);
+  const std::string grid_map_target_frame = resolveAuxiliaryGridMapTargetFrame(params, grid_map_source_frame);
+  std::optional<geometry_msgs::msg::Pose> grid_map_origin;
+  if (density_grid_map.has_value() && occupancy_grid_map.has_value()) {
+    if (params.publish_combined_grid_map) {
+      combined_grid_map = buildCombinedAuxiliaryGridMap(*density_grid_map, *occupancy_grid_map);
+    }
+    if (params.publish_static_grid_map) {
+      static_grid_map = buildStaticAuxiliaryGridMap(*density_grid_map, *occupancy_grid_map);
+    }
+  }
+  if (params.publish_density_grid_map && !density_grid_map.has_value()) {
+    RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                         "Density grid map publication was requested, but "
+                         "the model did not provide "
+                         "density_logits output.");
+  }
+  if (params.publish_occupancy_grid_map && !occupancy_grid_map.has_value()) {
+    RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                         "Occupancy grid map publication was requested, but "
+                         "the model did not provide "
+                         "occupancy_logits output.");
+  }
+  if (params.publish_combined_grid_map && !combined_grid_map.has_value()) {
+    if (!density_grid_map.has_value() || !occupancy_grid_map.has_value()) {
+      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                           "Combined grid map publication was requested, but "
+                           "density_logits and occupancy_logits "
+                           "outputs are not both available.");
+    } else {
+      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                           "Failed to build combined grid map from "
+                           "incompatible model outputs.");
+    }
+  }
+  if (params.publish_static_grid_map && !static_grid_map.has_value()) {
+    if (!density_grid_map.has_value() || !occupancy_grid_map.has_value()) {
+      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                           "Static grid map publication was requested, but "
+                           "density_logits and occupancy_logits "
+                           "outputs are not both available.");
+    } else {
+      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                           "Failed to build static grid map from incompatible model outputs.");
+    }
+  }
+  if (params.publish_density_grid_map && density_grid_map.has_value()) {
+    applyAuxiliaryGridMapMasks(*density_grid_map, params);
+    applyAuxiliaryGridMapGain(*density_grid_map, params.density_grid_map_gain);
+  }
+  if (params.publish_occupancy_grid_map && occupancy_grid_map.has_value()) {
+    applyAuxiliaryGridMapMasks(*occupancy_grid_map, params);
+    applyAuxiliaryGridMapGain(*occupancy_grid_map, params.occupancy_grid_map_gain);
+  }
+  if (params.publish_combined_grid_map && combined_grid_map.has_value()) {
+    applyAuxiliaryGridMapMasks(*combined_grid_map, params);
+    applyAuxiliaryGridMapGain(*combined_grid_map, params.combined_grid_map_gain);
+  }
+  if (params.publish_static_grid_map && static_grid_map.has_value()) {
+    applyAuxiliaryGridMapMasks(*static_grid_map, params);
+    applyAuxiliaryGridMapGain(*static_grid_map, params.static_grid_map_gain);
+  }
+  if ((params.publish_density_grid_map && density_grid_map.has_value()) ||
+      (params.publish_occupancy_grid_map && occupancy_grid_map.has_value()) ||
+      (params.publish_combined_grid_map && combined_grid_map.has_value()) ||
+      (params.publish_static_grid_map && static_grid_map.has_value())) {
+    const AuxiliaryGridMap* reference_grid_map = nullptr;
+    if (density_grid_map.has_value()) {
+      reference_grid_map = &*density_grid_map;
+    } else if (occupancy_grid_map.has_value()) {
+      reference_grid_map = &*occupancy_grid_map;
+    } else if (combined_grid_map.has_value()) {
+      reference_grid_map = &*combined_grid_map;
+    } else if (static_grid_map.has_value()) {
+      reference_grid_map = &*static_grid_map;
+    }
+
+    if (reference_grid_map != nullptr) {
+      grid_map_origin =
+          transformAuxiliaryGridMapOriginPose(makeAuxiliaryGridMapOriginPose(*reference_grid_map), header, grid_map_source_frame,
+                                              grid_map_target_frame, *tf_buffer_, this->get_logger());
+    }
+  }
+  if (params.publish_density_grid_map && density_grid_map.has_value() && density_grid_pub && grid_map_origin.has_value()) {
+    if (auto density_message =
+            buildAuxiliaryOccupancyGridMessage(*density_grid_map, header, grid_map_target_frame, *grid_map_origin);
+        density_message.has_value()) {
+      density_grid_pub->publish(std::move(*density_message));
+    } else {
+      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                           "Failed to build density grid map message from model output.");
+    }
+  }
+  if (params.publish_occupancy_grid_map && occupancy_grid_map.has_value() && occupancy_grid_pub && grid_map_origin.has_value()) {
+    if (auto occupancy_message =
+            buildAuxiliaryOccupancyGridMessage(*occupancy_grid_map, header, grid_map_target_frame, *grid_map_origin);
+        occupancy_message.has_value()) {
+      occupancy_grid_pub->publish(std::move(*occupancy_message));
+    } else {
+      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                           "Failed to build occupancy grid map message from model output.");
+    }
+  }
+  if (params.publish_combined_grid_map && combined_grid_map.has_value() && combined_grid_pub && grid_map_origin.has_value()) {
+    if (auto combined_message =
+            buildAuxiliaryOccupancyGridMessage(*combined_grid_map, header, grid_map_target_frame, *grid_map_origin);
+        combined_message.has_value()) {
+      combined_grid_pub->publish(std::move(*combined_message));
+    } else {
+      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                           "Failed to build combined grid map message from model output.");
+    }
+  }
+  if (params.publish_static_grid_map && static_grid_map.has_value() && static_grid_pub && grid_map_origin.has_value()) {
+    if (auto static_message =
+            buildAuxiliaryOccupancyGridMessage(*static_grid_map, header, grid_map_target_frame, *grid_map_origin);
+        static_message.has_value()) {
+      static_grid_pub->publish(std::move(*static_message));
+    } else {
+      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                           "Failed to build static grid map message from model output.");
+    }
+  }
+}
+
 void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg) {
   // Guard the whole callback so unexpected runtime errors drop only this frame
   // instead of crashing the node.
@@ -2166,204 +2409,8 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
     timestamps.push_back(std::chrono::high_resolution_clock::now());  // index: 1, after pcl
                                                                       // preprocessing
 
-    // Optionally publish raw points inside the no-detection zone
-    if (need_point_cloud) {
-      PointCloud ndz_points;
-      ndz_points.header.frame_id =
-          params_snapshot.inference_frame.empty() ? msg->header.frame_id : params_snapshot.inference_frame;
-      pcl_conversions::toPCL(msg->header.stamp, ndz_points.header.stamp);
-      const double x_min = params_snapshot.no_detection_zone_x_min;
-      const double x_max = params_snapshot.no_detection_zone_x_max;
-      const double y_min = params_snapshot.no_detection_zone_y_min;
-      const double y_max = params_snapshot.no_detection_zone_y_max;
-      for (const auto& p : point_cloud) {
-        if (p.x >= x_min && p.x <= x_max && p.y >= y_min && p.y <= y_max) {
-          ndz_points.push_back(p);
-        }
-      }
-      sensor_msgs::msg::PointCloud2 ros_msg;
-      pcl::toROSMsg(ndz_points, ros_msg);
-      ros_msg.header.stamp = msg->header.stamp;
-      ros_msg.header.frame_id = ndz_points.header.frame_id;
-      no_detection_zone_points_publisher->publish(ros_msg);
-    }
-
-    // Publish the no-detection zone polygon if requested and enabled
-    if (params_snapshot.no_detection_zone_publish_polygon && params_snapshot.no_detection_zone_enabled && no_detection_zone_pub) {
-      geometry_msgs::msg::PolygonStamped polygon_message;
-      polygon_message.header.stamp = msg->header.stamp;
-      // Use inference_frame if set; otherwise use point cloud frame
-      polygon_message.header.frame_id =
-          params_snapshot.inference_frame.empty() ? msg->header.frame_id : params_snapshot.inference_frame;
-
-      geometry_msgs::msg::Point32 polygon_point;
-      // (x_min, y_min)
-      polygon_point.x = static_cast<float>(params_snapshot.no_detection_zone_x_min);
-      polygon_point.y = static_cast<float>(params_snapshot.no_detection_zone_y_min);
-      polygon_point.z = 0.0F;
-      polygon_message.polygon.points.push_back(polygon_point);
-      // (x_max, y_min)
-      polygon_point.x = static_cast<float>(params_snapshot.no_detection_zone_x_max);
-      polygon_point.y = static_cast<float>(params_snapshot.no_detection_zone_y_min);
-      polygon_message.polygon.points.push_back(polygon_point);
-      // (x_max, y_max)
-      polygon_point.x = static_cast<float>(params_snapshot.no_detection_zone_x_max);
-      polygon_point.y = static_cast<float>(params_snapshot.no_detection_zone_y_max);
-      polygon_message.polygon.points.push_back(polygon_point);
-      // (x_min, y_max)
-      polygon_point.x = static_cast<float>(params_snapshot.no_detection_zone_x_min);
-      polygon_point.y = static_cast<float>(params_snapshot.no_detection_zone_y_max);
-      polygon_message.polygon.points.push_back(polygon_point);
-
-      no_detection_zone_pub->publish(polygon_message);
-    }
-
-    // Publish the model bounds rectangle as polygon if requested
-    if (params_snapshot.model_bounds_publish_polygon && model_bounds_pub) {
-      geometry_msgs::msg::PolygonStamped polygon_message;
-      polygon_message.header.stamp = msg->header.stamp;
-      polygon_message.header.frame_id =
-          params_snapshot.inference_frame.empty() ? msg->header.frame_id : params_snapshot.inference_frame;
-
-      geometry_msgs::msg::Point32 p;
-      // (x_min, y_min)
-      p.x = model_config_snapshot.x_min;
-      p.y = model_config_snapshot.y_min;
-      p.z = 0.0F;
-      polygon_message.polygon.points.push_back(p);
-      // (x_max, y_min)
-      p.x = model_config_snapshot.x_max;
-      p.y = model_config_snapshot.y_min;
-      polygon_message.polygon.points.push_back(p);
-      // (x_max, y_max)
-      p.x = model_config_snapshot.x_max;
-      p.y = model_config_snapshot.y_max;
-      polygon_message.polygon.points.push_back(p);
-      // (x_min, y_max)
-      p.x = model_config_snapshot.x_min;
-      p.y = model_config_snapshot.y_max;
-      polygon_message.polygon.points.push_back(p);
-
-      model_bounds_pub->publish(polygon_message);
-    }
-
-    // Publish the detection area sector polygon if requested and enabled
-    if (params_snapshot.detection_area_publish_polygon && params_snapshot.detection_area_enabled && detection_area_pub) {
-      geometry_msgs::msg::PolygonStamped polygon_message;
-      polygon_message.header.stamp = msg->header.stamp;
-      polygon_message.header.frame_id =
-          params_snapshot.inference_frame.empty() ? msg->header.frame_id : params_snapshot.inference_frame;
-
-      const double sector_center_x = params_snapshot.detection_area_center_x;
-      const double sector_center_y = params_snapshot.detection_area_center_y;
-      const double sector_radius = params_snapshot.detection_area_radius;
-      const double sector_bearing_deg = params_snapshot.detection_area_bearing_deg;
-      const double sector_fov_deg = params_snapshot.detection_area_fov_deg;
-      const int num_segments =
-          std::max(static_cast<int>(kMinDetectionAreaNumSegments), params_snapshot.detection_area_num_segments);
-
-      // Build a sector polygon first; for a full 360-degree FOV, use only the
-      // perimeter so no spoke closes to center.
-      std::vector<geometry_msgs::msg::Point32> sector_poly;
-      {
-        const double start_angle_deg = sector_bearing_deg - 0.5 * sector_fov_deg;
-        const double end_angle_deg = sector_bearing_deg + 0.5 * sector_fov_deg;
-        constexpr double kFullCircleToleranceDeg = 1e-3;
-        const bool is_full_circle = std::abs(sector_fov_deg - kMaxDetectionAreaFovDeg) <= kFullCircleToleranceDeg;
-        if (!is_full_circle) {
-          geometry_msgs::msg::Point32 pt;
-          pt.x = static_cast<float>(sector_center_x);
-          pt.y = static_cast<float>(sector_center_y);
-          pt.z = 0.0F;
-          sector_poly.push_back(pt);
-        }
-
-        const int arc_samples = is_full_circle ? num_segments : num_segments + 1;
-        for (int i = 0; i < arc_samples; ++i) {
-          const double angle_deg = start_angle_deg + (end_angle_deg - start_angle_deg) * static_cast<double>(i) / num_segments;
-          const double angle_rad = angle_deg * M_PI / 180.0;
-          geometry_msgs::msg::Point32 arc_point;
-          arc_point.x = static_cast<float>(sector_center_x + sector_radius * std::cos(angle_rad));
-          arc_point.y = static_cast<float>(sector_center_y + sector_radius * std::sin(angle_rad));
-          arc_point.z = 0.0F;
-          sector_poly.push_back(arc_point);
-        }
-      }
-
-      // Sutherland-Hodgman clipping: each pass clips against one rectangle side
-      // and carries generated intersection vertices forward, yielding a robust
-      // clipped polygon.
-      auto clip_poly_to_halfplane = [](const std::vector<geometry_msgs::msg::Point32>& poly, auto inside, auto intersect) {
-        std::vector<geometry_msgs::msg::Point32> output;
-        if (poly.empty()) return output;
-        for (size_t i = 0; i < poly.size(); ++i) {
-          const auto& current = poly[i];
-          const auto& prev = poly[(i + poly.size() - 1) % poly.size()];
-          const bool curr_in = inside(current);
-          const bool prev_in = inside(prev);
-          if (curr_in) {
-            if (!prev_in) {
-              output.push_back(intersect(prev, current));
-            }
-            output.push_back(current);
-          } else if (prev_in) {
-            output.push_back(intersect(prev, current));
-          }
-        }
-        return output;
-      };
-
-      const double rx_min = static_cast<double>(model_config_snapshot.x_min);
-      const double rx_max = static_cast<double>(model_config_snapshot.x_max);
-      const double ry_min = static_cast<double>(model_config_snapshot.y_min);
-      const double ry_max = static_cast<double>(model_config_snapshot.y_max);
-
-      // Explicit line intersections keep clipping numerically stable for nearly
-      // axis-aligned edges.
-      auto intersect_x = [](const geometry_msgs::msg::Point32& a, const geometry_msgs::msg::Point32& b, double x_val) {
-        geometry_msgs::msg::Point32 out;
-        const double dx = static_cast<double>(b.x) - static_cast<double>(a.x);
-        const double t = (std::abs(dx) < 1e-9) ? 0.0 : (x_val - static_cast<double>(a.x)) / dx;
-        out.x = static_cast<float>(x_val);
-        out.y = static_cast<float>(static_cast<double>(a.y) + t * (static_cast<double>(b.y) - static_cast<double>(a.y)));
-        out.z = 0.0F;
-        return out;
-      };
-      auto intersect_y = [](const geometry_msgs::msg::Point32& a, const geometry_msgs::msg::Point32& b, double y_val) {
-        geometry_msgs::msg::Point32 out;
-        const double dy = static_cast<double>(b.y) - static_cast<double>(a.y);
-        const double t = (std::abs(dy) < 1e-9) ? 0.0 : (y_val - static_cast<double>(a.y)) / dy;
-        out.y = static_cast<float>(y_val);
-        out.x = static_cast<float>(static_cast<double>(a.x) + t * (static_cast<double>(b.x) - static_cast<double>(a.x)));
-        out.z = 0.0F;
-        return out;
-      };
-
-      // Clip in order: left, right, bottom, top. Order is arbitrary for convex
-      // clip polygons, but keeping it fixed makes behavior easier to reason
-      // about.
-      std::vector<geometry_msgs::msg::Point32> clipped = sector_poly;
-      clipped = clip_poly_to_halfplane(
-          clipped, [&](const auto& p) { return static_cast<double>(p.x) >= rx_min; },
-          [&](const auto& a, const auto& b) { return intersect_x(a, b, rx_min); });
-      clipped = clip_poly_to_halfplane(
-          clipped, [&](const auto& p) { return static_cast<double>(p.x) <= rx_max; },
-          [&](const auto& a, const auto& b) { return intersect_x(a, b, rx_max); });
-      clipped = clip_poly_to_halfplane(
-          clipped, [&](const auto& p) { return static_cast<double>(p.y) >= ry_min; },
-          [&](const auto& a, const auto& b) { return intersect_y(a, b, ry_min); });
-      clipped = clip_poly_to_halfplane(
-          clipped, [&](const auto& p) { return static_cast<double>(p.y) <= ry_max; },
-          [&](const auto& a, const auto& b) { return intersect_y(a, b, ry_max); });
-
-      // Publish the sector polygon clipped only to model bounds.
-      // Note: Do not warp or clip against the no-detection zone; visualization
-      // polygons should be independent to avoid confusing overlays.
-      if (!clipped.empty()) {
-        polygon_message.polygon.points = clipped;
-        detection_area_pub->publish(polygon_message);
-      }
-    }
+    publishPredictOverlays(msg, params_snapshot, model_config_snapshot, point_cloud, need_point_cloud, no_detection_zone_pub,
+                           detection_area_pub, model_bounds_pub, no_detection_zone_points_publisher);
 
     // pointcloudToBoxes
     // Timing layout is fixed to keep debug logs comparable across runs and with
@@ -2374,8 +2421,6 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
     std::vector<BoundingBox> center_boxes;
     std::optional<AuxiliaryGridMap> density_grid_map;
     std::optional<AuxiliaryGridMap> occupancy_grid_map;
-    std::optional<AuxiliaryGridMap> combined_grid_map;
-    std::optional<AuxiliaryGridMap> static_grid_map;
     const bool need_density_grid_map = params_snapshot.publish_density_grid_map || params_snapshot.publish_combined_grid_map ||
                                        params_snapshot.publish_static_grid_map;
     const bool need_occupancy_grid_map = params_snapshot.publish_occupancy_grid_map ||
@@ -2428,136 +2473,8 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
     timestamps.push_back(std::chrono::high_resolution_clock::now());  // index: 4, after output
                                                                       // tensor creation
 
-    // Build derived maps from raw model outputs before applying per-map display
-    // gains. The combination formulas require probability-scale inputs [0, 1];
-    // applying gain beforehand would distort those semantics.
-    const std::string grid_map_source_frame = resolveAuxiliaryGridMapSourceFrame(params_snapshot, header);
-    const std::string grid_map_target_frame = resolveAuxiliaryGridMapTargetFrame(params_snapshot, grid_map_source_frame);
-    std::optional<geometry_msgs::msg::Pose> grid_map_origin;
-    if (density_grid_map.has_value() && occupancy_grid_map.has_value()) {
-      if (params_snapshot.publish_combined_grid_map) {
-        combined_grid_map = buildCombinedAuxiliaryGridMap(*density_grid_map, *occupancy_grid_map);
-      }
-      if (params_snapshot.publish_static_grid_map) {
-        static_grid_map = buildStaticAuxiliaryGridMap(*density_grid_map, *occupancy_grid_map);
-      }
-    }
-    if (params_snapshot.publish_density_grid_map && !density_grid_map.has_value()) {
-      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
-                           "Density grid map publication was requested, but "
-                           "the model did not provide "
-                           "density_logits output.");
-    }
-    if (params_snapshot.publish_occupancy_grid_map && !occupancy_grid_map.has_value()) {
-      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
-                           "Occupancy grid map publication was requested, but "
-                           "the model did not provide "
-                           "occupancy_logits output.");
-    }
-    if (params_snapshot.publish_combined_grid_map && !combined_grid_map.has_value()) {
-      if (!density_grid_map.has_value() || !occupancy_grid_map.has_value()) {
-        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
-                             "Combined grid map publication was requested, but "
-                             "density_logits and occupancy_logits "
-                             "outputs are not both available.");
-      } else {
-        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
-                             "Failed to build combined grid map from "
-                             "incompatible model outputs.");
-      }
-    }
-    if (params_snapshot.publish_static_grid_map && !static_grid_map.has_value()) {
-      if (!density_grid_map.has_value() || !occupancy_grid_map.has_value()) {
-        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
-                             "Static grid map publication was requested, but "
-                             "density_logits and occupancy_logits "
-                             "outputs are not both available.");
-      } else {
-        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
-                             "Failed to build static grid map from incompatible model outputs.");
-      }
-    }
-    if (params_snapshot.publish_density_grid_map && density_grid_map.has_value()) {
-      applyAuxiliaryGridMapMasks(*density_grid_map, params_snapshot);
-      applyAuxiliaryGridMapGain(*density_grid_map, params_snapshot.density_grid_map_gain);
-    }
-    if (params_snapshot.publish_occupancy_grid_map && occupancy_grid_map.has_value()) {
-      applyAuxiliaryGridMapMasks(*occupancy_grid_map, params_snapshot);
-      applyAuxiliaryGridMapGain(*occupancy_grid_map, params_snapshot.occupancy_grid_map_gain);
-    }
-    if (params_snapshot.publish_combined_grid_map && combined_grid_map.has_value()) {
-      applyAuxiliaryGridMapMasks(*combined_grid_map, params_snapshot);
-      applyAuxiliaryGridMapGain(*combined_grid_map, params_snapshot.combined_grid_map_gain);
-    }
-    if (params_snapshot.publish_static_grid_map && static_grid_map.has_value()) {
-      applyAuxiliaryGridMapMasks(*static_grid_map, params_snapshot);
-      applyAuxiliaryGridMapGain(*static_grid_map, params_snapshot.static_grid_map_gain);
-    }
-    if ((params_snapshot.publish_density_grid_map && density_grid_map.has_value()) ||
-        (params_snapshot.publish_occupancy_grid_map && occupancy_grid_map.has_value()) ||
-        (params_snapshot.publish_combined_grid_map && combined_grid_map.has_value()) ||
-        (params_snapshot.publish_static_grid_map && static_grid_map.has_value())) {
-      const AuxiliaryGridMap* reference_grid_map = nullptr;
-      if (density_grid_map.has_value()) {
-        reference_grid_map = &*density_grid_map;
-      } else if (occupancy_grid_map.has_value()) {
-        reference_grid_map = &*occupancy_grid_map;
-      } else if (combined_grid_map.has_value()) {
-        reference_grid_map = &*combined_grid_map;
-      } else if (static_grid_map.has_value()) {
-        reference_grid_map = &*static_grid_map;
-      }
-
-      if (reference_grid_map != nullptr) {
-        grid_map_origin =
-            transformAuxiliaryGridMapOriginPose(makeAuxiliaryGridMapOriginPose(*reference_grid_map), header,
-                                                grid_map_source_frame, grid_map_target_frame, *tf_buffer_, this->get_logger());
-      }
-    }
-    if (params_snapshot.publish_density_grid_map && density_grid_map.has_value() && density_grid_pub &&
-        grid_map_origin.has_value()) {
-      if (auto density_message =
-              buildAuxiliaryOccupancyGridMessage(*density_grid_map, header, grid_map_target_frame, *grid_map_origin);
-          density_message.has_value()) {
-        density_grid_pub->publish(std::move(*density_message));
-      } else {
-        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
-                             "Failed to build density grid map message from model output.");
-      }
-    }
-    if (params_snapshot.publish_occupancy_grid_map && occupancy_grid_map.has_value() && occupancy_grid_pub &&
-        grid_map_origin.has_value()) {
-      if (auto occupancy_message =
-              buildAuxiliaryOccupancyGridMessage(*occupancy_grid_map, header, grid_map_target_frame, *grid_map_origin);
-          occupancy_message.has_value()) {
-        occupancy_grid_pub->publish(std::move(*occupancy_message));
-      } else {
-        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
-                             "Failed to build occupancy grid map message from model output.");
-      }
-    }
-    if (params_snapshot.publish_combined_grid_map && combined_grid_map.has_value() && combined_grid_pub &&
-        grid_map_origin.has_value()) {
-      if (auto combined_message =
-              buildAuxiliaryOccupancyGridMessage(*combined_grid_map, header, grid_map_target_frame, *grid_map_origin);
-          combined_message.has_value()) {
-        combined_grid_pub->publish(std::move(*combined_message));
-      } else {
-        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
-                             "Failed to build combined grid map message from model output.");
-      }
-    }
-    if (params_snapshot.publish_static_grid_map && static_grid_map.has_value() && static_grid_pub &&
-        grid_map_origin.has_value()) {
-      if (auto static_message =
-              buildAuxiliaryOccupancyGridMessage(*static_grid_map, header, grid_map_target_frame, *grid_map_origin);
-          static_message.has_value()) {
-        static_grid_pub->publish(std::move(*static_message));
-      } else {
-        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
-                             "Failed to build static grid map message from model output.");
-      }
-    }
+    publishAuxiliaryGridMaps(params_snapshot, header, density_grid_map, occupancy_grid_map, density_grid_pub, occupancy_grid_pub,
+                             combined_grid_pub, static_grid_pub);
 
     const std::size_t boxes_before_nms = center_boxes.size();
 
