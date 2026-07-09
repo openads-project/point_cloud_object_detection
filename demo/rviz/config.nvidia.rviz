@@ -1,0 +1,534 @@
+Panels:
+  - Class: rviz_common/Displays
+    Help Height: 138
+    Name: Displays
+    Property Tree Widget:
+      Expanded:
+        - /Global Options1
+        - /Detected Objects1/Appearance Properties1
+        - /Detected Objects1/Appearance Properties1/Classification coloring1
+        - /Ground Truth Objects1/Appearance Properties1/Bounding box1
+      Splitter Ratio: 0.48051947355270386
+    Tree Height: 713
+  - Class: rviz_common/Selection
+    Name: Selection
+  - Class: rviz_common/Tool Properties
+    Expanded: ~
+    Name: Tool Properties
+    Splitter Ratio: 0.5
+  - Class: rviz_common/Views
+    Expanded:
+      - /Current View1
+    Name: Views
+    Splitter Ratio: 0.5
+  - Class: rviz_common/Time
+    Experimental: false
+    Name: Time
+    SyncMode: 0
+    SyncSource: ""
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: false
+      Axis: X
+      Channel Name: intensity
+      Class: rviz_default_plugins/PointCloud2
+      Color: 0; 0; 0
+      Color Transformer: Intensity
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 255
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: Original Point Cloud
+      Position Transformer: XYZ
+      Selectable: false
+      Size (Pixels): 1
+      Size (m): 0.029999999329447746
+      Style: Points
+      Topic:
+        Depth: 1
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /demo/synchronized_point_cloud
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz_default_plugins/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: FlatColor
+      Decay Time: 0
+      Enabled: false
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 241
+      Min Color: 0; 0; 0
+      Min Intensity: 1
+      Name: No Detection Zone Point Cloud
+      Position Transformer: XYZ
+      Selectable: true
+      Size (Pixels): 2
+      Size (m): 0.10000000149011612
+      Style: Spheres
+      Topic:
+        Depth: 1
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /demo/synchronized_no_detection_zone_points
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: false
+    - Acceleration arrow:
+        Acceleration Color: 255; 0; 0
+        Acceleration scale: 10
+        Use acceleration color: true
+        Value: false
+      Alpha: 0.8999999761581421
+      Appearance Properties:
+        Bounding box:
+          Orientation Indication: false
+          Value: true
+        Classification coloring:
+          ANIMAL: 0; 128; 128
+          BICYCLE: 255; 170; 0
+          BUS: 255; 85; 127
+          CAR: 25; 25; 255
+          MICRO: 25; 255; 255
+          MOTORCYCLE: 255; 0; 0
+          PEDESTRIAN: 19; 198; 198
+          UNKNOWN: 128; 128; 128
+          UTILITY: 143; 72; 0
+          VRU: 25; 255; 255
+          Value: true
+        Hoverboard:
+          Corner Radius [m]: 0.3499999940395355
+          Corner Style:
+            Round Segments: 12
+            Value: Round
+          Glow:
+            Glow Height [m]: 0.699999988079071
+            Glow Intensity [0..1]: 0.6000000238418579
+            Value: true
+          Thickness [m]: 0.11999999731779099
+          Value: false
+        Mesh: false
+        Value: " "
+      Class: perception_msgs/ObjectList
+      Color: 0; 170; 255
+      Enabled: true
+      Name: Detected Objects
+      Predictions:
+        Line Color: 0; 255; 0
+        Line Width: 1
+        Prediction Points:
+          Point Color: 255; 170; 0
+          Point Width: 0.5
+          Value: true
+        Probabilities:
+          Char height: 4
+          Value: false
+        Value: false
+      Text information:
+        Char height: 1
+        Classification: true
+        Classification coloring: true
+        Existence probability: true
+        Object ID: false
+        Value: true
+        Velocity: false
+      Timeout:
+        Duration: 1
+        Value: false
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /demo/synchronized_objects
+      Value: true
+      Velocity arrow:
+        Use velocity color: true
+        Value: false
+        Velocity Color: 255; 0; 255
+        Velocity scale: 1
+    - Acceleration arrow:
+        Acceleration Color: 255; 0; 0
+        Acceleration scale: 10
+        Use acceleration color: true
+        Value: false
+      Alpha: 1
+      Appearance Properties:
+        Bounding box:
+          Orientation Indication: false
+          Value: true
+        Classification coloring:
+          ANIMAL: 0; 128; 128
+          BICYCLE: 255; 255; 25
+          BUS: 25; 25; 255
+          CAR: 25; 25; 255
+          MICRO: 25; 255; 255
+          MOTORCYCLE: 255; 255; 25
+          PEDESTRIAN: 25; 255; 255
+          UNKNOWN: 128; 128; 128
+          UTILITY: 25; 25; 255
+          VRU: 25; 255; 255
+          Value: false
+        Hoverboard:
+          Corner Radius [m]: 0.3499999940395355
+          Corner Style:
+            Round Segments: 12
+            Value: Round
+          Glow:
+            Glow Height [m]: 0.699999988079071
+            Glow Intensity [0..1]: 0.6000000238418579
+            Value: true
+          Thickness [m]: 0.11999999731779099
+          Value: false
+        Mesh: false
+        Value: " "
+      Class: perception_msgs/ObjectList
+      Color: 0; 255; 0
+      Enabled: false
+      Name: Ground Truth Objects
+      Predictions:
+        Line Color: 0; 255; 0
+        Line Width: 1
+        Prediction Points:
+          Point Color: 255; 170; 0
+          Point Width: 0.5
+          Value: true
+        Probabilities:
+          Char height: 4
+          Value: false
+        Value: false
+      Text information:
+        Char height: 0.5
+        Classification: true
+        Classification coloring: true
+        Existence probability: false
+        Object ID: false
+        Value: true
+        Velocity: false
+      Timeout:
+        Duration: 1
+        Value: false
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /demo/synchronized_ground_truth_objects
+      Value: false
+      Velocity arrow:
+        Use velocity color: true
+        Value: false
+        Velocity Color: 255; 0; 255
+        Velocity scale: 1
+    - Bottom Alpha: 0.800000011920929
+      Class: ika_rviz_plugins/Geofence
+      Color: 25; 255; 0
+      Enabled: true
+      Height: 1
+      Name: Detection Area
+      Thickness: 0.10000000149011612
+      Top Alpha: 0.05000000074505806
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /demo/detection_area
+      Value: true
+    - Bottom Alpha: 0.10000000149011612
+      Class: ika_rviz_plugins/Geofence
+      Color: 255; 255; 255
+      Enabled: false
+      Height: 0.4000000059604645
+      Name: No Detection Zone
+      Thickness: 0.009999999776482582
+      Top Alpha: 1
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /demo/no_detection_zone
+      Value: false
+    - Bottom Alpha: 0.20000000298023224
+      Class: ika_rviz_plugins/Geofence
+      Color: 255; 0; 0
+      Enabled: true
+      Height: 2
+      Name: Model Bounds
+      Thickness: 0.05000000074505806
+      Top Alpha: 0.05000000074505806
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /demo/model_bounds
+      Value: true
+    - Alpha: 0.699999988079071
+      Binary representation: false
+      Binary threshold: 100
+      Class: rviz_default_plugins/Map
+      Color Scheme: map
+      Draw Behind: false
+      Enabled: false
+      Name: Density Map
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /demo/synchronized_density_grid_map
+      Update Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /demo/synchronized_density_grid_map_updates
+      Use Timestamp: false
+      Value: false
+    - Alpha: 0.699999988079071
+      Binary representation: false
+      Binary threshold: 5
+      Class: rviz_default_plugins/Map
+      Color Scheme: map
+      Draw Behind: true
+      Enabled: false
+      Name: Objects Map
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /demo/synchronized_occupancy_grid_map
+      Update Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /demo/synchronized_occupancy_grid_map_updates
+      Use Timestamp: false
+      Value: false
+    - Alpha: 1
+      Binary representation: true
+      Binary threshold: 20
+      Class: rviz_default_plugins/Map
+      Color Scheme: map
+      Draw Behind: true
+      Enabled: true
+      Name: Static Map
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /demo/synchronized_static_grid_map
+      Update Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /demo/synchronized_static_grid_map_updates
+      Use Timestamp: false
+      Value: true
+    - Alpha: 0.699999988079071
+      Binary representation: false
+      Binary threshold: 100
+      Class: rviz_default_plugins/Map
+      Color Scheme: map
+      Draw Behind: false
+      Enabled: false
+      Name: Combined Map
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /demo/synchronized_combined_grid_map
+      Update Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /demo/synchronized_combined_grid_map_updates
+      Use Timestamp: false
+      Value: false
+    - Class: rviz_default_plugins/Camera
+      Enabled: true
+      Far Plane Distance: 100
+      Image Rendering: background and overlay
+      Name: Camera Front Center
+      Overlay Alpha: 0.5
+      Topic:
+        Depth: 1
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /camera_01/image_raw
+      Value: true
+      Visibility:
+        Camera Front Left: true
+        Camera Front Right: true
+        Combined Map: true
+        Density Map: true
+        Detected Objects: true
+        Detection Area: false
+        Ground Truth Objects: true
+        Model Bounds: false
+        No Detection Zone: false
+        No Detection Zone Point Cloud: false
+        Objects Map: true
+        Original Point Cloud: false
+        Static Map: true
+        Value: false
+      Zoom Factor: 1
+    - Class: rviz_default_plugins/Camera
+      Enabled: true
+      Far Plane Distance: 100
+      Image Rendering: background and overlay
+      Name: Camera Front Right
+      Overlay Alpha: 0.5
+      Topic:
+        Depth: 1
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /camera_04/image_raw
+      Value: true
+      Visibility:
+        Camera Front Center: true
+        Camera Front Left: true
+        Combined Map: true
+        Density Map: true
+        Detected Objects: true
+        Detection Area: false
+        Ground Truth Objects: true
+        Model Bounds: false
+        No Detection Zone: false
+        No Detection Zone Point Cloud: false
+        Objects Map: true
+        Original Point Cloud: false
+        Static Map: true
+        Value: false
+      Zoom Factor: 1
+    - Class: rviz_default_plugins/Camera
+      Enabled: true
+      Far Plane Distance: 100
+      Image Rendering: background and overlay
+      Name: Camera Front Left
+      Overlay Alpha: 0.5
+      Topic:
+        Depth: 1
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /camera_03/image_raw
+      Value: true
+      Visibility:
+        Camera Front Center: true
+        Camera Front Right: true
+        Combined Map: true
+        Density Map: true
+        Detected Objects: true
+        Detection Area: false
+        Ground Truth Objects: true
+        Model Bounds: false
+        No Detection Zone: false
+        No Detection Zone Point Cloud: false
+        Objects Map: true
+        Original Point Cloud: false
+        Static Map: true
+        Value: false
+      Zoom Factor: 1
+  Enabled: true
+  Global Options:
+    Background Color: 0; 0; 0
+    Fixed Frame: base_link
+    Frame Rate: 60
+  Name: root
+  Tools:
+    - Class: rviz_default_plugins/Interact
+      Hide Inactive Objects: true
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/FocusCamera
+  Transformation:
+    Current:
+      Class: rviz_default_plugins/TF
+  Value: true
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 92.6112060546875
+      Enable Stereo Rendering:
+        Stereo Eye Separation: 0.05999999865889549
+        Stereo Focal Distance: 1
+        Swap Stereo Eyes: false
+        Value: false
+      Focal Point:
+        X: 0
+        Y: 0
+        Z: 0
+      Focal Shape Fixed Size: false
+      Focal Shape Size: 0.05000000074505806
+      Invert Z Axis: false
+      Name: Current View
+      Near Clip Distance: 0.009999999776482582
+      Pitch: 0.9503978490829468
+      Target Frame: lidar_top
+      Value: Orbit (rviz_default_plugins)
+      Yaw: 1.7353967428207397
+    Saved: ~
+Window Geometry:
+  Camera Front Center:
+    collapsed: false
+  Camera Front Left:
+    collapsed: false
+  Camera Front Right:
+    collapsed: false
+  Displays:
+    collapsed: false
+  Height: 1620
+  Hide Left Dock: false
+  Hide Right Dock: true
+  QMainWindow State: 000000ff00000000fd00000003000000000000026a0000038efc0200000004fb000000100044006900730070006c00610079007301000002ab0000038e000000c700fffffffb0000001200530065006c0065006300740069006f006e0000000298000001210000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007300000002f0000000df0000005c00fffffffb0000000800540069006d00650000000397000000860000003700ffffff000000010000019b0000038efc0200000001fb0000000a0056006900650077007300000002ab0000038e000000a000ffffff0000000200000c640000026afc0100000003fb0000002200430061006d006500720061002000460072006f006e00740020004c006500660074010000000000000419000000a000fffffffb0000002600430061006d006500720061002000460072006f006e0074002000430065006e007400650072010000041f0000041e000000b200fffffffb0000002400430061006d006500720061002000460072006f006e0074002000520069006700680074010000084300000421000000a900ffffff000009f40000038e00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  Selection:
+    collapsed: false
+  Time:
+    collapsed: false
+  Tool Properties:
+    collapsed: false
+  Views:
+    collapsed: true
+  Width: 3172
+  X: 850
+  Y: 155

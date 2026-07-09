@@ -1,0 +1,16 @@
+/**/*:
+  ros__parameters:
+    dataset: nvidia_physicalai_av_dataset
+    dataset_split: all
+    # Available country filters:
+    # Austria, Belgium, Bulgaria, Croatia, Czechia, Denmark, Estonia,
+    # Finland, France, Germany, Greece, Hungary, Italy, Latvia, Lithuania,
+    # Luxembourg, Netherlands, Poland, Portugal, Romania, Slovakia, Slovenia,
+    # Spain, Sweden, United States
+    nvidia_filter_countries: Germany
+
+    publish_ego_data: true
+    publish_camera_images: true
+    publish_lidar_pointclouds: true
+    publish_lidar_object_lists: true
+    publish_radar_pointclouds: false

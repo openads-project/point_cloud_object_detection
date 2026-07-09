@@ -23,17 +23,17 @@
     output.variances: [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0]
 
     # Model input feature selection
-    input.point_feature_field: "intensity"
+    input.point_feature_field: "reflectivity"
 
     # Runtime overrides for exported manifest defaults.
     # preprocessing.detection_area.z_min: -1.0
     # preprocessing.detection_area.z_max: 4.0
     preprocessing.point_feature.value_threshold: 100.0
                                        # car, bus, motorcycle, bicycle, utility, pedestrian, vru, micro, animal
-    postprocessing.nms.score_threshold: [0.5, 0.5, 0.5,        0.5,     0.5,     0.5,        0.5, 0.5,   0.5]
+    postprocessing.nms.score_threshold: [0.3, 0.3, 0.3,        0.4,     0.3,     0.6,        0.4, 0.4,   0.3]
     # postprocessing.class_score_threshold: 0.0
-    # postprocessing.nms.iou_threshold: 0.2
-    # postprocessing.nms.max_num_objects: 64
+    postprocessing.nms.iou_threshold: 0.05
+    postprocessing.nms.max_num_objects: 128
 
     # Rectangular no-detection zone in inference_frame
     preprocessing.no_detection_zone.enabled: true
@@ -50,7 +50,7 @@
     preprocessing.detection_area.center_x: 0.0
     preprocessing.detection_area.center_y: 0.0
 
-    preprocessing.detection_area.radius: 90.0
+    preprocessing.detection_area.radius: 50.0
     preprocessing.detection_area.bearing_deg: 0.0
     preprocessing.detection_area.fov_deg: 360.0
     preprocessing.detection_area.publish_polygon: true
