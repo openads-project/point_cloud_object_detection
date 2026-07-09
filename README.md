@@ -21,7 +21,16 @@ The detector itself does not host the neural network. A [Triton Inference Server
 
 ## 🚀 Quick Start
 
-The [`demo`](demo) provides an example setup for the `point_cloud_object_detection` node. It can replay the [NVIDIA PhysicalAI-Autonomous-Vehicles Dataset](https://huggingface.co/datasets/nvidia/PhysicalAI-Autonomous-Vehicles) with the help of the [autonomy_datasets](https://github.com/thinking-cars/autonomy_datasets) ROS package. Alternatively, it can replay local [PCD files](demo/pcds/).
+The [`demo`](demo) provides an example setup for the `point_cloud_object_detection` node. It can replay the [NVIDIA PhysicalAI-Autonomous-Vehicles Dataset](https://huggingface.co/datasets/nvidia/PhysicalAI-Autonomous-Vehicles) with the help of the [autonomy_datasets](https://github.com/thinking-cars/autonomy_datasets) ROS package. Alternatively, it can replay local [PCD files](demo/assets/pcds/).
+
+Use the `pcd` profile to immediately replay and process PCD files provided in this repository.  
+
+    ```bash
+    cd demo
+    docker compose --profile pcd up -d --remove-orphans
+    ```
+
+Alternatively, use the `nvidia` profile to download, convert to Rosbag, replay and process the [NVIDIA PhysicalAI-Autonomous-Vehicles Dataset](https://huggingface.co/datasets/nvidia/PhysicalAI-Autonomous-Vehicles).
 
 1. Register at [HuggingFace](https://huggingface.co/join) and create a read-only [HuggingFace Access Token](https://huggingface.co/settings/tokens/new?tokenType=read).
 2. Store the token in an `.env` file in the [demo](/demo) directory:
@@ -39,20 +48,15 @@ The [`demo`](demo) provides an example setup for the `point_cloud_object_detecti
     xhost +local:
     ```
 
-5. Start one of the replay profiles from the demo directory.
+5. Start the demo:
 
     ```bash
     cd demo
     docker compose --profile nvidia up -d --remove-orphans
     ```
 
-   The `nvidia` profile iteratively downloads parts of the dataset, converts them to ROS bag files and replay the latest bag. Downloads are stopped once the demo is stopped. Downloading is resumed when the demo is resumed.
-   
-   If you want to replay and process provided PCD files instead, run:
-
-    ```bash
-    docker compose --profile pcds up -d --remove-orphans
-    ```
+    ⚠️ The `nvidia` profile may take several minutes before data appears in RViz while the first scene is downloaded and converted. Short pauses also occur between scenes.
+    ℹ️ You may change the replay country via `nvidia_filter_countries` in [`demo/config/autonomy_datasets.nvidia.params.yml`](demo/config/autonomy_datasets.nvidia.params.yml). Available country names are listed as comments in that file.
 
 6. Stop the demo from the demo directory once you're done:
 

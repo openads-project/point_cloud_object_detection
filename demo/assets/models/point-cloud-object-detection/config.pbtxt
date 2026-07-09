@@ -1,0 +1,74 @@
+name: "point-cloud-object-detection"
+platform: "pytorch_libtorch"
+default_model_filename: "point-cloud-object-detection-torchtrt-fp16-202607090823.pt"
+max_batch_size: 0
+
+input [
+  {
+    name: "point_features"
+    data_type: TYPE_FP32
+    dims: [1, 450000, 18]
+  },
+  {
+    name: "pillar_ids"
+    data_type: TYPE_INT64
+    dims: [1, 450000]
+  },
+  {
+    name: "valid_mask"
+    data_type: TYPE_BOOL
+    dims: [1, 450000]
+  },
+  {
+    name: "pillar_masks"
+    data_type: TYPE_BOOL
+    dims: [1, 120000]
+  },
+  {
+    name: "pillar_indices"
+    data_type: TYPE_INT64
+    dims: [1, 120000, 2]
+  }
+]
+
+
+    output [
+  {
+    name: "reg_logits"
+    data_type: TYPE_FP32
+    dims: [1, 120000, 63]
+  },
+  {
+    name: "focal_logits"
+    data_type: TYPE_FP32
+    dims: [1, 120000, 1]
+  },
+  {
+    name: "class_logits"
+    data_type: TYPE_FP32
+    dims: [1, 120000, 9]
+  },
+  {
+    name: "size_posterior"
+    data_type: TYPE_FP32
+    dims: [1, 120000, 27]
+  },
+  {
+    name: "density_logits"
+    data_type: TYPE_FP32
+    dims: [1, 120000, 1]
+  },
+  {
+    name: "occupancy_logits"
+    data_type: TYPE_FP32
+    dims: [1, 120000, 1]
+  }
+]
+
+
+instance_group [
+  {
+    count: 1
+    kind: KIND_GPU
+  }
+]

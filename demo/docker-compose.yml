@@ -20,7 +20,7 @@ services:
       <<: *ros_common_env
       CUDA_VISIBLE_DEVICES: "0"
     volumes:
-      - ./models:/models:ro
+      - ./assets/models:/models:ro
     command: >
       tritonserver
       --model-repository=/models
@@ -35,8 +35,9 @@ services:
       retries: 15
       start_period: 120s
 
-  point-cloud-object-detection:
-    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/perception/point_cloud_object_detection:latest_openads_ci
+  point-cloud-object-detection-nvidia: &point_cloud_object_detection
+    profiles: [nvidia]
+    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/perception/point_cloud_object_detection:latest-slim_openads_ci
     depends_on:
       triton-server:
         condition: service_healthy
@@ -47,11 +48,12 @@ services:
     deploy:
       <<: *gpu_reservation
     volumes:
-      - ./point_cloud_object_detection.demo.params.yml:/docker-ros/ws/install/point_cloud_object_detection/share/point_cloud_object_detection/config/params.yml:ro
-      - ./models:/models:ro
+      - ./config/point_cloud_object_detection.nvidia.params.yml:/params.yml:ro
+      - ./assets/models:/models:ro
     command: >
       bash -lc "
       ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py
+      params:=/params.yml
       name:=point_cloud_object_detection
       point_cloud_topic:=/lidar_01/point_cloud
       object_list_topic:=/demo/objects
@@ -67,6 +69,41 @@ services:
       use_sim_time:=false
       "
 
+  point-cloud-object-detection-pcd:
+    <<: *point_cloud_object_detection
+    profiles: [pcd]
+    volumes:
+      - ./config/point_cloud_object_detection.pcd.params.yml:/params.yml:ro
+      - ./assets/models:/models:ro
+
+  visualization-sync:
+    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/perception/point_cloud_object_detection:latest_openads_ci-amd64
+    environment:
+      <<: *ros_common_env
+      PYTHONDONTWRITEBYTECODE: "1"
+    volumes:
+      - ./services/visualization-sync/synchronize_detections.py:/opt/demo/synchronize_detections.py:ro
+    command: >
+      python3 /opt/demo/synchronize_detections.py --ros-args
+      -p use_sim_time:=true
+      -p cache_size:=128
+      -r point_cloud:=/lidar_01/point_cloud
+      -r auxiliary_point_cloud:=/demo/no_detection_zone_points
+      -r object_list:=/demo/objects
+      -r ground_truth_object_list:=/object_list/lidar_01
+      -r density_grid_map:=/demo/density_grid_map
+      -r occupancy_grid_map:=/demo/occupancy_grid_map
+      -r combined_grid_map:=/demo/combined_grid_map
+      -r static_grid_map:=/demo/static_grid_map
+      -r synchronized_point_cloud:=/demo/synchronized_point_cloud
+      -r synchronized_auxiliary_point_cloud:=/demo/synchronized_no_detection_zone_points
+      -r synchronized_object_list:=/demo/synchronized_objects
+      -r synchronized_ground_truth_object_list:=/demo/synchronized_ground_truth_objects
+      -r synchronized_density_grid_map:=/demo/synchronized_density_grid_map
+      -r synchronized_occupancy_grid_map:=/demo/synchronized_occupancy_grid_map
+      -r synchronized_combined_grid_map:=/demo/synchronized_combined_grid_map
+      -r synchronized_static_grid_map:=/demo/synchronized_static_grid_map
+
   ros-parameter-gui:
     image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/monitoring/ros-monitoring:v1.0.0
     environment:
@@ -78,18 +115,38 @@ services:
     command: bash -lc "rqt --standalone rqt_reconfigure --ros-args -r __node:=ros_parameter_gui"
 
   autonomy_datasets:
+    profiles: [nvidia]
     image: ghcr.io/thinking-cars/autonomy_datasets:latest
     # store your personal [HuggingFace Access Token](https://huggingface.co/docs/hub/security-tokens) in `HF_TOKEN` environment variable
-    command: bash -c "hf auth login --token $${HF_TOKEN} && ros2 launch autonomy_datasets autonomy_datasets.launch.py rviz:=no wait_for_ack:=false dataset:=nvidia_physicalai_av_dataset"
+    command: >
+      python3 /opt/demo/prepare_and_run.py
+      bash -c "
+      hf auth login --token $${HF_TOKEN} &&
+      ros2 launch autonomy_datasets autonomy_datasets.launch.py
+      rviz:=no
+      target_frame_rate:=1.0
+      wait_for_ack:=false
+      overwrite_rosbag:=$${OVERWRITE_ROSBAG}
+      dataset:=nvidia_physicalai_av_dataset
+      config:=/config/autonomy_datasets.nvidia.params.yml
+      "
     environment:
       RMW_IMPLEMENTATION: rmw_fastrtps_cpp
       DISPLAY: ${DISPLAY}
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: all
       HF_TOKEN: ${HF_TOKEN}
+      OVERWRITE_ROSBAG: ${OVERWRITE_ROSBAG:-false}
+      HOME: /tmp
+      HF_HOME: /datasets/.cache/huggingface
+      XDG_CACHE_HOME: /datasets/.cache
+      PYTHONDONTWRITEBYTECODE: "1"
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix
-      - ./datasets:/datasets
+      - ./data:/demo-data
+      - ./data/datasets:/datasets
+      - ./services/autonomy-datasets/prepare_and_run.py:/opt/demo/prepare_and_run.py:ro
+      - ./config/autonomy_datasets.nvidia.params.yml:/config/autonomy_datasets.nvidia.params.yml:ro
     deploy:
       resources:
         reservations:
@@ -98,24 +155,60 @@ services:
               count: all
               capabilities: [gpu]
 
-  # # pcd-publisher:
-  #   build:
-  #     context: ./pcd-publisher
-  #   depends_on: [point-cloud-object-detection]
-  #   environment:
-  #     <<: *ros_common_env
-  #     PCD_DIR: /data
-  #     PCD_GLOB: "*.pcd"
-  #     PCD_TOPIC: /demo/points
-  #     PCD_FRAME_ID: base_link
-  #     PCD_PUBLISH_RATE_HZ: 1.0
-  #   volumes:
-  #     - ./data:/data:ro
-  #     - ./pcd-publisher/pcd_publisher.py:/opt/demo/pcd_publisher.py:ro
+  pcd-publisher:
+    profiles: [pcd]
+    build:
+      context: ./services/pcd-publisher
+    depends_on:
+      point-cloud-object-detection-pcd:
+        condition: service_started
+    environment:
+      <<: *ros_common_env
+      PCD_DIR: /pcds
+      PCD_GLOB: "*.pcd"
+      PCD_TOPIC: /lidar_01/point_cloud
+      PCD_FRAME_ID: base_link
+      PCD_PUBLISH_RATE_HZ: ${PCD_PUBLISH_RATE_HZ:-5.0}
+      PYTHONDONTWRITEBYTECODE: "1"
+    volumes:
+      - ./assets/pcds:/pcds:ro
+      - ./services/pcd-publisher/pcd_publisher.py:/opt/demo/pcd_publisher.py:ro
 
   rviz:
+    profiles: [nvidia]
     image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/monitoring/ros-monitoring:v1.0.0
-    depends_on: [point-cloud-object-detection]
+    depends_on:
+      point-cloud-object-detection-nvidia:
+        condition: service_started
+      visualization-sync:
+        condition: service_started
+    environment:
+      <<: *ros_common_env
+      DISPLAY: ${DISPLAY}
+      QT_X11_NO_MITSHM: "1"
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: all
+      PYTHONDONTWRITEBYTECODE: "1"
+    deploy:
+      <<: *gpu_reservation
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ./rviz/config.nvidia.rviz:/root/.rviz2/config.rviz
+      - ./rviz/reset_rviz_on_clock_jump.py:/opt/demo/reset_rviz_on_clock_jump.py:ro
+    command: >
+      bash -lc "
+      python3 /opt/demo/reset_rviz_on_clock_jump.py --
+      rviz2 -d /root/.rviz2/config.rviz --ros-args -r __node:=rviz -p use_sim_time:=true
+      "
+
+  rviz-pcd:
+    profiles: [pcd]
+    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/monitoring/ros-monitoring:v1.0.0
+    depends_on:
+      point-cloud-object-detection-pcd:
+        condition: service_started
+      visualization-sync:
+        condition: service_started
     environment:
       <<: *ros_common_env
       DISPLAY: ${DISPLAY}
@@ -126,5 +219,8 @@ services:
       <<: *gpu_reservation
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
-      - ./rviz/config.rviz:/root/.rviz2/config.rviz
-    command: bash -lc "rviz2 -d /root/.rviz2/config.rviz --ros-args -r __node:=rviz"
+      - ./rviz/config.pcd.rviz:/root/.rviz2/config.rviz
+    command: >
+      bash -lc "
+      rviz2 -d /root/.rviz2/config.rviz --ros-args -r __node:=rviz -p use_sim_time:=false
+      "
