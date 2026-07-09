@@ -23,16 +23,23 @@ The detector itself does not host the neural network. A [Triton Inference Server
 
 The [`demo`](demo) provides an example setup for the `point_cloud_object_detection` node. It can replay the [NVIDIA PhysicalAI-Autonomous-Vehicles Dataset](https://huggingface.co/datasets/nvidia/PhysicalAI-Autonomous-Vehicles) with the help of the [autonomy_datasets](https://github.com/thinking-cars/autonomy_datasets) ROS package. Alternatively, it can replay local [PCD files](demo/assets/pcds/).
 
+Allow local Docker containers to connect to the X server for RViz visualization:
+
+   ```bash
+   xhost +local:
+   ```
+
 Use the `pcd` profile to immediately replay and process PCD files provided in this repository.  
 
-    ```bash
-    cd demo
-    docker compose --profile pcd up -d --remove-orphans
-    ```
+   ```bash
+   cd demo
+   docker compose --profile pcd up -d --remove-orphans
+   ```
 
 Alternatively, use the `nvidia` profile to download, convert to Rosbag, replay and process the [NVIDIA PhysicalAI-Autonomous-Vehicles Dataset](https://huggingface.co/datasets/nvidia/PhysicalAI-Autonomous-Vehicles).
 
 1. Register at [HuggingFace](https://huggingface.co/join) and create a read-only [HuggingFace Access Token](https://huggingface.co/settings/tokens/new?tokenType=read).
+
 2. Store the token in an `.env` file in the [demo](/demo) directory:
 
     ```bash
@@ -40,13 +47,6 @@ Alternatively, use the `nvidia` profile to download, convert to Rosbag, replay a
     ```
 
 3. Accept the terms and conditions for the dataset on [HuggingFace](https://huggingface.co/datasets/nvidia/PhysicalAI-Autonomous-Vehicles).
-
-
-4. Allow local Docker containers to connect to the X server for RViz visualization:
-
-    ```bash
-    xhost +local:
-    ```
 
 5. Start the demo:
 
@@ -64,11 +64,11 @@ Alternatively, use the `nvidia` profile to download, convert to Rosbag, replay a
     docker compose down --remove-orphans
     ``` 
 
-7.  Disable the connection to the X server after you're done with the demo:
+Disable the connection to the X server after you're done with the demo:
 
-    ```bash
-    xhost -local:
-    ```
+   ```bash
+   xhost -local:
+   ```
 
 #### Interacting Through `rqt`
 
