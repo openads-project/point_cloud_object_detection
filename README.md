@@ -137,6 +137,8 @@ Package and node interfaces are documented in the respective package READMEs lis
 
 The source code in this repository is licensed under Apache-2.0, see [LICENSE](LICENSE). Container images provided by this repository may contain third-party software shipped with their own license terms.
 
+Trained models, including learned weights and model architectures, are licensed under the [AI Pubs Research-use RAIL-M License v0.1](demo/assets/models/point-cloud-object-detection/MODEL_LICENSE).
+
 ## 🙏 Acknowledgements
 
 Development and maintenance of this repository are supported by the following projects. We acknowledge the funding of the respective institutions.
@@ -144,3 +146,12 @@ Development and maintenance of this repository are supported by the following pr
 | Project | Funding Institution | Grant Number |
 | --- | --- | --- |
 | [AIGGREGATE](https://aiggregate.eu/) | 🇪🇺 European Union | 101202457 |
+| [autotech.agil](https://www.autotechagil.de/) | 🇩🇪 Federal Ministry for Research, Technology and Space (BMFTR) | 1IS22088A |
+| [UNICAR*agil*](https://www.unicaragil.de/en/) | 🇩🇪 Federal Ministry for Research, Technology and Space (BMFTR) | 16EMO0284K |
+
+<p>
+  <img src="https://www.drought.uni-freiburg.de/stressres/images/bmftr-logo/image" height=70>
+  <img src="https://ec.europa.eu/regional_policy/images/information-sources/logo-download-center/eu_funded_en.jpg" height=70>
+</p>
+
+<sup><sub>Funded by the European Union. Views and opinions expressed are however those of the author(s) only and do not necessarily reflect those of the European Union or the European Climate, Infrastructure and Environment Executive Agency (CINEA). Neither the European Union nor CINEA can be held responsible for them.</sup></sup>

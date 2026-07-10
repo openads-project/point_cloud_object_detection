@@ -1,3 +1,7 @@
+# The trained model files in this bundle are licensed under the
+# AI Pubs Research-use RAIL-M License v0.1. See MODEL_LICENSE in this directory.
+# The license permits academic or research use only and includes additional
+# use-based restrictions.
 schema_version: '2.0'
 artifact:
   bundle_name: point-cloud-object-detection-torchtrt-fp16-202607090823
