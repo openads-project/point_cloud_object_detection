@@ -92,7 +92,7 @@ services:
       -r object_list:=/demo/objects
       -r ground_truth_object_list:=/object_list/lidar_01
       -r density_grid_map:=/demo/density_grid_map
-      -r occupancy_grid_map:=/demo/occupancy_grid_map
+      -r dynamic_grid_map:=/demo/dynamic_grid_map
       -r combined_grid_map:=/demo/combined_grid_map
       -r static_grid_map:=/demo/static_grid_map
       -r synchronized_point_cloud:=/demo/synchronized_point_cloud
@@ -100,7 +100,7 @@ services:
       -r synchronized_object_list:=/demo/synchronized_objects
       -r synchronized_ground_truth_object_list:=/demo/synchronized_ground_truth_objects
       -r synchronized_density_grid_map:=/demo/synchronized_density_grid_map
-      -r synchronized_occupancy_grid_map:=/demo/synchronized_occupancy_grid_map
+      -r synchronized_dynamic_grid_map:=/demo/synchronized_dynamic_grid_map
       -r synchronized_combined_grid_map:=/demo/synchronized_combined_grid_map
       -r synchronized_static_grid_map:=/demo/synchronized_static_grid_map
 
@@ -124,6 +124,7 @@ services:
       hf auth login --token $${HF_TOKEN} &&
       ros2 launch autonomy_datasets autonomy_datasets.launch.py
       rviz:=no
+      continue:=true
       target_frame_rate:=1.0
       wait_for_ack:=false
       overwrite_rosbag:=$${OVERWRITE_ROSBAG}

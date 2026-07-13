@@ -650,19 +650,19 @@ std::vector<BoundingBox> PBODModel::modelOutputToBoxes() {
                               y_max_};
     };
 
-    if (auxiliary_grid_map_request.density && auxiliary_grid_map_request.occupancy) {
+    if (auxiliary_grid_map_request.density && auxiliary_grid_map_request.dynamic) {
       auto density_logits = triton_interface_.getOutputTensor<float>(kOutputNameDensity, num_pillars);
       auto occupancy_logits = triton_interface_.getOutputTensor<float>(kOutputNameOccupancy, num_pillars);
 
       density_grid_map_ = build_auxiliary_grid_map("density");
-      occupancy_grid_map_ = build_auxiliary_grid_map("occupancy");
+      dynamic_grid_map_ = build_auxiliary_grid_map("dynamic");
 
       for (int ix = 0; ix < pillar_grid_.grid_x; ++ix) {
         for (int iy = 0; iy < pillar_grid_.grid_y; ++iy) {
           const std::size_t flat_index = static_cast<std::size_t>(ix * pillar_grid_.grid_y + iy);
           const Eigen::Index tensor_index = static_cast<Eigen::Index>(flat_index);
           density_grid_map_->values[flat_index] = densityTransform(sigmoid(density_logits(tensor_index)));
-          occupancy_grid_map_->values[flat_index] = sigmoid(occupancy_logits(tensor_index));
+          dynamic_grid_map_->values[flat_index] = sigmoid(occupancy_logits(tensor_index));
         }
       }
     } else if (auxiliary_grid_map_request.density) {
@@ -676,14 +676,14 @@ std::vector<BoundingBox> PBODModel::modelOutputToBoxes() {
               densityTransform(sigmoid(density_logits(static_cast<Eigen::Index>(flat_index))));
         }
       }
-    } else if (auxiliary_grid_map_request.occupancy) {
+    } else if (auxiliary_grid_map_request.dynamic) {
       auto occupancy_logits = triton_interface_.getOutputTensor<float>(kOutputNameOccupancy, num_pillars);
 
-      occupancy_grid_map_ = build_auxiliary_grid_map("occupancy");
+      dynamic_grid_map_ = build_auxiliary_grid_map("dynamic");
       for (int ix = 0; ix < pillar_grid_.grid_x; ++ix) {
         for (int iy = 0; iy < pillar_grid_.grid_y; ++iy) {
           const std::size_t flat_index = static_cast<std::size_t>(ix * pillar_grid_.grid_y + iy);
-          occupancy_grid_map_->values[flat_index] = sigmoid(occupancy_logits(static_cast<Eigen::Index>(flat_index)));
+          dynamic_grid_map_->values[flat_index] = sigmoid(occupancy_logits(static_cast<Eigen::Index>(flat_index)));
         }
       }
     }

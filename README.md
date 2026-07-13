@@ -14,7 +14,7 @@
 
 **ROS 2 Object Detection in Point Clouds for Automated Driving** 
 
-This repository provides a ROS 2 point cloud object detection node for automated driving perception stacks. The node subscribes to a `sensor_msgs/msg/PointCloud2`, sends preprocessed point data to a Triton-served detection model, and publishes detected objects as `perception_msgs/msg/ObjectList`.
+This repository provides a ROS 2 point cloud object detection node for automated driving perception stacks. The node subscribes to a `sensor_msgs/msg/PointCloud2`, sends preprocessed point data to a Triton-served detection model, and publishes detected objects as `perception_msgs/msg/ObjectList`. Additionally, the node optionally provides four auxiliary grid maps published as `nav_msgs/msg/OccupancyGrid`.
 
 The detector itself does not host the neural network. A [Triton Inference Server](https://github.com/triton-inference-server/server) with a compatible exported model repository must be available at runtime.
 
@@ -131,7 +131,7 @@ Package and node interfaces are documented in the respective package READMEs lis
 
 | Package | Description |
 | --- | --- |
-| [point_cloud_object_detection](point_cloud_object_detection/README.md) | Detects objects in point clouds |
+| [point_cloud_object_detection](point_cloud_object_detection/README.md) | Provides a C++ ROS 2 node for point cloud object detection. |
 
 ## ⚖️ Licensing
 

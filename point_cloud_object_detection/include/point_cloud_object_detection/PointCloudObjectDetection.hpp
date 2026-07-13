@@ -226,9 +226,9 @@ class PointCloudObjectDetection : public rclcpp::Node {
   void publishAuxiliaryGridMaps(const Params& params,
                                 const std_msgs::msg::Header& header,
                                 std::optional<AuxiliaryGridMap>& density_grid_map,
-                                std::optional<AuxiliaryGridMap>& occupancy_grid_map,
+                                std::optional<AuxiliaryGridMap>& dynamic_grid_map,
                                 const rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr& density_grid_pub,
-                                const rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr& occupancy_grid_pub,
+                                const rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr& dynamic_grid_pub,
                                 const rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr& combined_grid_pub,
                                 const rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr& static_grid_pub);
 
@@ -263,7 +263,7 @@ class PointCloudObjectDetection : public rclcpp::Node {
   static const std::string kDetectionAreaTopic;
   static const std::string kModelBoundsTopic;
   static const std::string kDensityGridMapTopic;
-  static const std::string kOccupancyGridMapTopic;
+  static const std::string kDynamicGridMapTopic;
   static const std::string kCombinedGridMapTopic;
   static const std::string kStaticGridMapTopic;
   static const std::map<uint8_t, std::vector<std::string>> kPossibleClassNames;
@@ -302,7 +302,7 @@ class PointCloudObjectDetection : public rclcpp::Node {
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr detection_area_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr model_bounds_pub_;
   rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr density_grid_pub_;
-  rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr occupancy_grid_pub_;
+  rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr dynamic_grid_pub_;
   rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr combined_grid_pub_;
   rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr static_grid_pub_;
   std::mutex publishers_mutex_;
