@@ -1,16 +1,17 @@
 # `point_cloud_object_detection`
 
-Detects objects in point clouds
+Provides a C++ ROS 2 node for point cloud object detection.
 
-The package provides a C++ ROS 2 component node for point-cloud object detection. It performs point-cloud preprocessing, calls a Triton-served model through `triton_cpp`, postprocesses bounding boxes, and publishes detected objects and optional visualization/debug outputs.
+The node preprocesses point clouds, sends them to a [Triton Inference Server](https://github.com/triton-inference-server/server) via [triton_cpp](https://github.com/openads-project/triton_cpp), postprocesses the model outputs into bounding boxes, and publishes the detected objects using messages from [perception_interfaces](https://github.com/ika-rwth-aachen/perception_interfaces). The preprocessing and postprocessing implementations are shared through [pcod-common](https://github.com/openads-project/pcod-common), which can also be used in model-training pipelines.
 
-The exported `model_manifest.yml` is the source of truth for the model bundle. Its `frozen_contract` section defines the non-overridable model contract used by inference, and its `runtime_defaults` section provides default values for intentionally tunable runtime behavior.
+The node can publish up to four grid maps as `nav_msgs/msg/OccupancyGrid` messages. The maps are derived from predicted density values (`d`) and occupancy values for dynamic objects (`o`):
 
-Set `prediction.model_repository` to the exported Triton repository bundle root. The repository directory name identifies the exported artifact, while the Triton serving name is read from `config.pbtxt` and validated against `artifact.triton.model_name` in `model_manifest.yml`. `prediction.model_version` optionally selects the numbered Triton version directory. If it is empty, the export default from `model_manifest.yml` is used.
+- **Density grid map:** Represents above-ground point density and therefore provides evidence of obstacle occupancy (`d`).
+- **Dynamic grid map:** Represents the model's estimate that a cell is occupied by a dynamic object (`o`).
+- **Combined grid map:** Fuses the occupancy and density estimates as `o + 0.5 d (1 - o)`.
+- **Static grid map:** Estimates static-obstacle occupancy by suppressing the density estimate in cells likely to contain dynamic objects: `d (1 - o)`.
 
-The node accepts `sensor_msgs/msg/PointCloud2` messages that always contain XYZ coordinates. The `input.point_feature_field` parameter controls whether the single feature channel is read from `intensity` or `reflectivity`. Additional feature channels beyond this single-feature setup are not supported.
-
-Multiple instances of this node can run with separate namespaces and remapped topics. Shared memory transport is supported for multi-instance deployments: `triton_cpp` uses per-client shared-memory region names and only unregisters regions owned by that client instance, so one detection node does not clear another node's Triton registrations.
+Here, dynamic objects are objects capable of moving, whether or not they are currently in motion. The dynamic grid prediction is intended to correspond to the model’s object detections but is trained separately.
 
 ## Nodes
 
@@ -26,7 +27,7 @@ flowchart LR
     NODE -->|~/detection_area| P1:::hidden
     NODE -->|~/model_bounds| P2:::hidden
     NODE -->|~/density_grid_map| P3:::hidden
-    NODE -->|~/occupancy_grid_map| P4:::hidden
+    NODE -->|~/dynamic_grid_map| P4:::hidden
     NODE -->|~/combined_grid_map| P5:::hidden
     NODE -->|~/static_grid_map| P6:::hidden
     NODE -->|~/object_list| P7:::hidden
@@ -48,7 +49,7 @@ flowchart LR
 | `~/detection_area` | `geometry_msgs/msg/PolygonStamped` | detection area polygon topic remap |
 | `~/model_bounds` | `geometry_msgs/msg/PolygonStamped` | model bounds polygon topic remap |
 | `~/density_grid_map` | `nav_msgs/msg/OccupancyGrid` | density grid map topic remap |
-| `~/occupancy_grid_map` | `nav_msgs/msg/OccupancyGrid` | occupancy grid map topic remap |
+| `~/dynamic_grid_map` | `nav_msgs/msg/OccupancyGrid` | dynamic grid map topic remap |
 | `~/combined_grid_map` | `nav_msgs/msg/OccupancyGrid` | combined grid map topic remap |
 | `~/static_grid_map` | `nav_msgs/msg/OccupancyGrid` | static grid map topic remap |
 | `~/object_list` | `perception_msgs/msg/ObjectList` | output object list topic remap |
@@ -94,13 +95,13 @@ flowchart LR
 | `output.model_bounds.publish_polygon` | `bool` | `false` | Publish the model x/y range rectangle as geometry_msgs/PolygonStamped |
 | `output.grid_maps.frame` | `string` | - | Frame for auxiliary grid-map publication. If empty, use the inference frame. |
 | `output.grid_maps.publish_density` | `bool` | `false` | Publish decoded density logits as an auxiliary grid map |
-| `output.grid_maps.publish_occupancy` | `bool` | `false` | Publish decoded occupancy logits as an auxiliary grid map |
+| `output.grid_maps.publish_dynamic` | `bool` | `false` | Publish decoded dynamic-occupancy logits as an auxiliary grid map |
 | `output.grid_maps.publish_combined` | `bool` | `false` | Publish a combined auxiliary occupancy grid map |
 | `output.grid_maps.publish_static` | `bool` | `false` | Publish a static-obstacle occupancy grid map |
 | `output.grid_maps.zero_in_no_detection_zone` | `bool` | `false` | If true, set published auxiliary grid-map cells inside the configured no-detection zone to zero |
 | `output.grid_maps.zero_outside_detection_area` | `bool` | `false` | If true, set published auxiliary grid-map cells outside the configured detection area to zero |
 | `output.grid_maps.density_gain` | `float` | `1.0` | Linear gain applied to the published density grid map |
-| `output.grid_maps.occupancy_gain` | `float` | `1.0` | Linear gain applied to the published occupancy grid map |
+| `output.grid_maps.dynamic_gain` | `float` | `1.0` | Linear gain applied to the published dynamic grid map |
 | `output.grid_maps.combined_gain` | `float` | `1.0` | Linear gain applied to the published combined grid map |
 | `output.grid_maps.static_gain` | `float` | `1.0` | Linear gain applied to the published static grid map |
 
@@ -117,7 +118,7 @@ flowchart LR
 | `detection_area_topic` | `"~/detection_area"` | detection area polygon topic remap |
 | `model_bounds_topic` | `"~/model_bounds"` | model bounds polygon topic remap |
 | `density_grid_map_topic` | `"~/density_grid_map"` | density grid map topic remap |
-| `occupancy_grid_map_topic` | `"~/occupancy_grid_map"` | occupancy grid map topic remap |
+| `dynamic_grid_map_topic` | `"~/dynamic_grid_map"` | dynamic grid map topic remap |
 | `combined_grid_map_topic` | `"~/combined_grid_map"` | combined grid map topic remap |
 | `static_grid_map_topic` | `"~/static_grid_map"` | static grid map topic remap |
 | `name` | `"point_cloud_object_detection"` | node name |

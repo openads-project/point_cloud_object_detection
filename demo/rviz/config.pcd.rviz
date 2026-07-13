@@ -243,20 +243,20 @@ Visualization Manager:
       Color Scheme: map
       Draw Behind: true
       Enabled: false
-      Name: Objects Map
+      Name: Dynamic Map
       Topic:
         Depth: 5
         Durability Policy: Volatile
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /demo/synchronized_occupancy_grid_map
+        Value: /demo/synchronized_dynamic_grid_map
       Update Topic:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /demo/synchronized_occupancy_grid_map_updates
+        Value: /demo/synchronized_dynamic_grid_map_updates
       Use Timestamp: false
       Value: false
     - Alpha: 1

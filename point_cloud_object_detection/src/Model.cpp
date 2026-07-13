@@ -18,7 +18,7 @@ std::vector<BoundingBox> Model::operator()(const PointCloud& point_cloud,
 std::vector<BoundingBox> Model::inferAndDecode(
     std::vector<std::chrono::time_point<std::chrono::high_resolution_clock>>& timestamps) {
   density_grid_map_.reset();
-  occupancy_grid_map_.reset();
+  dynamic_grid_map_.reset();
 
   // inference
   triton_interface_.infer();
