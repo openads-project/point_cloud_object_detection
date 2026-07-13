@@ -2244,13 +2244,13 @@ void PointCloudObjectDetection::publishAuxiliaryGridMaps(
     RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
                          "Dynamic grid map publication was requested, but "
                          "the model did not provide "
-                         "occupancy_logits output.");
+                         "dynamic_occupancy_logits output.");
   }
   if (params.publish_combined_grid_map && !combined_grid_map.has_value()) {
     if (!density_grid_map.has_value() || !dynamic_grid_map.has_value()) {
       RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
                            "Combined grid map publication was requested, but "
-                           "density_logits and occupancy_logits "
+                           "density_logits and dynamic_occupancy_logits "
                            "outputs are not both available.");
     } else {
       RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
@@ -2262,7 +2262,7 @@ void PointCloudObjectDetection::publishAuxiliaryGridMaps(
     if (!density_grid_map.has_value() || !dynamic_grid_map.has_value()) {
       RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
                            "Static grid map publication was requested, but "
-                           "density_logits and occupancy_logits "
+                           "density_logits and dynamic_occupancy_logits "
                            "outputs are not both available.");
     } else {
       RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
