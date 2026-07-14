@@ -37,7 +37,7 @@ services:
 
   point-cloud-object-detection-nvidia: &point_cloud_object_detection
     profiles: [nvidia]
-    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/perception/point_cloud_object_detection:latest-slim_openads_ci
+    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/perception/point_cloud_object_detection:latest_update-grids_ci-amd64
     depends_on:
       triton-server:
         condition: service_healthy
@@ -77,7 +77,7 @@ services:
       - ./assets/models:/models:ro
 
   visualization-sync:
-    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/perception/point_cloud_object_detection:latest_openads_ci-amd64
+    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/perception/point_cloud_object_detection:latest_update-grids_ci-amd64
     environment:
       <<: *ros_common_env
       PYTHONDONTWRITEBYTECODE: "1"
