@@ -1,6 +1,6 @@
 [submodule "point_cloud_object_detection/pcod-common"]
 	path = point_cloud_object_detection/pcod-common
-	url = https://gitlab.ika.rwth-aachen.de/fb-fi/ml/pcod-common.git
+	url = https://github.com/openads-project/pcod-common.git
 [submodule ".openads-dev-environment"]
 	path = .openads-dev-environment
 	url = https://github.com/openads-project/openads-dev-environment.git
