@@ -34,6 +34,9 @@ The detector itself does not host the neural network. A [Triton Inference Server
 
 The [`demo`](demo) provides an example setup for the `point_cloud_object_detection` node. It can replay the [NVIDIA PhysicalAI-Autonomous-Vehicles Dataset](https://huggingface.co/datasets/nvidia/PhysicalAI-Autonomous-Vehicles) with the help of the [autonomy_datasets](https://github.com/thinking-cars/autonomy_datasets) ROS package. Alternatively, it can replay local [PCD files](demo/assets/pcds/).
 
+> [!NOTE]
+> Running the demo requires an NVIDIA GPU and a host NVIDIA driver compatible with CUDA 13.1 or newer.
+
 1. Allow local Docker containers to connect to the X server for RViz visualization.
 
    ```bash
