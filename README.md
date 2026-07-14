@@ -12,7 +12,7 @@
   <a href="https://github.com/openads-project/point_cloud_object_detection/actions/workflows/consistency.yml"><img src="https://github.com/openads-project/point_cloud_object_detection/actions/workflows/consistency.yml/badge.svg"/></a>
 </p>
 
-**ROS 2 Object Detection in Point Clouds for Automated Driving** 
+**ROS 2 Object Detection in Point Clouds for Automated Driving**
 
 This repository provides a ROS 2 point cloud object detection node for automated driving perception stacks. The node subscribes to a `sensor_msgs/msg/PointCloud2`, sends preprocessed point data to a Triton-served detection model, and publishes detected objects as `perception_msgs/msg/ObjectList`. Additionally, the node optionally provides four auxiliary grid maps published as `nav_msgs/msg/OccupancyGrid`.
 
@@ -53,7 +53,7 @@ The [`demo`](demo) provides an example setup for the `point_cloud_object_detecti
 
         1. Register at [HuggingFace](https://huggingface.co/join) and create a read-only [HuggingFace Access Token](https://huggingface.co/settings/tokens/new?tokenType=read).
 
-        2. Store the token in an `.env` file in the [demo](/demo) directory.
+        2. Store the token in an `.env` file in the [demo](demo/) directory.
 
             ```bash
             echo "HF_TOKEN=your_token_here" > .env
@@ -74,8 +74,14 @@ The [`demo`](demo) provides an example setup for the `point_cloud_object_detecti
 3. Stop the demo from the demo directory once you're done:
 
     ```bash
-    docker compose --profile <chosen-profile> down
+    docker compose --profile pcd down
     ``` 
+
+    or 
+
+     ```bash
+    docker compose --profile nvidia down
+    ```
 
 4. Disable the connection to the X server after you're done with the demo:
 
@@ -157,4 +163,4 @@ Development and maintenance of this repository are supported by the following pr
   <img src="https://ec.europa.eu/regional_policy/images/information-sources/logo-download-center/eu_funded_en.jpg" height=70>
 </p>
 
-<sup><sub>Funded by the European Union. Views and opinions expressed are however those of the author(s) only and do not necessarily reflect those of the European Union or the European Climate, Infrastructure and Environment Executive Agency (CINEA). Neither the European Union nor CINEA can be held responsible for them.</sup></sup>
+<sup><sub>Funded by the European Union. Views and opinions expressed are however those of the author(s) only and do not necessarily reflect those of the European Union or the European Climate, Infrastructure and Environment Executive Agency (CINEA). Neither the European Union nor CINEA can be held responsible for them.</sub></sup>
