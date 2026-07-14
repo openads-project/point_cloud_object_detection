@@ -116,7 +116,7 @@ services:
 
   autonomy_datasets:
     profiles: [nvidia]
-    image: ghcr.io/thinking-cars/autonomy_datasets:latest
+    image: ghcr.io/thinking-cars/autonomy_datasets:v1.2.0
     # store your personal [HuggingFace Access Token](https://huggingface.co/docs/hub/security-tokens) in `HF_TOKEN` environment variable
     command: >
       python3 /opt/demo/prepare_and_run.py
