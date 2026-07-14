@@ -82,7 +82,7 @@ The [`demo`](demo) provides an example setup for the `point_cloud_object_detecti
 
 #### Interacting Through `rqt`
 
-The `ros-parameter-gui` service starts `rqt` with the `rqt_reconfigure` plugin. You may use it to inspect and adjust the running parameters of the `point_cloud_object_detection` node while the demo is active.
+The `ros-parameter-gui` service starts `rqt` with the `rqt_reconfigure` plugin. You may use it to inspect and adjust the parameters of the `point_cloud_object_detection` node while the demo is active.
 
 ## 💻 Development
 
