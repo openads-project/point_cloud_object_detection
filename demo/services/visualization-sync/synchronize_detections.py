@@ -14,7 +14,10 @@ from nav_msgs.msg import OccupancyGrid
 from perception_msgs.msg import ObjectList
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data, QoSProfile, QoSReliabilityPolicy
+from rclpy.time import Time
 from sensor_msgs.msg import PointCloud2
+from tf2_ros import Buffer, TransformException, TransformListener
+from tf2_sensor_msgs.tf2_sensor_msgs import do_transform_cloud
 
 
 def _stamp_key(message) -> tuple[int, int]:
@@ -27,7 +30,7 @@ class DetectionVisualizationSynchronizer(Node):
 
     _GRID_MAP_TOPICS = (
         "density_grid_map",
-        "occupancy_grid_map",
+        "dynamic_grid_map",
         "combined_grid_map",
         "static_grid_map",
     )
@@ -52,6 +55,8 @@ class DetectionVisualizationSynchronizer(Node):
         self._matched_count = 0
         self._missed_count = 0
         self._grid_map_publish_count = 0
+        self._tf_buffer = Buffer()
+        self._tf_listener = TransformListener(self._tf_buffer, self, spin_thread=False)
 
         synchronized_output_qos = QoSProfile(depth=1, reliability=QoSReliabilityPolicy.RELIABLE)
         reliable_input_qos = QoSProfile(depth=self._cache_size, reliability=QoSReliabilityPolicy.RELIABLE)
@@ -112,6 +117,10 @@ class DetectionVisualizationSynchronizer(Node):
                 )
             return
 
+        visualization_cloud = self._cloud_in_object_frame(cloud, message.header.frame_id)
+        if visualization_cloud is None:
+            return
+
         auxiliary_cloud = self._auxiliary_clouds.get(stamp)
         self._matched_stamps[stamp] = None
         self._matched_stamps.move_to_end(stamp)
@@ -119,7 +128,7 @@ class DetectionVisualizationSynchronizer(Node):
             self._matched_stamps.popitem(last=False)
 
         ground_truth_objects = self._ground_truth_objects.pop(stamp, None)
-        self._cloud_publisher.publish(cloud)
+        self._cloud_publisher.publish(visualization_cloud)
         if auxiliary_cloud is not None:
             self._auxiliary_cloud_publisher.publish(auxiliary_cloud)
         for topic, grid_map_cache in self._grid_maps.items():
@@ -144,6 +153,24 @@ class DetectionVisualizationSynchronizer(Node):
             for cached_stamp in list(grid_map_cache):
                 if cached_stamp < stamp:
                     del grid_map_cache[cached_stamp]
+
+    def _cloud_in_object_frame(self, cloud: PointCloud2, object_frame: str) -> PointCloud2 | None:
+        """Transform a matched cloud into the frame in which detections are published."""
+        if not object_frame or cloud.header.frame_id == object_frame:
+            return cloud
+        try:
+            transform = self._tf_buffer.lookup_transform(
+                object_frame,
+                cloud.header.frame_id,
+                Time.from_msg(cloud.header.stamp),
+            )
+        except TransformException as error:
+            self.get_logger().warning(
+                f"Cannot transform synchronized point cloud from {cloud.header.frame_id} "
+                f"to {object_frame}: {error}"
+            )
+            return None
+        return do_transform_cloud(cloud, transform)
 
     def _on_ground_truth_objects(self, message: ObjectList) -> None:
         stamp = _stamp_key(message)
