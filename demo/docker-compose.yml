@@ -62,7 +62,7 @@ services:
       detection_area_topic:=/demo/detection_area
       model_bounds_topic:=/demo/model_bounds
       density_grid_map_topic:=/demo/density_grid_map
-      occupancy_grid_map_topic:=/demo/occupancy_grid_map
+      dynamic_grid_map_topic:=/demo/dynamic_grid_map
       combined_grid_map_topic:=/demo/combined_grid_map
       static_grid_map_topic:=/demo/static_grid_map
       log_level:=info
