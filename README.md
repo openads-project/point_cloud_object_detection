@@ -27,6 +27,9 @@ The detector itself does not host the neural network. A [Triton Inference Server
 > This repository is part of [***OpenADS***](https://github.com/openads-project), the *Open Automated Driving Systems* project. *OpenADS* and its modules have been initiated and are currently being maintained by the [**Institute for Automotive Engineering (ika) at RWTH Aachen University**](https://www.ika.rwth-aachen.de/de/).
 
 
+  <video src="https://github.com/user-attachments/assets/89fc5c57-08b6-4e93-83ad-a2535a6f8a8b" width="720" style="max-width: 100%;">
+  </video>
+
 ## 🚀 Quick Start
 
 The [`demo`](demo) provides an example setup for the `point_cloud_object_detection` node. It can replay the [NVIDIA PhysicalAI-Autonomous-Vehicles Dataset](https://huggingface.co/datasets/nvidia/PhysicalAI-Autonomous-Vehicles) with the help of the [autonomy_datasets](https://github.com/thinking-cars/autonomy_datasets) ROS package. Alternatively, it can replay local [PCD files](demo/assets/pcds/).
