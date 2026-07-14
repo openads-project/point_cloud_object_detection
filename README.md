@@ -72,7 +72,8 @@ The [`demo`](demo) provides an example setup for the `point_cloud_object_detecti
             ```
 
             ⚠️ The `nvidia` profile may take several minutes before data appears in RViz while the first scene is downloaded and converted. Short pauses also occur between scenes.  
-            ℹ️ You may change the replay country via `nvidia_filter_countries` in [`demo/config/autonomy_datasets.nvidia.params.yml`](demo/config/autonomy_datasets.nvidia.params.yml). Available country names are listed as comments in that file.
+            ℹ️ You may change the replay country via `nvidia_filter_countries` in [`demo/config/autonomy_datasets.nvidia.params.yml`](demo/config/autonomy_datasets.nvidia.params.yml). Available country names are listed as comments in that file.  
+            ℹ️ The demo also publishes grid maps as images for visualization purposes.
 
 3. Stop the demo from the demo directory once you're done:
 

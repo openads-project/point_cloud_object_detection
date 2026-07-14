@@ -58,14 +58,17 @@ class DetectionVisualizationSynchronizer(Node):
         self._tf_buffer = Buffer()
         self._tf_listener = TransformListener(self._tf_buffer, self, spin_thread=False)
 
-        synchronized_output_qos = QoSProfile(depth=1, reliability=QoSReliabilityPolicy.RELIABLE)
+        visualization_output_qos = QoSProfile(depth=1, reliability=QoSReliabilityPolicy.BEST_EFFORT)
         reliable_input_qos = QoSProfile(depth=self._cache_size, reliability=QoSReliabilityPolicy.RELIABLE)
-        self._cloud_publisher = self.create_publisher(PointCloud2, "synchronized_point_cloud", synchronized_output_qos)
-        self._auxiliary_cloud_publisher = self.create_publisher(PointCloud2, "synchronized_auxiliary_point_cloud", 1)
+        self._cloud_publisher = self.create_publisher(PointCloud2, "synchronized_point_cloud", visualization_output_qos)
+        self._auxiliary_cloud_publisher = self.create_publisher(
+            PointCloud2, "synchronized_auxiliary_point_cloud", visualization_output_qos
+        )
         self._objects_publisher = self.create_publisher(ObjectList, "synchronized_object_list", 1)
         self._ground_truth_objects_publisher = self.create_publisher(ObjectList, "synchronized_ground_truth_object_list", 1)
         self._grid_map_publishers = {
-            topic: self.create_publisher(OccupancyGrid, f"synchronized_{topic}", 1) for topic in self._GRID_MAP_TOPICS
+            topic: self.create_publisher(OccupancyGrid, f"synchronized_{topic}", visualization_output_qos)
+            for topic in self._GRID_MAP_TOPICS
         }
         self._input_subscriptions = [
             self.create_subscription(PointCloud2, "point_cloud", self._on_cloud, qos_profile_sensor_data),
@@ -143,16 +146,20 @@ class DetectionVisualizationSynchronizer(Node):
         if self._matched_count == 1:
             self.get_logger().info("Publishing timestamp-synchronized visualization messages")
 
-        for cached_stamp in list(self._clouds):
-            if cached_stamp <= stamp:
-                del self._clouds[cached_stamp]
-        for cached_stamp in list(self._auxiliary_clouds):
-            if cached_stamp <= stamp:
-                del self._auxiliary_clouds[cached_stamp]
+        self._discard_through(self._clouds, stamp)
+        self._discard_through(self._auxiliary_clouds, stamp)
         for grid_map_cache in self._grid_maps.values():
-            for cached_stamp in list(grid_map_cache):
-                if cached_stamp < stamp:
-                    del grid_map_cache[cached_stamp]
+            self._discard_through(grid_map_cache, stamp, inclusive=False)
+
+    @staticmethod
+    def _discard_through(cache: OrderedDict, stamp: tuple[int, int], *, inclusive: bool = True) -> None:
+        """Evict timestamp-ordered cache entries without copying cache keys."""
+        while cache:
+            oldest_stamp = next(iter(cache))
+            if oldest_stamp < stamp or inclusive and oldest_stamp == stamp:
+                cache.popitem(last=False)
+            else:
+                return
 
     def _cloud_in_object_frame(self, cloud: PointCloud2, object_frame: str) -> PointCloud2 | None:
         """Transform a matched cloud into the frame in which detections are published."""

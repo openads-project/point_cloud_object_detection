@@ -86,7 +86,7 @@ services:
     command: >
       python3 /opt/demo/synchronize_detections.py --ros-args
       -p use_sim_time:=true
-      -p cache_size:=128
+      -p cache_size:=32
       -r point_cloud:=/lidar_01/point_cloud
       -r auxiliary_point_cloud:=/demo/no_detection_zone_points
       -r object_list:=/demo/objects
@@ -182,6 +182,8 @@ services:
       point-cloud-object-detection-nvidia:
         condition: service_started
       visualization-sync:
+        condition: service_started
+      grid-map-image-republisher:
         condition: service_started
     environment:
       <<: *ros_common_env
