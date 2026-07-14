@@ -68,7 +68,7 @@
     output.grid_maps.publish_static: true
     output.grid_maps.zero_in_no_detection_zone: true
     output.grid_maps.zero_outside_detection_area: true
-    output.grid_maps.density_gain: 1.0
+    output.grid_maps.density_gain: 30.0
     output.grid_maps.dynamic_gain: 1.0
     output.grid_maps.combined_gain: 1.0
-    output.grid_maps.static_gain: 1.0
+    output.grid_maps.static_gain: 30.0
