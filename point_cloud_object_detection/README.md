@@ -11,7 +11,7 @@ The node can publish up to four grid maps as `nav_msgs/msg/OccupancyGrid` messag
 - **Combined grid map:** Fuses the occupancy and density estimates as `o + 0.5 d (1 - o)`.
 - **Static grid map:** Estimates static-obstacle occupancy by suppressing the density estimate in cells likely to contain dynamic objects: `d (1 - o)`.
 
-Here, dynamic objects are objects capable of moving, whether or not they are currently in motion. The dynamic grid prediction is intended to correspond to the model’s object detections but is trained separately.
+Here, *dynamic objects* mean *objects capable of moving*, whether or not they are currently in motion. The dynamic grid output is intended to correspond to the model’s object detections but is trained separately.
 
 ## Nodes
 
