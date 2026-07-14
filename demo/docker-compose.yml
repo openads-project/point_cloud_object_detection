@@ -104,6 +104,27 @@ services:
       -r synchronized_combined_grid_map:=/demo/synchronized_combined_grid_map
       -r synchronized_static_grid_map:=/demo/synchronized_static_grid_map
 
+  grid-map-image-republisher:
+    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/perception/point_cloud_object_detection:latest_update-grids_ci-amd64
+    depends_on:
+      visualization-sync:
+        condition: service_started
+    environment:
+      <<: *ros_common_env
+      PYTHONDONTWRITEBYTECODE: "1"
+    volumes:
+      - ./services/grid-map-image-republisher/republish_grid_maps_as_images.py:/opt/demo/republish_grid_maps_as_images.py:ro
+    command: >
+      python3 /opt/demo/republish_grid_maps_as_images.py --ros-args
+      -p use_sim_time:=true
+      -r density_grid_map:=/demo/synchronized_density_grid_map
+      -r dynamic_grid_map:=/demo/synchronized_dynamic_grid_map
+      -r combined_grid_map:=/demo/synchronized_combined_grid_map
+      -r static_grid_map:=/demo/synchronized_static_grid_map
+      -r density_grid_map_image:=/demo/synchronized_density_grid_map_image
+      -r dynamic_grid_map_image:=/demo/synchronized_dynamic_grid_map_image
+      -r combined_grid_map_image:=/demo/synchronized_combined_grid_map_image
+      -r static_grid_map_image:=/demo/synchronized_static_grid_map_image
   ros-parameter-gui:
     image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/monitoring/ros-monitoring:v1.0.0
     environment:
