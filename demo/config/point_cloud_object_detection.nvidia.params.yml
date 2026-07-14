@@ -33,7 +33,7 @@
     postprocessing.nms.score_threshold: [0.3, 0.3, 0.3,        0.4,     0.3,     0.4,        0.4, 0.4,   0.3]
     # postprocessing.class_score_threshold: 0.0
     postprocessing.nms.iou_threshold: 0.05
-    postprocessing.nms.max_num_objects: 128
+    postprocessing.nms.max_num_objects: 256
 
     # Rectangular no-detection zone in inference_frame
     preprocessing.no_detection_zone.enabled: true
