@@ -9,7 +9,7 @@ Panels:
         - /Detected Objects1/Appearance Properties1/Classification coloring1
         - /Ground Truth Objects1/Appearance Properties1/Bounding box1
       Splitter Ratio: 0.48051947355270386
-    Tree Height: 713
+    Tree Height: 305
   - Class: rviz_common/Selection
     Name: Selection
   - Class: rviz_common/Tool Properties
@@ -25,7 +25,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: Original Point Cloud
 Visualization Manager:
   Class: ""
   Displays:
@@ -304,7 +304,7 @@ Visualization Manager:
         Durability Policy: Volatile
         Filter size: 10
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /demo/synchronized_density_grid_map
       Update Topic:
         Depth: 5
@@ -321,20 +321,20 @@ Visualization Manager:
       Color Scheme: map
       Draw Behind: true
       Enabled: false
-      Name: Objects Map
+      Name: Dynamic Map
       Topic:
         Depth: 5
         Durability Policy: Volatile
         Filter size: 10
         History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /demo/synchronized_occupancy_grid_map
+        Reliability Policy: Best Effort
+        Value: /demo/synchronized_dynamic_grid_map
       Update Topic:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /demo/synchronized_occupancy_grid_map_updates
+        Value: /demo/synchronized_dynamic_grid_map_updates
       Use Timestamp: false
       Value: false
     - Alpha: 1
@@ -343,14 +343,14 @@ Visualization Manager:
       Class: rviz_default_plugins/Map
       Color Scheme: map
       Draw Behind: true
-      Enabled: true
+      Enabled: false
       Name: Static Map
       Topic:
         Depth: 5
         Durability Policy: Volatile
         Filter size: 10
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /demo/synchronized_static_grid_map
       Update Topic:
         Depth: 5
@@ -359,7 +359,7 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /demo/synchronized_static_grid_map_updates
       Use Timestamp: false
-      Value: true
+      Value: false
     - Alpha: 0.699999988079071
       Binary representation: false
       Binary threshold: 100
@@ -373,7 +373,7 @@ Visualization Manager:
         Durability Policy: Volatile
         Filter size: 10
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /demo/synchronized_combined_grid_map
       Update Topic:
         Depth: 5
@@ -384,7 +384,7 @@ Visualization Manager:
       Use Timestamp: false
       Value: false
     - Class: rviz_default_plugins/Camera
-      Enabled: true
+      Enabled: false
       Far Plane Distance: 100
       Image Rendering: background and overlay
       Name: Camera Front Center
@@ -395,25 +395,29 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Best Effort
         Value: /camera_01/image_raw
-      Value: true
+      Value: false
       Visibility:
         Camera Front Left: true
         Camera Front Right: true
+        Combined Grid Map as Image: true
         Combined Map: true
+        Density Grid Map as Image: true
         Density Map: true
         Detected Objects: true
         Detection Area: false
+        Dynamic Grid Map as Image: true
+        Dynamic Map: true
         Ground Truth Objects: true
         Model Bounds: false
         No Detection Zone: false
         No Detection Zone Point Cloud: false
-        Objects Map: true
         Original Point Cloud: false
+        Static Grid Map as Image: true
         Static Map: true
         Value: false
       Zoom Factor: 1
     - Class: rviz_default_plugins/Camera
-      Enabled: true
+      Enabled: false
       Far Plane Distance: 100
       Image Rendering: background and overlay
       Name: Camera Front Right
@@ -424,25 +428,29 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Best Effort
         Value: /camera_04/image_raw
-      Value: true
+      Value: false
       Visibility:
         Camera Front Center: true
         Camera Front Left: true
+        Combined Grid Map as Image: true
         Combined Map: true
+        Density Grid Map as Image: true
         Density Map: true
         Detected Objects: true
         Detection Area: false
+        Dynamic Grid Map as Image: true
+        Dynamic Map: true
         Ground Truth Objects: true
         Model Bounds: false
         No Detection Zone: false
         No Detection Zone Point Cloud: false
-        Objects Map: true
         Original Point Cloud: false
+        Static Grid Map as Image: true
         Static Map: true
         Value: false
       Zoom Factor: 1
     - Class: rviz_default_plugins/Camera
-      Enabled: true
+      Enabled: false
       Far Plane Distance: 100
       Image Rendering: background and overlay
       Name: Camera Front Left
@@ -453,23 +461,83 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Best Effort
         Value: /camera_03/image_raw
-      Value: true
+      Value: false
       Visibility:
         Camera Front Center: true
         Camera Front Right: true
+        Combined Grid Map as Image: true
         Combined Map: true
+        Density Grid Map as Image: true
         Density Map: true
         Detected Objects: true
         Detection Area: false
+        Dynamic Grid Map as Image: true
+        Dynamic Map: true
         Ground Truth Objects: true
         Model Bounds: false
         No Detection Zone: false
         No Detection Zone Point Cloud: false
-        Objects Map: true
         Original Point Cloud: false
+        Static Grid Map as Image: true
         Static Map: true
         Value: false
       Zoom Factor: 1
+    - Class: rviz_default_plugins/Image
+      Enabled: true
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: Static Grid Map as Image
+      Normalize Range: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /demo/synchronized_static_grid_map_image
+      Value: true
+    - Class: rviz_default_plugins/Image
+      Enabled: true
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: Dynamic Grid Map as Image
+      Normalize Range: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /demo/synchronized_dynamic_grid_map_image
+      Value: true
+    - Class: rviz_default_plugins/Image
+      Enabled: true
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: Density Grid Map as Image
+      Normalize Range: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /demo/synchronized_density_grid_map_image
+      Value: true
+    - Class: rviz_default_plugins/Image
+      Enabled: true
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: Combined Grid Map as Image
+      Normalize Range: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /demo/synchronized_combined_grid_map_image
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 0; 0; 0
@@ -488,7 +556,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 92.6112060546875
+      Distance: 163.21258544921875
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -503,10 +571,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.9503978490829468
+      Pitch: 0.9353979825973511
       Target Frame: lidar_top
       Value: Orbit (rviz_default_plugins)
-      Yaw: 1.7353967428207397
+      Yaw: 1.7053967714309692
     Saved: ~
 Window Geometry:
   Camera Front Center:
@@ -515,13 +583,21 @@ Window Geometry:
     collapsed: false
   Camera Front Right:
     collapsed: false
+  Combined Grid Map as Image:
+    collapsed: false
+  Density Grid Map as Image:
+    collapsed: false
   Displays:
+    collapsed: true
+  Dynamic Grid Map as Image:
     collapsed: false
   Height: 1620
   Hide Left Dock: false
   Hide Right Dock: true
-  QMainWindow State: 000000ff00000000fd00000003000000000000026a0000038efc0200000004fb000000100044006900730070006c00610079007301000002ab0000038e000000c700fffffffb0000001200530065006c0065006300740069006f006e0000000298000001210000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007300000002f0000000df0000005c00fffffffb0000000800540069006d00650000000397000000860000003700ffffff000000010000019b0000038efc0200000001fb0000000a0056006900650077007300000002ab0000038e000000a000ffffff0000000200000c640000026afc0100000003fb0000002200430061006d006500720061002000460072006f006e00740020004c006500660074010000000000000419000000a000fffffffb0000002600430061006d006500720061002000460072006f006e0074002000430065006e007400650072010000041f0000041e000000b200fffffffb0000002400430061006d006500720061002000460072006f006e0074002000520069006700680074010000084300000421000000a900ffffff000009f40000038e00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd0000000300000000000001d7000005fefc0200000007fb0000003200440065006e0073006900740079002000470072006900640020004d0061007000200061007300200049006d006100670065010000003b0000017c0000001600fffffffb0000003200440079006e0061006d00690063002000470072006900640020004d0061007000200061007300200049006d00610067006501000001bd0000017c0000001600fffffffb00000030005300740061007400690063002000470072006900640020004d0061007000200061007300200049006d006100670065010000033f000001790000001600fffffffb0000001200530065006c0065006300740069006f006e0000000298000001210000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007300000002f0000000df0000005c00fffffffb0000000800540069006d00650000000397000000860000003700fffffffb000000340043006f006d00620069006e00650064002000470072006900640020004d0061007000200061007300200049006d00610067006501000004be0000017b0000001600ffffff000000010000019b000005fefc0200000002fb000000100044006900730070006c006100790073000000003b000003bc000000c700fffffffb0000000a0056006900650077007300000003fd0000023c000000a000ffffff0000000200000c6400000166fc0100000004fb0000002200430061006d006500720061002000460072006f006e00740020004c00650066007400000000000000070f000000a000fffffffb000000340043006f006d00620069006e00650064002000470072006900640020004d0061007000200061007300200049006d0061006700650000000992000002d20000000000000000fb0000002600430061006d006500720061002000460072006f006e0074002000430065006e00740065007200000005c80000034a000000b200fffffffb0000002400430061006d006500720061002000460072006f006e007400200052006900670068007400000007e200000482000000a900ffffff00000a87000005fe00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
+    collapsed: false
+  Static Grid Map as Image:
     collapsed: false
   Time:
     collapsed: false

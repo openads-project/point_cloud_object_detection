@@ -117,7 +117,7 @@ struct Params {
 
   // Auxiliary grid-map publications
   double density_grid_map_gain = 1.0;
-  double occupancy_grid_map_gain = 1.0;
+  double dynamic_grid_map_gain = 1.0;
   double combined_grid_map_gain = 1.0;
   double static_grid_map_gain = 1.0;
 
@@ -160,7 +160,7 @@ struct Params {
   bool model_bounds_publish_polygon = false;
 
   bool publish_density_grid_map = false;
-  bool publish_occupancy_grid_map = false;
+  bool publish_dynamic_grid_map = false;
   bool publish_combined_grid_map = false;
   bool publish_static_grid_map = false;
   bool zero_grid_map_cells_in_no_detection_zone = false;

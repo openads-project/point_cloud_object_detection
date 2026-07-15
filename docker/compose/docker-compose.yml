@@ -15,7 +15,7 @@ services:
       DETECTION_AREA_TOPIC: ~/detection_area
       MODEL_BOUNDS_TOPIC: ~/model_bounds
       DENSITY_GRID_MAP_TOPIC: ~/density_grid_map
-      OCCUPANCY_GRID_MAP_TOPIC: ~/occupancy_grid_map
+      DYNAMIC_GRID_MAP_TOPIC: ~/dynamic_grid_map
       COMBINED_GRID_MAP_TOPIC: ~/combined_grid_map
       STATIC_GRID_MAP_TOPIC: ~/static_grid_map
       # --- other -----
@@ -41,7 +41,7 @@ services:
           detection_area_topic:=$${DETECTION_AREA_TOPIC} \
           model_bounds_topic:=$${MODEL_BOUNDS_TOPIC} \
           density_grid_map_topic:=$${DENSITY_GRID_MAP_TOPIC} \
-          occupancy_grid_map_topic:=$${OCCUPANCY_GRID_MAP_TOPIC} \
+          dynamic_grid_map_topic:=$${DYNAMIC_GRID_MAP_TOPIC} \
           combined_grid_map_topic:=$${COMBINED_GRID_MAP_TOPIC} \
           static_grid_map_topic:=$${STATIC_GRID_MAP_TOPIC}
     # volumes:

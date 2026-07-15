@@ -40,7 +40,7 @@ class PBODModel : public Model {
   static constexpr const char* kOutputNameClass = "class_logits";
   static constexpr const char* kOutputNameSize = "size_posterior";
   static constexpr const char* kOutputNameDensity = "density_logits";
-  static constexpr const char* kOutputNameOccupancy = "occupancy_logits";
+  static constexpr const char* kOutputNameDynamicOccupancy = "dynamic_occupancy_logits";
 
   static constexpr int kPreprocessedFeatureDim = kPbodPreprocessedFeatureDim;
   static constexpr int kPillarIndexDim = 2;
@@ -70,8 +70,8 @@ class PBODModel : public Model {
 
   static constexpr std::array<const char*, 5> kExpectedInputNames{
       kInputNamePointFeatures, kInputNamePillarIds, kInputNameValidMask, kInputNamePillarMasks, kInputNamePillarIndices};
-  static constexpr std::array<const char*, 6> kExpectedOutputNames{kOutputNameFocal, kOutputNameReg,     kOutputNameClass,
-                                                                   kOutputNameSize,  kOutputNameDensity, kOutputNameOccupancy};
+  static constexpr std::array<const char*, 6> kExpectedOutputNames{
+      kOutputNameFocal, kOutputNameReg, kOutputNameClass, kOutputNameSize, kOutputNameDensity, kOutputNameDynamicOccupancy};
 
   /**
    * @brief Validate that the loaded Triton model exposes the expected PBOD

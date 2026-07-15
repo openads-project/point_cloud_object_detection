@@ -3,7 +3,7 @@
 <package format="3">
   <name>point_cloud_object_detection</name>
   <version>2.2.0</version>
-  <description>Detects objects in point clouds</description>
+  <description>Provides a C++ ROS 2 node for point cloud object detection.</description>
   
   <maintainer email="bastian.lampe@rwth-aachen.de">Bastian Lampe</maintainer>
 

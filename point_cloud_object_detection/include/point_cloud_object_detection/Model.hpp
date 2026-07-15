@@ -40,12 +40,12 @@ struct AuxiliaryGridMap {
 
 struct AuxiliaryGridMapRequest {
   bool density = false;
-  bool occupancy = false;
+  bool dynamic = false;
 
   /**
    * @brief Return true when at least one auxiliary grid map should be decoded.
    */
-  [[nodiscard]] bool any() const { return density || occupancy; }
+  [[nodiscard]] bool any() const { return density || dynamic; }
 };
 
 /**
@@ -119,10 +119,10 @@ class Model {
    */
   virtual const std::optional<AuxiliaryGridMap>& getDensityGridMap() const { return density_grid_map_; }
   /**
-   * @brief Return the latest decoded occupancy grid map if one was requested
+   * @brief Return the latest decoded dynamic grid map if one was requested
    * and produced.
    */
-  virtual const std::optional<AuxiliaryGridMap>& getOccupancyGridMap() const { return occupancy_grid_map_; }
+  virtual const std::optional<AuxiliaryGridMap>& getDynamicGridMap() const { return dynamic_grid_map_; }
 
   /**
    * @brief Destroy the model interface.
@@ -151,7 +151,7 @@ class Model {
   std::size_t filtered_input_point_count_ = 0;
   AuxiliaryGridMapRequest auxiliary_grid_map_request_;
   std::optional<AuxiliaryGridMap> density_grid_map_;
-  std::optional<AuxiliaryGridMap> occupancy_grid_map_;
+  std::optional<AuxiliaryGridMap> dynamic_grid_map_;
 
   /**
    * @brief Convert a PCL point cloud into model input tensors.

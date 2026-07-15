@@ -9,8 +9,8 @@
     # Spain, Sweden, United States
     nvidia_filter_countries: Germany
 
-    publish_ego_data: true
-    publish_camera_images: true
+    publish_ego_data: false
+    publish_camera_images: false
     publish_lidar_pointclouds: true
     publish_lidar_object_lists: true
     publish_radar_pointclouds: false
