@@ -1,6 +1,6 @@
 name: "point-cloud-object-detection"
 platform: "pytorch_libtorch"
-default_model_filename: "point-cloud-object-detection-torchtrt-fp16-202607090823.pt"
+default_model_filename: "point-cloud-object-detection-torchtrt-fp16-202607140849.pt"
 max_batch_size: 0
 
 input [
@@ -59,7 +59,7 @@ input [
     dims: [1, 120000, 1]
   },
   {
-    name: "occupancy_logits"
+    name: "dynamic_occupancy_logits"
     data_type: TYPE_FP32
     dims: [1, 120000, 1]
   }

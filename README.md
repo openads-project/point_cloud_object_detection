@@ -12,9 +12,9 @@
   <a href="https://github.com/openads-project/point_cloud_object_detection/actions/workflows/consistency.yml"><img src="https://github.com/openads-project/point_cloud_object_detection/actions/workflows/consistency.yml/badge.svg"/></a>
 </p>
 
-**ROS 2 Object Detection in Point Clouds for Automated Driving** 
+**ROS 2 Object Detection in Point Clouds for Automated Driving**
 
-This repository provides a ROS 2 point cloud object detection node for automated driving perception stacks. The node subscribes to a `sensor_msgs/msg/PointCloud2`, sends preprocessed point data to a Triton-served detection model, and publishes detected objects as `perception_msgs/msg/ObjectList`.
+This repository provides a ROS 2 point cloud object detection node for automated driving perception stacks. The node subscribes to a `sensor_msgs/msg/PointCloud2`, sends preprocessed point data to a Triton-served detection model, and publishes detected objects as `perception_msgs/msg/ObjectList`. Additionally, the node optionally provides four auxiliary grid maps published as `nav_msgs/msg/OccupancyGrid`.
 
 The detector itself does not host the neural network. A [Triton Inference Server](https://github.com/triton-inference-server/server) with a compatible exported model repository must be available at runtime.
 
@@ -27,9 +27,15 @@ The detector itself does not host the neural network. A [Triton Inference Server
 > This repository is part of [***OpenADS***](https://github.com/openads-project), the *Open Automated Driving Systems* project. *OpenADS* and its modules have been initiated and are currently being maintained by the [**Institute for Automotive Engineering (ika) at RWTH Aachen University**](https://www.ika.rwth-aachen.de/de/).
 
 
+  <video src="https://github.com/user-attachments/assets/89fc5c57-08b6-4e93-83ad-a2535a6f8a8b" width="720" style="max-width: 100%;">
+  </video>
+
 ## 🚀 Quick Start
 
 The [`demo`](demo) provides an example setup for the `point_cloud_object_detection` node. It can replay the [NVIDIA PhysicalAI-Autonomous-Vehicles Dataset](https://huggingface.co/datasets/nvidia/PhysicalAI-Autonomous-Vehicles) with the help of the [autonomy_datasets](https://github.com/thinking-cars/autonomy_datasets) ROS package. Alternatively, it can replay local [PCD files](demo/assets/pcds/).
+
+> [!NOTE]
+> Running the demo requires an NVIDIA GPU and a host NVIDIA driver compatible with CUDA 13.1 or newer. 8 GB of VRAM is recommended.
 
 1. Allow local Docker containers to connect to the X server for RViz visualization.
 
@@ -50,7 +56,7 @@ The [`demo`](demo) provides an example setup for the `point_cloud_object_detecti
 
         1. Register at [HuggingFace](https://huggingface.co/join) and create a read-only [HuggingFace Access Token](https://huggingface.co/settings/tokens/new?tokenType=read).
 
-        2. Store the token in an `.env` file in the [demo](/demo) directory.
+        2. Store the token in an `.env` file in the [demo](demo/) directory.
 
             ```bash
             echo "HF_TOKEN=your_token_here" > .env
@@ -66,13 +72,20 @@ The [`demo`](demo) provides an example setup for the `point_cloud_object_detecti
             ```
 
             ⚠️ The `nvidia` profile may take several minutes before data appears in RViz while the first scene is downloaded and converted. Short pauses also occur between scenes.  
-            ℹ️ You may change the replay country via `nvidia_filter_countries` in [`demo/config/autonomy_datasets.nvidia.params.yml`](demo/config/autonomy_datasets.nvidia.params.yml). Available country names are listed as comments in that file.
+            ℹ️ You may change the replay country via `nvidia_filter_countries` in [`demo/config/autonomy_datasets.nvidia.params.yml`](demo/config/autonomy_datasets.nvidia.params.yml). Available country names are listed as comments in that file.  
+            ℹ️ The demo also publishes grid maps as images for visualization purposes.
 
 3. Stop the demo from the demo directory once you're done:
 
     ```bash
-    docker compose --profile <chosen-profile> down
+    docker compose --profile pcd down
     ``` 
+
+    or 
+
+     ```bash
+    docker compose --profile nvidia down
+    ```
 
 4. Disable the connection to the X server after you're done with the demo:
 
@@ -82,7 +95,7 @@ The [`demo`](demo) provides an example setup for the `point_cloud_object_detecti
 
 #### Interacting Through `rqt`
 
-The `ros-parameter-gui` service starts `rqt` with the `rqt_reconfigure` plugin. You may use it to inspect and adjust the running parameters of the `point_cloud_object_detection` node while the demo is active.
+The `ros-parameter-gui` service starts `rqt` with the `rqt_reconfigure` plugin. You may use it to inspect and adjust the parameters of the `point_cloud_object_detection` node while the demo is active.
 
 ## 💻 Development
 
@@ -131,7 +144,7 @@ Package and node interfaces are documented in the respective package READMEs lis
 
 | Package | Description |
 | --- | --- |
-| [point_cloud_object_detection](point_cloud_object_detection/README.md) | Detects objects in point clouds |
+| [point_cloud_object_detection](point_cloud_object_detection/README.md) | Provides a C++ ROS 2 node for point cloud object detection. |
 
 ## ⚖️ Licensing
 
@@ -154,4 +167,4 @@ Development and maintenance of this repository are supported by the following pr
   <img src="https://ec.europa.eu/regional_policy/images/information-sources/logo-download-center/eu_funded_en.jpg" height=70>
 </p>
 
-<sup><sub>Funded by the European Union. Views and opinions expressed are however those of the author(s) only and do not necessarily reflect those of the European Union or the European Climate, Infrastructure and Environment Executive Agency (CINEA). Neither the European Union nor CINEA can be held responsible for them.</sup></sup>
+<sup><sub>Funded by the European Union. Views and opinions expressed are however those of the author(s) only and do not necessarily reflect those of the European Union or the European Climate, Infrastructure and Environment Executive Agency (CINEA). Neither the European Union nor CINEA can be held responsible for them.</sub></sup>

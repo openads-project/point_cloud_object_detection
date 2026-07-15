@@ -64,21 +64,21 @@ void PBODModel::validateInterface(const triton_cpp::TritonInterface& triton_inte
   }
 
   bool has_density = true;
-  bool has_occupancy = true;
+  bool has_dynamic_occupancy = true;
   try {
     (void)triton_interface.getOutputShape(kOutputNameDensity);
   } catch (const std::invalid_argument&) {
     has_density = false;
   }
   try {
-    (void)triton_interface.getOutputShape(kOutputNameOccupancy);
+    (void)triton_interface.getOutputShape(kOutputNameDynamicOccupancy);
   } catch (const std::invalid_argument&) {
-    has_occupancy = false;
+    has_dynamic_occupancy = false;
   }
-  if (has_density != has_occupancy) {
+  if (has_density != has_dynamic_occupancy) {
     throw std::runtime_error(
         "PBOD model must expose both density_logits and "
-        "occupancy_logits together.");
+        "dynamic_occupancy_logits together.");
   }
 }
 
@@ -178,7 +178,7 @@ PBODModel::PBODModel(triton_cpp::TritonInterface& triton_interface, const ModelC
   selected_point_records_.reserve(static_cast<std::size_t>(max_num_points_));
   try {
     (void)triton_interface_.getOutputShape(kOutputNameDensity);
-    (void)triton_interface_.getOutputShape(kOutputNameOccupancy);
+    (void)triton_interface_.getOutputShape(kOutputNameDynamicOccupancy);
     has_auxiliary_grid_map_outputs_ = true;
   } catch (const std::invalid_argument&) {
     has_auxiliary_grid_map_outputs_ = false;
@@ -650,19 +650,19 @@ std::vector<BoundingBox> PBODModel::modelOutputToBoxes() {
                               y_max_};
     };
 
-    if (auxiliary_grid_map_request.density && auxiliary_grid_map_request.occupancy) {
+    if (auxiliary_grid_map_request.density && auxiliary_grid_map_request.dynamic) {
       auto density_logits = triton_interface_.getOutputTensor<float>(kOutputNameDensity, num_pillars);
-      auto occupancy_logits = triton_interface_.getOutputTensor<float>(kOutputNameOccupancy, num_pillars);
+      auto dynamic_occupancy_logits = triton_interface_.getOutputTensor<float>(kOutputNameDynamicOccupancy, num_pillars);
 
       density_grid_map_ = build_auxiliary_grid_map("density");
-      occupancy_grid_map_ = build_auxiliary_grid_map("occupancy");
+      dynamic_grid_map_ = build_auxiliary_grid_map("dynamic");
 
       for (int ix = 0; ix < pillar_grid_.grid_x; ++ix) {
         for (int iy = 0; iy < pillar_grid_.grid_y; ++iy) {
           const std::size_t flat_index = static_cast<std::size_t>(ix * pillar_grid_.grid_y + iy);
           const Eigen::Index tensor_index = static_cast<Eigen::Index>(flat_index);
           density_grid_map_->values[flat_index] = densityTransform(sigmoid(density_logits(tensor_index)));
-          occupancy_grid_map_->values[flat_index] = sigmoid(occupancy_logits(tensor_index));
+          dynamic_grid_map_->values[flat_index] = sigmoid(dynamic_occupancy_logits(tensor_index));
         }
       }
     } else if (auxiliary_grid_map_request.density) {
@@ -676,14 +676,14 @@ std::vector<BoundingBox> PBODModel::modelOutputToBoxes() {
               densityTransform(sigmoid(density_logits(static_cast<Eigen::Index>(flat_index))));
         }
       }
-    } else if (auxiliary_grid_map_request.occupancy) {
-      auto occupancy_logits = triton_interface_.getOutputTensor<float>(kOutputNameOccupancy, num_pillars);
+    } else if (auxiliary_grid_map_request.dynamic) {
+      auto dynamic_occupancy_logits = triton_interface_.getOutputTensor<float>(kOutputNameDynamicOccupancy, num_pillars);
 
-      occupancy_grid_map_ = build_auxiliary_grid_map("occupancy");
+      dynamic_grid_map_ = build_auxiliary_grid_map("dynamic");
       for (int ix = 0; ix < pillar_grid_.grid_x; ++ix) {
         for (int iy = 0; iy < pillar_grid_.grid_y; ++iy) {
           const std::size_t flat_index = static_cast<std::size_t>(ix * pillar_grid_.grid_y + iy);
-          occupancy_grid_map_->values[flat_index] = sigmoid(occupancy_logits(static_cast<Eigen::Index>(flat_index)));
+          dynamic_grid_map_->values[flat_index] = sigmoid(dynamic_occupancy_logits(static_cast<Eigen::Index>(flat_index)));
         }
       }
     }

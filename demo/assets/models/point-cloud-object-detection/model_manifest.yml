@@ -4,17 +4,17 @@
 # use-based restrictions.
 schema_version: '2.0'
 artifact:
-  bundle_name: point-cloud-object-detection-torchtrt-fp16-202607090823
+  bundle_name: point-cloud-object-detection-torchtrt-fp16-202607140849
   export_format: triton_torchtrt_fp16_gpu
   backend: torchtrt_dynamo+triton
   precision: fp16
   device: cuda
   files:
-    checkpoint: checkpoints/epoch_0039.pt
+    checkpoint: checkpoints/epoch_0057.pt
     resolved_training_config: config/resolved_training_config.yml
     triton_repository: .
     triton_config: config.pbtxt
-    triton_model: 1/point-cloud-object-detection-torchtrt-fp16-202607090823.pt
+    triton_model: 1/point-cloud-object-detection-torchtrt-fp16-202607140849.pt
   triton:
     enabled: true
     model_name: point-cloud-object-detection
@@ -89,7 +89,7 @@ artifact:
     - 120000
     - 1
     description: Dense auxiliary pillar-density logits per anchor.
-  - name: occupancy_logits
+  - name: dynamic_occupancy_logits
     dtype: float32
     shape:
     - batch
@@ -97,7 +97,7 @@ artifact:
     - 1
     description: Dense auxiliary occupancy logits per anchor.
   head_name: default
-  export_timestamp_utc: '2026-07-09T08:23:57+00:00'
+  export_timestamp_utc: '2026-07-14T08:49:03+00:00'
   size_priors:
   - - 4.264173870576857
     - 1.906522143834159
