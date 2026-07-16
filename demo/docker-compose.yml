@@ -35,8 +35,8 @@ services:
       retries: 15
       start_period: 120s
 
-  point-cloud-object-detection-nvidia: &point_cloud_object_detection
-    profiles: [nvidia]
+  point-cloud-object-detection-driving: &point_cloud_object_detection
+    profiles: [driving]
     image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/perception/point_cloud_object_detection:latest_update-grids_ci-amd64
     depends_on:
       triton-server:
@@ -48,7 +48,7 @@ services:
     deploy:
       <<: *gpu_reservation
     volumes:
-      - ./config/point_cloud_object_detection.nvidia.params.yml:/params.yml:ro
+      - ./config/point_cloud_object_detection.driving.params.yml:/params.yml:ro
       - ./assets/models:/models:ro
     command: >
       bash -lc "
@@ -74,6 +74,13 @@ services:
     profiles: [pcd]
     volumes:
       - ./config/point_cloud_object_detection.pcd.params.yml:/params.yml:ro
+      - ./assets/models:/models:ro
+
+  point-cloud-object-detection-nvidia:
+    <<: *point_cloud_object_detection
+    profiles: [nvidia]
+    volumes:
+      - ./config/point_cloud_object_detection.nvidia.params.yml:/params.yml:ro
       - ./assets/models:/models:ro
 
   visualization-sync:
@@ -135,10 +142,44 @@ services:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
     command: bash -lc "rqt --standalone rqt_reconfigure --ros-args -r __node:=ros_parameter_gui"
 
-  autonomy_datasets:
+  autonomy-datasets-driving:
+    profiles: [driving]
+    image: ghcr.io/thinking-cars/autonomy_datasets:latest
+    command: >
+      python3 /opt/demo/prepare_and_run.py
+      bash -c "
+      ros2 launch autonomy_datasets autonomy_datasets.launch.py
+      rviz:=no
+      continue:=true
+      target_frame_rate:=1.0
+      wait_for_ack:=false
+      dataset:=driving
+      config:=/config/autonomy_datasets.params.yml
+      "
+    environment:
+      RMW_IMPLEMENTATION: rmw_fastrtps_cpp
+      DISPLAY: ${DISPLAY}
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: all
+      HOME: /tmp
+      PYTHONDONTWRITEBYTECODE: "1"
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ./data:/demo-data
+      - ./data/datasets:/datasets
+      - ./services/autonomy-datasets/prepare_and_run.py:/opt/demo/prepare_and_run.py:ro
+      - ./config/autonomy_datasets.driving.params.yml:/config/autonomy_datasets.params.yml:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  autonomy-datasets-nvidia:
     profiles: [nvidia]
-    image: ghcr.io/thinking-cars/autonomy_datasets:v1.2.0
-    # store your personal [HuggingFace Access Token](https://huggingface.co/docs/hub/security-tokens) in `HF_TOKEN` environment variable
+    image: ghcr.io/thinking-cars/autonomy_datasets:latest
     command: >
       python3 /opt/demo/prepare_and_run.py
       bash -c "
@@ -150,14 +191,14 @@ services:
       wait_for_ack:=false
       overwrite_rosbag:=$${OVERWRITE_ROSBAG}
       dataset:=nvidia_physicalai_av_dataset
-      config:=/config/autonomy_datasets.nvidia.params.yml
+      config:=/config/autonomy_datasets.params.yml
       "
     environment:
       RMW_IMPLEMENTATION: rmw_fastrtps_cpp
       DISPLAY: ${DISPLAY}
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: all
-      HF_TOKEN: ${HF_TOKEN}
+      HF_TOKEN: ${HF_TOKEN:-}
       OVERWRITE_ROSBAG: ${OVERWRITE_ROSBAG:-false}
       HOME: /tmp
       HF_HOME: /datasets/.cache/huggingface
@@ -168,7 +209,7 @@ services:
       - ./data:/demo-data
       - ./data/datasets:/datasets
       - ./services/autonomy-datasets/prepare_and_run.py:/opt/demo/prepare_and_run.py:ro
-      - ./config/autonomy_datasets.nvidia.params.yml:/config/autonomy_datasets.nvidia.params.yml:ro
+      - ./config/autonomy_datasets.nvidia.params.yml:/config/autonomy_datasets.params.yml:ro
     deploy:
       resources:
         reservations:
@@ -196,7 +237,36 @@ services:
       - ./assets/pcds:/pcds:ro
       - ./services/pcd-publisher/pcd_publisher.py:/opt/demo/pcd_publisher.py:ro
 
-  rviz:
+  rviz-driving:
+    profiles: [driving]
+    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/monitoring/ros-monitoring:v1.0.0
+    depends_on:
+      point-cloud-object-detection-driving:
+        condition: service_started
+      visualization-sync:
+        condition: service_started
+      grid-map-image-republisher:
+        condition: service_started
+    environment:
+      <<: *ros_common_env
+      DISPLAY: ${DISPLAY}
+      QT_X11_NO_MITSHM: "1"
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: all
+      PYTHONDONTWRITEBYTECODE: "1"
+    deploy:
+      <<: *gpu_reservation
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ./rviz/config.driving.rviz:/root/.rviz2/config.rviz
+      - ./rviz/reset_rviz_on_clock_jump.py:/opt/demo/reset_rviz_on_clock_jump.py:ro
+    command: >
+      bash -lc "
+      python3 /opt/demo/reset_rviz_on_clock_jump.py --
+      rviz2 -d /root/.rviz2/config.rviz --ros-args -r __node:=rviz -p use_sim_time:=true
+      "
+
+  rviz-nvidia:
     profiles: [nvidia]
     image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/monitoring/ros-monitoring:v1.0.0
     depends_on:
