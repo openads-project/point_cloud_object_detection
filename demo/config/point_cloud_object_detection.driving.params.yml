@@ -27,7 +27,7 @@
     # Runtime overrides for exported manifest defaults.
     preprocessing.point_feature.value_threshold: 100.0
                                        # car, bus, motorcycle, bicycle, utility, pedestrian, vru, micro, animal
-    postprocessing.nms.score_threshold: [0.7, 0.5, 0.3,        0.4,     0.6,     0.5,        0.5, 0.5,   0.4]
+    postprocessing.nms.score_threshold: [0.55, 0.4, 0.3,        0.3,     0.4,     0.3,        0.3, 0.3,   0.4]
     postprocessing.nms.iou_threshold: 0.05
     postprocessing.nms.max_num_objects: 256
 
