@@ -150,7 +150,7 @@ services:
       bash -c "
       ros2 launch autonomy_datasets autonomy_datasets.launch.py
       rviz:=no
-      continue:=true
+      continue:=false
       target_frame_rate:=1.0
       wait_for_ack:=false
       dataset:=driving
