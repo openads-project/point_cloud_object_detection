@@ -1,6 +1,6 @@
 name: "point-cloud-object-detection"
 platform: "pytorch_libtorch"
-default_model_filename: "point-cloud-object-detection-torchtrt-fp16-202607161020.pt"
+default_model_filename: "point-cloud-object-detection-torchtrt-fp16-202607170748.pt"
 max_batch_size: 0
 
 input [
