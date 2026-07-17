@@ -32,7 +32,7 @@ The detector itself does not host the neural network. A [Triton Inference Server
 
 ## 🚀 Quick Start
 
-The [`demo`](demo) provides an example setup for the `point_cloud_object_detection` node. It can replay the [NVIDIA PhysicalAI-Autonomous-Vehicles Dataset](https://huggingface.co/datasets/nvidia/PhysicalAI-Autonomous-Vehicles) with the help of the [autonomy_datasets](https://github.com/thinking-cars/autonomy_datasets) ROS package. Alternatively, it can replay local [PCD files](demo/assets/pcds/).
+The [demo](demo) provides an example setup for the `point_cloud_object_detection` node. It can download and replay the [DrivIng dataset](https://doi.org/10.7910/DVN/VBZKDY) with the help of the [autonomy_datasets](https://github.com/thinking-cars/autonomy_datasets) ROS package. Alternatively, it can replay ten local [PCD files](demo/assets/pcds/). See [Additional dataset demos](demo/README.md) for another example.
 
 > [!NOTE]
 > Running the demo requires an NVIDIA GPU and a host NVIDIA driver compatible with CUDA 13.1 or newer. 8 GB of VRAM is recommended.
@@ -43,49 +43,47 @@ The [`demo`](demo) provides an example setup for the `point_cloud_object_detecti
    xhost +local:
    ```
 
-2. Run the demo with either the `pcd` or `nvidia` profile.
+2. Run the demo with either the `pcd` or `driving` profile.
 
-   - Use the `pcd` profile to immediately replay and process PCD files provided in this repository.
+   - Use the `pcd` profile to immediately replay and process the ten PCD files provided in this repository. This is by far the fastest way to see example output of the detection node.
 
         ```bash
         cd demo
         docker compose --profile pcd up -d
         ```
 
-    - Alternatively, use the `nvidia` profile to download, convert to ROS bag, replay and process the [NVIDIA PhysicalAI-Autonomous-Vehicles Dataset](https://huggingface.co/datasets/nvidia/PhysicalAI-Autonomous-Vehicles).
+   - Alternatively, use the `driving` profile to download, convert, replay, and process the [DrivIng dataset](https://doi.org/10.7910/DVN/VBZKDY).
 
-        1. Register at [HuggingFace](https://huggingface.co/join) and create a read-only [HuggingFace Access Token](https://huggingface.co/settings/tokens/new?tokenType=read).
+        ```bash
+        cd demo
+        docker compose --profile driving up -d
+        ```
 
-        2. Store the token in an `.env` file in the [demo](demo/) directory.
+        ⚠️ Depending on your bandwidth, it may take **several hours** to start the first run due to the initial download and conversion of the selected sequence. Check the current progress with  
+        `docker compose --profile driving logs -f autonomy-datasets-driving`
 
-            ```bash
-            echo "HF_TOKEN=your_token_here" > .env
-            ```
+        ⚠️ Make sure to comply with the [DrivIng dataset’s license](https://creativecommons.org/licenses/by-nc-nd/4.0/).
 
-        3. Accept the terms and conditions for the dataset on [HuggingFace](https://huggingface.co/datasets/nvidia/PhysicalAI-Autonomous-Vehicles).
+        ℹ️ See [point_cloud_object_detection.driving.params.yml](demo/config/point_cloud_object_detection.driving.params.yml) for further configuration options.
 
-        4. Run the demo with the `nvidia` profile.
+        ℹ️ Since a subset of the [DrivIng dataset](https://doi.org/10.7910/DVN/VBZKDY) was used in the training of the [demo model](demo/assets/models/point-cloud-object-detection/), interpret its apparent performance in the demo with care. Apply the model to your own data to estimate the model performance.
 
-            ```bash
-            cd demo
-            docker compose --profile nvidia up -d
-            ```
+        
 
-            ⚠️ The `nvidia` profile may take several minutes before data appears in RViz while the first scene is downloaded and converted. Short pauses also occur between scenes.  
-            ℹ️ You may change the replay country via `nvidia_filter_countries` in [`demo/config/autonomy_datasets.nvidia.params.yml`](demo/config/autonomy_datasets.nvidia.params.yml). Available country names are listed as comments in that file.  
-            ℹ️ The demo also publishes grid maps as images for visualization purposes.
+3. Stop the demo once you're done:
 
-3. Stop the demo from the demo directory once you're done:
+    - For the `pcd` profile:
+        ```bash
+        cd demo
+        docker compose --profile pcd down
+        ```
 
-    ```bash
-    docker compose --profile pcd down
-    ``` 
+    - For the `driving` profile:
 
-    or 
-
-     ```bash
-    docker compose --profile nvidia down
-    ```
+        ```bash
+        cd demo
+        docker compose --profile driving down
+        ```
 
 4. Disable the connection to the X server after you're done with the demo:
 
@@ -95,7 +93,7 @@ The [`demo`](demo) provides an example setup for the `point_cloud_object_detecti
 
 #### Interacting Through `rqt`
 
-The `ros-parameter-gui` service starts `rqt` with the `rqt_reconfigure` plugin. You may use it to inspect and adjust the parameters of the `point_cloud_object_detection` node while the demo is active.
+The `ros-parameter-gui` service starts `rqt` with the `rqt_reconfigure` plugin. You may use it to inspect and adjust the parameters of the `point_cloud_object_detection` node while the demo is active. Click **Refresh** in rqt after startup if not all nodes are listed.
 
 ## 💻 Development
 

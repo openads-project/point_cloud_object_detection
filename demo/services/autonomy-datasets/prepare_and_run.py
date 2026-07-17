@@ -20,7 +20,7 @@ DEFAULT_UID = 1000
 DEFAULT_GID = 1000
 DATASET_DIR = Path("/datasets")
 DATA_PARENT_DIR = Path("/demo-data")
-OWNER_REFERENCE = Path("/config/autonomy_datasets.nvidia.params.yml")
+OWNER_REFERENCE = Path("/config/autonomy_datasets.params.yml")
 
 
 def _configured_id(name: str) -> int | None:
