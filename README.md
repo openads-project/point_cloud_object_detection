@@ -59,8 +59,8 @@ The [demo](demo) provides an example setup for the `point_cloud_object_detection
         docker compose --profile driving up -d
         ```
 
-        ⚠️ Depending on your bandwidth, it may take **several hours** to start the first run due to the initial download and conversion of the selected sequence.  
-        Check the current progress with  `docker compose --profile driving logs -f autonomy-datasets-driving`
+        ⚠️ Depending on your bandwidth, it may take **several hours** to start the first run due to the initial download and conversion of the selected sequence. Check the current progress with  
+        `docker compose --profile driving logs -f autonomy-datasets-driving`
 
         ⚠️ Make sure to comply with the [DrivIng dataset’s license](https://creativecommons.org/licenses/by-nc-nd/4.0/).
 
