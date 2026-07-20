@@ -144,7 +144,7 @@ services:
 
   autonomy-datasets-driving:
     profiles: [driving]
-    image: ghcr.io/thinking-cars/autonomy_datasets:latest
+    image: ghcr.io/thinking-cars/autonomy_datasets:v1.3.0
     command: >
       python3 /opt/demo/prepare_and_run.py
       bash -c "
@@ -179,7 +179,7 @@ services:
 
   autonomy-datasets-nvidia:
     profiles: [nvidia]
-    image: ghcr.io/thinking-cars/autonomy_datasets:latest
+    image: ghcr.io/thinking-cars/autonomy_datasets:v1.3.0
     command: >
       python3 /opt/demo/prepare_and_run.py
       bash -c "
