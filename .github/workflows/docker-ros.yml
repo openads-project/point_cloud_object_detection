@@ -43,6 +43,7 @@ jobs:
         env:
           ENABLE_RECURSIVE_VCS_IMPORT: 'false'
           SLIM_PLATFORM: ${{ matrix.platform }}
+          SLIM_WORKSPACE: ${{ github.workspace }}
           TARGET_CMAKE_ARGS: -DCMAKE_EXPORT_COMPILE_COMMANDS=1
 
   publish-manifests:
