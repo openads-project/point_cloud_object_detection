@@ -3,8 +3,8 @@ services:
     # Target the current CI image, or use FAT_IMAGE as an explicit override.
     image: ${FAT_IMAGE:-${IMAGE_NAME:-ghcr.io/openads-project/point_cloud_object_detection}:${IMAGE_TAG:-latest}${_IMAGE_POSTFIX:-}${SLIM_PLATFORM:+-${SLIM_PLATFORM}}}
     volumes:
-      - ${CI_PROJECT_DIR:-${GITHUB_WORKSPACE:-..}}/demo/assets/models:/models:ro
-      - ${CI_PROJECT_DIR:-${GITHUB_WORKSPACE:-..}}/docker/slim-probe.params.yml:/params.yml:ro
+      - ${SLIM_WORKSPACE:-..}/demo/assets/models:/models:ro
+      - ${SLIM_WORKSPACE:-..}/docker/slim-probe.params.yml:/params.yml:ro
     command: >
       bash -lc "
       ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py
