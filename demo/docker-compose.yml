@@ -37,7 +37,7 @@ services:
 
   point-cloud-object-detection-driving: &point_cloud_object_detection
     profiles: [driving]
-    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/perception/point_cloud_object_detection:latest_update-grids_ci-amd64
+    image: ghcr.io/openads-project/point_cloud_object_detection:v3.0.0
     depends_on:
       triton-server:
         condition: service_healthy
@@ -84,7 +84,7 @@ services:
       - ./assets/models:/models:ro
 
   visualization-sync:
-    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/perception/point_cloud_object_detection:latest_update-grids_ci-amd64
+    image: ghcr.io/openads-project/point_cloud_object_detection:v3.0.0
     environment:
       <<: *ros_common_env
       PYTHONDONTWRITEBYTECODE: "1"
@@ -112,7 +112,7 @@ services:
       -r synchronized_static_grid_map:=/demo/synchronized_static_grid_map
 
   grid-map-image-republisher:
-    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/perception/point_cloud_object_detection:latest_update-grids_ci-amd64
+    image: ghcr.io/openads-project/point_cloud_object_detection:v3.0.0
     depends_on:
       visualization-sync:
         condition: service_started
