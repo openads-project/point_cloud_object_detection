@@ -10,4 +10,4 @@ repositories:
   triton_cpp:
     type: git
     url: https://github.com/openads-project/triton_cpp.git
-    version: main
+    version: v1.2.1

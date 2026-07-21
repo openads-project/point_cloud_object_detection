@@ -16,6 +16,7 @@ docker-ros:
     BASE_IMAGE: rwthika/ros2-triton:jazzy
     RMW_IMPLEMENTATION: rmw_zenoh_cpp
     ENABLE_RECURSIVE_VCS_IMPORT: 'false'
+    SLIM_WORKSPACE: ${CI_PROJECT_DIR}
     COMMAND: ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py
     ADDITIONAL_SLIM_BUILD_ARGS: >-
       --compose-file ../docker/slim-compose.yml
