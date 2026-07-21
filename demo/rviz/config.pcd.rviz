@@ -244,7 +244,7 @@ Visualization Manager:
         Velocity Color: 255; 0; 255
         Velocity scale: 1
     - Bottom Alpha: 0.800000011920929
-      Class: ika_rviz_plugins/Geofence
+      Class: rviz_plugins/Geofence
       Color: 25; 255; 0
       Enabled: true
       Height: 1
@@ -260,7 +260,7 @@ Visualization Manager:
         Value: /demo/detection_area
       Value: true
     - Bottom Alpha: 0.10000000149011612
-      Class: ika_rviz_plugins/Geofence
+      Class: rviz_plugins/Geofence
       Color: 255; 255; 255
       Enabled: false
       Height: 0.4000000059604645
@@ -276,7 +276,7 @@ Visualization Manager:
         Value: /demo/no_detection_zone
       Value: false
     - Bottom Alpha: 0.20000000298023224
-      Class: ika_rviz_plugins/Geofence
+      Class: rviz_plugins/Geofence
       Color: 255; 0; 0
       Enabled: true
       Height: 2
