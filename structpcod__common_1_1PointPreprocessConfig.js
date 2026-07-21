@@ -1,0 +1,25 @@
+var structpcod__common_1_1PointPreprocessConfig =
+[
+    [ "da_bearing_rad", "structpcod__common_1_1PointPreprocessConfig.html#ab34fda65a4ddef25029d3b16ebf6830c", null ],
+    [ "da_cx", "structpcod__common_1_1PointPreprocessConfig.html#acefe208fcda62e3d200225ae59173a18", null ],
+    [ "da_cy", "structpcod__common_1_1PointPreprocessConfig.html#a171c3f2f49b0c11e7fb6de18b9705676", null ],
+    [ "da_fov_rad", "structpcod__common_1_1PointPreprocessConfig.html#aa574ade04015f452caf7ba8527b938a7", null ],
+    [ "da_radius", "structpcod__common_1_1PointPreprocessConfig.html#a905a32da195d0f4d8d448a5407fb4293", null ],
+    [ "det_area_remove_outside", "structpcod__common_1_1PointPreprocessConfig.html#a5515cba9426c94f42a6402bfd447177d", null ],
+    [ "epsilon", "structpcod__common_1_1PointPreprocessConfig.html#a5be10a50ca26f1e2e5f69373888986a1", null ],
+    [ "max_value", "structpcod__common_1_1PointPreprocessConfig.html#ad2e33e1e1a283a1a07fd65a3c50583b6", null ],
+    [ "min_value", "structpcod__common_1_1PointPreprocessConfig.html#a0a8d3732042523cb4739812aba6f081b", null ],
+    [ "nd_x_max", "structpcod__common_1_1PointPreprocessConfig.html#aec936846b8b0e8b8829cb0d4e663b09d", null ],
+    [ "nd_x_min", "structpcod__common_1_1PointPreprocessConfig.html#a6de1b470d29ced902df630656a4615a1", null ],
+    [ "nd_y_max", "structpcod__common_1_1PointPreprocessConfig.html#aab3d0ae41b04fc7dee760b1c40d12533", null ],
+    [ "nd_y_min", "structpcod__common_1_1PointPreprocessConfig.html#afbf4f04d1116f425ac9583590e9a6b28", null ],
+    [ "normalization_type", "structpcod__common_1_1PointPreprocessConfig.html#ae37b56c8838b4a1ba2462146bcc48d7d", null ],
+    [ "remove_points_in_zone", "structpcod__common_1_1PointPreprocessConfig.html#a05ecad4807e47c5b067df8a7f375a48a", null ],
+    [ "value_threshold", "structpcod__common_1_1PointPreprocessConfig.html#a4bfdf7f2e3500fcf477d7b311e3dec67", null ],
+    [ "x_max", "structpcod__common_1_1PointPreprocessConfig.html#a31cf48e9e2a56ec167b68872a9bafbc3", null ],
+    [ "x_min", "structpcod__common_1_1PointPreprocessConfig.html#a89b8e57073c042ae929442ba07b72cc2", null ],
+    [ "y_max", "structpcod__common_1_1PointPreprocessConfig.html#acbb5a11c8a4e72e2b04ca47ee7cee3b7", null ],
+    [ "y_min", "structpcod__common_1_1PointPreprocessConfig.html#a58b1d80036d0eb37f39762a29e6ec32f", null ],
+    [ "z_max", "structpcod__common_1_1PointPreprocessConfig.html#aa4abcc3266198c14c7476d0508118aa0", null ],
+    [ "z_min", "structpcod__common_1_1PointPreprocessConfig.html#a672b03a25ffc2e86dec0f20ad0f1d544", null ]
+];
