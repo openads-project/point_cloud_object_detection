@@ -27,7 +27,7 @@ The detector itself does not host the neural network. A [Triton Inference Server
 > This repository is part of [***OpenADS***](https://github.com/openads-project), the *Open Automated Driving Systems* project. *OpenADS* and its modules have been initiated and are currently being maintained by the [**Institute for Automotive Engineering (ika) at RWTH Aachen University**](https://www.ika.rwth-aachen.de/de/).
 
 
-  <video src="https://github.com/user-attachments/assets/89fc5c57-08b6-4e93-83ad-a2535a6f8a8b" width="720" style="max-width: 100%;">
+  <video src="https://github.com/user-attachments/assets/89f1dbc1-1e82-403a-96e9-3422ca66a526" width="720" style="max-width: 100%;">
   </video>
 
 ## 🚀 Quick Start
