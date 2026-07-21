@@ -190,6 +190,8 @@ if(BUILD_TESTING)
   set(ament_cmake_clang_tidy_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../.vscode/lint/.clang-tidy)
   set(ament_cmake_flake8_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../.vscode/lint/ament_flake8.ini)
   ament_lint_auto_find_test_dependencies()
+  # TODO: Remove once the ROS lint environment recognizes tomllib as Python stdlib.
+  set(AMENT_LINT_AUTO_FILE_EXCLUDE pcod-common/scripts/check_versions.py)
 endif()
 
 ament_package()

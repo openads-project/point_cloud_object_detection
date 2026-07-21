@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>point_cloud_object_detection</name>
-  <version>2.2.0</version>
+  <version>3.0.0</version>
   <description>Provides a C++ ROS 2 node for point cloud object detection.</description>
   
   <maintainer email="bastian.lampe@rwth-aachen.de">Bastian Lampe</maintainer>

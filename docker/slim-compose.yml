@@ -1,11 +1,10 @@
 services:
   point-cloud-object-detection:
-    # GitLab docker-ros slim jobs export FAT_IMAGE. Set FAT_IMAGE explicitly
-    # for local runs that should slim a different image.
-    image: ${FAT_IMAGE:-gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/perception/point_cloud_object_detection:latest}
+    # Target the current CI image, or use FAT_IMAGE as an explicit override.
+    image: ${FAT_IMAGE:-ghcr.io/openads-project/point_cloud_object_detection:latest}
     volumes:
-      - ${CI_PROJECT_DIR:-..}/demo/models:/models:ro
-      - ${CI_PROJECT_DIR:-..}/docker/slim-probe.params.yml:/params.yml:ro
+      - ${SLIM_WORKSPACE:-..}/demo/assets/models:/models:ro
+      - ${SLIM_WORKSPACE:-..}/docker/slim-probe.params.yml:/params.yml:ro
     command: >
       bash -lc "
       ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py

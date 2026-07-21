@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+# Copyright Institute for Automotive Engineering (ika), RWTH Aachen University
+# SPDX-License-Identifier: Apache-2.0
+
 import subprocess
 import sys
 import time
@@ -76,7 +79,7 @@ def main():
     if not rviz_command:
         raise SystemExit("Usage: reset_rviz_on_clock_jump.py -- rviz2 [args...]")
 
-    rclpy.init()
+    rclpy.init(args=[])
     node = RvizClockResetWatchdog(rviz_command)
     try:
         rclpy.spin(node)
