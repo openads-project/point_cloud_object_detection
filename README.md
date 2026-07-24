@@ -35,7 +35,7 @@ The detector itself does not host the neural network. A [Triton Inference Server
 The [demo](demo) provides an example setup for the `point_cloud_object_detection` node. It can download and replay the [DrivIng dataset](https://doi.org/10.7910/DVN/VBZKDY) with the help of the [autonomy_datasets](https://github.com/thinking-cars/autonomy_datasets) ROS package. Alternatively, it can replay ten local [PCD files](demo/assets/pcds/). See [Additional dataset demos](demo/README.md) for another example.
 
 > [!NOTE]
-> Running the demo requires an NVIDIA GPU and a host NVIDIA driver compatible with CUDA 13.1 or newer. 8 GB of VRAM is recommended.
+> Running the demo requires an NVIDIA GPU with compute capability 8.0 or higher, and a host NVIDIA driver compatible with CUDA 13.1 or newer. 8 GB of VRAM is recommended.
 
 1. Allow local Docker containers to connect to the X server for RViz visualization.
 
