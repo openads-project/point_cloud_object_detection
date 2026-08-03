@@ -1,0 +1,9 @@
+apiVersion: v2
+name: point-cloud-object-detection
+version: 3.0.0
+appVersion: 3.0.0
+description: ROS 2 Object Detection in Point Clouds for Automated Driving
+dependencies:
+  - repository: oci://ghcr.io/openads-project/openads-helm
+    name: openadservice
+    version: 1.0.0
