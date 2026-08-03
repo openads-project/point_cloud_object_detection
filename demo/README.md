@@ -34,3 +34,7 @@ Feel free to configure additional demos with one of the datasets available throu
     docker compose --profile nvidia down
     xhost -local:
     ```
+
+## Custom PCD files
+
+To process your own PCD files, follow [these instructions](services/pcd-publisher/README.md).

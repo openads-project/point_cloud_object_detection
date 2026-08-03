@@ -32,7 +32,7 @@ The detector itself does not host the neural network. A [Triton Inference Server
 
 ## 🚀 Quick Start
 
-The [demo](demo) provides an example setup for the `point_cloud_object_detection` node. It can download and replay the [DrivIng dataset](https://doi.org/10.7910/DVN/VBZKDY) with the help of the [autonomy_datasets](https://github.com/thinking-cars/autonomy_datasets) ROS package. Alternatively, it can replay ten local [PCD files](demo/assets/pcds/). See [Additional dataset demos](demo/README.md) for another example.
+The [demo](demo) provides an example setup for the `point_cloud_object_detection` node. It can download and replay the [DrivIng dataset](https://doi.org/10.7910/DVN/VBZKDY) with the help of the [autonomy_datasets](https://github.com/thinking-cars/autonomy_datasets) ROS package. Alternatively, it can replay ten PCD files contained in the demo's PCD publisher image. See [Additional dataset demos](demo/README.md) for another example and information on how to process your own data.
 
 > [!NOTE]
 > Running the demo requires an NVIDIA GPU with compute capability 8.0 or higher, and a host NVIDIA driver compatible with CUDA 13.1 or newer. 8 GB of VRAM is recommended.
@@ -45,7 +45,7 @@ The [demo](demo) provides an example setup for the `point_cloud_object_detection
 
 2. Run the demo with either the `pcd` or `driving` profile.
 
-   - Use the `pcd` profile to immediately replay and process the ten PCD files provided in this repository. This is by far the fastest way to see example output of the detection node.
+   - Use the `pcd` profile to immediately replay and process the ten PCD files provided by the PCD publisher image. This is by far the fastest way to see example output of the detection node.
 
         ```bash
         cd demo
