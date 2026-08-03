@@ -1,0 +1,47 @@
+openadservice:
+  name: point-cloud-object-detection
+  image: ghcr.io/openads-project/point_cloud_object_detection:v3.0.0
+  env:
+    # --- name ------
+    NAMESPACE: /
+    NAME: point_cloud_object_detection
+    # --- inputs ----
+    POINT_CLOUD_TOPIC: ~/point_cloud
+    # --- outputs ---
+    OBJECT_LIST_TOPIC: ~/object_list
+    NO_DETECTION_ZONE_TOPIC: ~/no_detection_zone
+    NO_DETECTION_ZONE_POINTS_TOPIC: ~/no_detection_zone_points
+    DETECTION_AREA_TOPIC: ~/detection_area
+    MODEL_BOUNDS_TOPIC: ~/model_bounds
+    DENSITY_GRID_MAP_TOPIC: ~/density_grid_map
+    DYNAMIC_GRID_MAP_TOPIC: ~/dynamic_grid_map
+    COMBINED_GRID_MAP_TOPIC: ~/combined_grid_map
+    STATIC_GRID_MAP_TOPIC: ~/static_grid_map
+    # --- other -----
+    LOG_LEVEL: info
+    USE_SIM_TIME: false
+    PARAMS: /docker-ros/ws/install/point_cloud_object_detection/share/point_cloud_object_detection/config/params.yml
+    TRACE: false
+  args:
+  - /bin/bash
+  - -ic
+  - |
+    ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py \
+      namespace:=${NAMESPACE} \
+      name:=${NAME} \
+      log_level:=${LOG_LEVEL} \
+      use_sim_time:=${USE_SIM_TIME} \
+      params:=${PARAMS} \
+      trace:=${TRACE} \
+      point_cloud_topic:=${POINT_CLOUD_TOPIC} \
+      object_list_topic:=${OBJECT_LIST_TOPIC} \
+      no_detection_zone_topic:=${NO_DETECTION_ZONE_TOPIC} \
+      no_detection_zone_points_topic:=${NO_DETECTION_ZONE_POINTS_TOPIC} \
+      detection_area_topic:=${DETECTION_AREA_TOPIC} \
+      model_bounds_topic:=${MODEL_BOUNDS_TOPIC} \
+      density_grid_map_topic:=${DENSITY_GRID_MAP_TOPIC} \
+      dynamic_grid_map_topic:=${DYNAMIC_GRID_MAP_TOPIC} \
+      combined_grid_map_topic:=${COMBINED_GRID_MAP_TOPIC} \
+      static_grid_map_topic:=${STATIC_GRID_MAP_TOPIC}
+  rosParamFileMountPath: /docker-ros/ws/install/point_cloud_object_detection/share/point_cloud_object_detection/config/params.yml
+  rosParamFileData: null
