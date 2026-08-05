@@ -26,7 +26,7 @@ Run from the repository root:
 
 ```bash
 PCD_PUBLISHER_VERSION=v1.0.0
-PCD_PUBLISHER_IMAGE="ghcr.io/openads-project/point_cloud_object_detection-pcd-publisher:${PCD_PUBLISHER_VERSION}"
+PCD_PUBLISHER_IMAGE="ghcr.io/openads-project/point_cloud_object_detection/pcd-publisher:${PCD_PUBLISHER_VERSION}"
 PCD_PUBLISHER_SLIM_IMAGE="${PCD_PUBLISHER_IMAGE}-slim"
 
 docker build \
