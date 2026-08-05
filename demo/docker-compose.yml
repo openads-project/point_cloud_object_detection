@@ -220,8 +220,7 @@ services:
 
   pcd-publisher:
     profiles: [pcd]
-    build:
-      context: ./services/pcd-publisher
+    image: ghcr.io/openads-project/point_cloud_object_detection/pcd-publisher:v1.0.0-slim
     depends_on:
       point-cloud-object-detection-pcd:
         condition: service_started
@@ -232,10 +231,6 @@ services:
       PCD_TOPIC: /lidar_01/point_cloud
       PCD_FRAME_ID: base_link
       PCD_PUBLISH_RATE_HZ: ${PCD_PUBLISH_RATE_HZ:-5.0}
-      PYTHONDONTWRITEBYTECODE: "1"
-    volumes:
-      - ./assets/pcds:/pcds:ro
-      - ./services/pcd-publisher/pcd_publisher.py:/opt/demo/pcd_publisher.py:ro
 
   rviz-driving:
     profiles: [driving]
