@@ -27,6 +27,8 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - id: slug
         uses: gacts/github-slug@v1
         with:
