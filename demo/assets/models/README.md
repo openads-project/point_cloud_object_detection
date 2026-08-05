@@ -9,7 +9,7 @@ the repository root:
 
 ```bash
 MODEL_VERSION=v1.0.0
-MODEL_IMAGE="ghcr.io/openads-project/point_cloud_object_detection-model:${MODEL_VERSION}"
+MODEL_IMAGE="ghcr.io/openads-project/point_cloud_object_detection/model:${MODEL_VERSION}"
 
 docker build \
   --build-arg IMAGE_VERSION="${MODEL_VERSION}" \
