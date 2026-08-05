@@ -1,6 +1,6 @@
 x-model-mount: &model_mount
   type: image
-  source: ${MODEL_IMAGE:-ghcr.io/openads-project/point_cloud_object_detection-model:v1.0.0}
+  source: ${MODEL_IMAGE:-ghcr.io/openads-project/point_cloud_object_detection/model:v1.0.0}
   target: /models
   read_only: true
   image:
