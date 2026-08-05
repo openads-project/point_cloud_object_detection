@@ -3,7 +3,7 @@ services:
     # Target the current CI image, or use FAT_IMAGE as an explicit override.
     image: ${FAT_IMAGE:-ghcr.io/openads-project/point_cloud_object_detection:latest}
     volumes:
-      - ${SLIM_WORKSPACE:-..}/demo/assets/models:/models:ro
+      - ${SLIM_MODEL_DIR:?SLIM_MODEL_DIR must point to the extracted model repository}:/models:ro
       - ${SLIM_WORKSPACE:-..}/docker/slim-probe.params.yml:/params.yml:ro
     command: >
       bash -lc "
