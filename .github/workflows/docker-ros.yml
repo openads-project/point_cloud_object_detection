@@ -33,11 +33,6 @@ jobs:
         uses: gacts/github-slug@v1
         with:
           to-slug: ${{ github.head_ref || github.ref_name }}
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ github.token }}
       - name: Extract model repository
         shell: bash
         run: |
