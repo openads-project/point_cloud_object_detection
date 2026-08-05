@@ -25,7 +25,7 @@
     input.point_feature_field: "intensity"
 
     # Runtime overrides for exported manifest defaults.
-    preprocessing.point_feature.value_threshold: 100.0 # should be set to appriximately the 99% percentile of the expected point_feature_field values in the input point cloud.
+    preprocessing.point_feature.value_threshold: 100.0 # should be set to approximately the 99% percentile of the expected point_feature_field values in the input point cloud.
                                        # car, bus, motorcycle, bicycle, utility, pedestrian, vru, micro, animal
     postprocessing.nms.score_threshold: [0.55, 0.4, 0.3,        0.3,     0.4,     0.3,        0.3, 0.3,   0.4]
     postprocessing.nms.iou_threshold: 0.05
