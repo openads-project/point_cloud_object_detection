@@ -229,7 +229,7 @@ services:
 
   pcd-publisher:
     profiles: [pcd]
-    image: ghcr.io/openads-project/point_cloud_object_detection-pcd-publisher:v1.0.0-slim
+    image: ghcr.io/openads-project/point_cloud_object_detection/pcd-publisher:v1.0.0-slim
     depends_on:
       point-cloud-object-detection-pcd:
         condition: service_started
