@@ -9,9 +9,17 @@ x-gpu-reservation: &gpu_reservation
           count: -1
           capabilities: [gpu]
 
+x-model-mount: &model_mount
+  type: image
+  source: ${MODEL_IMAGE:-ghcr.io/openads-project/point_cloud_object_detection/model:v1.0.0}
+  target: /models
+  read_only: true
+  image:
+    subpath: models
+
 services:
   triton-server:
-    image: nvcr.io/nvidia/tritonserver:26.01-py3
+    image: nvcr.io/nvidia/tritonserver:26.05-py3
     deploy:
       <<: *gpu_reservation
     ipc: shareable
@@ -20,13 +28,14 @@ services:
       <<: *ros_common_env
       CUDA_VISIBLE_DEVICES: "0"
     volumes:
-      - ./assets/models:/models:ro
+      - *model_mount
     command: >
       tritonserver
       --model-repository=/models
       --grpc-port=8001
       --http-port=8000
       --metrics-port=8002
+      --allow-client-shm=true
       --log-verbose=0
     healthcheck:
       test: ["CMD", "bash", "-c", "echo > /dev/tcp/127.0.0.1/8001"]
@@ -49,7 +58,7 @@ services:
       <<: *gpu_reservation
     volumes:
       - ./config/point_cloud_object_detection.driving.params.yml:/params.yml:ro
-      - ./assets/models:/models:ro
+      - *model_mount
     command: >
       bash -lc "
       ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py
@@ -74,14 +83,14 @@ services:
     profiles: [pcd]
     volumes:
       - ./config/point_cloud_object_detection.pcd.params.yml:/params.yml:ro
-      - ./assets/models:/models:ro
+      - *model_mount
 
   point-cloud-object-detection-nvidia:
     <<: *point_cloud_object_detection
     profiles: [nvidia]
     volumes:
       - ./config/point_cloud_object_detection.nvidia.params.yml:/params.yml:ro
-      - ./assets/models:/models:ro
+      - *model_mount
 
   visualization-sync:
     image: ghcr.io/openads-project/monitoring:v1.0.0

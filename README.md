@@ -67,7 +67,7 @@ The [demo](demo) provides an example setup for the `point_cloud_object_detection
 
         ℹ️ See [point_cloud_object_detection.driving.params.yml](demo/config/point_cloud_object_detection.driving.params.yml) for further configuration options.
 
-        ℹ️ Since a subset of the [DrivIng dataset](https://doi.org/10.7910/DVN/VBZKDY) was used in the training of the [demo model](demo/assets/models/point-cloud-object-detection/), interpret its apparent performance in the demo with care. Apply the model to your own data to estimate the model performance.
+        ℹ️ Since a subset of the [DrivIng dataset](https://doi.org/10.7910/DVN/VBZKDY) was used in the training of the [demo model](demo/assets/models/README.md), interpret its apparent performance in the demo with care. Apply the model to your own data to estimate the model performance.
 
         
 

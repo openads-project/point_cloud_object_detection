@@ -28,7 +28,7 @@
     # Runtime overrides for exported manifest defaults.
     # preprocessing.detection_area.z_min: -1.0
     # preprocessing.detection_area.z_max: 4.0
-    preprocessing.point_feature.value_threshold: 100.0 # should be set to appriximately the 99% percentile of the expected point_feature_field values in the input point cloud.
+    preprocessing.point_feature.value_threshold: 70.0 # should be set to approximately the 99% percentile of the expected point_feature_field values in the input point cloud.
                                        # car, bus, motorcycle, bicycle, utility, pedestrian, vru, micro, animal
     postprocessing.nms.score_threshold: [0.3, 0.3, 0.3,        0.4,     0.3,     0.6,        0.4, 0.4,   0.3]
     # postprocessing.class_score_threshold: 0.0
