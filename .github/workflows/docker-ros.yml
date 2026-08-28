@@ -55,6 +55,10 @@ jobs:
           rmw-implementation: rmw_zenoh_cpp
           command: ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py
           enable-industrial-ci: true
+          cmake-args: >-
+            -DCMAKE_BUILD_TYPE=Release
+            -DREQUIRE_CUDA=ON
+            -DPCOD_CUDA_FAST_MATH=ON
           additional-slim-build-args: >-
             --compose-file ../docker/slim-compose.yml
             --compose-workdir ..
