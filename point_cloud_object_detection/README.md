@@ -126,4 +126,4 @@ flowchart LR
 | `params` | `os.path.join(get_package_share_directory("point_cloud_object_detection"), "config", "params.yml")` | path to parameter file |
 | `log_level` | `"info"` | ROS logging level (debug, info, warn, error, fatal) |
 | `use_sim_time` | `"false"` | use simulation clock |
-| `trace` | `"false"` | Enable tracing |
+| `ros_tracing` | `"false"` | Enable tracing |
