@@ -55,6 +55,11 @@ flowchart LR
 | `~/object_list` | `perception_msgs/msg/ObjectList` | output object list topic remap |
 | `~/no_detection_zone_points` | `sensor_msgs/msg/PointCloud2` | no-detection zone points topic remap |
 
+Each published object carries its object-presence score in `existence_probability` and its normalized
+class probabilities in `state.classifications`. Filtering and NMS use a separate score that combines
+presence, predicted localization quality, and the best class probability. PBOD model artifacts must
+provide both `objectness_logits` and the quality-weighted `focal_logits` output.
+
 #### Parameters
 
 | Parameter | Type | Default | Description |
