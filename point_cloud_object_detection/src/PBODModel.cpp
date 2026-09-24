@@ -55,8 +55,7 @@ void PBODModel::validateInterface(const triton_cpp::TritonInterface& triton_inte
     }
   }
 
-  for (const char* output_name :
-       {kOutputNameFocal, kOutputNameObjectness, kOutputNameReg, kOutputNameClass, kOutputNameSize}) {
+  for (const char* output_name : {kOutputNameFocal, kOutputNameObjectness, kOutputNameReg, kOutputNameClass, kOutputNameSize}) {
     try {
       (void)triton_interface.getOutputShape(output_name);
     } catch (const std::invalid_argument& e) {
