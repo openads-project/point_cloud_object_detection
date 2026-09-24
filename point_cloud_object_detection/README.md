@@ -13,6 +13,11 @@ The node can publish up to four grid maps as `nav_msgs/msg/OccupancyGrid` messag
 
 Here, *dynamic objects* mean *objects capable of moving*, whether or not they are currently in motion. The dynamic grid output is intended to correspond to the model’s object detections but is trained separately.
 
+Each published object carries its object-presence score in `existence_probability` and its normalized
+class probabilities in `state.classifications`. Filtering and NMS use a separate score that combines
+presence, predicted localization quality, and the best class probability. PBOD model artifacts must
+provide both `objectness_logits` and the quality-weighted `focal_logits` output.
+
 ## Nodes
 
 ### `point_cloud_object_detection`

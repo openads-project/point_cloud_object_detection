@@ -1954,7 +1954,7 @@ void PointCloudObjectDetection::boxesToObjectList(const std::vector<BoundingBox>
     // set id
     object.id = idx;
 
-    // set occupancy probability
+    // Publish objectness independently of the class-weighted NMS score.
     object.existence_probability = bboxes[idx].existence_probability;
 
     // set object position

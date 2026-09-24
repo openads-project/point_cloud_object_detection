@@ -55,7 +55,7 @@ void PBODModel::validateInterface(const triton_cpp::TritonInterface& triton_inte
     }
   }
 
-  for (const char* output_name : {kOutputNameFocal, kOutputNameReg, kOutputNameClass, kOutputNameSize}) {
+  for (const char* output_name : {kOutputNameFocal, kOutputNameObjectness, kOutputNameReg, kOutputNameClass, kOutputNameSize}) {
     try {
       (void)triton_interface.getOutputShape(output_name);
     } catch (const std::invalid_argument& e) {
@@ -635,6 +635,7 @@ std::vector<BoundingBox> PBODModel::modelOutputToBoxes() {
   auto class_logits = triton_interface_.getOutputTensor<float>(kOutputNameClass, num_pillars, num_classes);
   auto size_posterior = triton_interface_.getOutputTensor<float>(kOutputNameSize, num_pillars, kSizeValuesPerClass * num_classes);
   auto focal_logits = triton_interface_.getOutputTensor<float>(kOutputNameFocal, num_pillars);
+  auto objectness_logits = triton_interface_.getOutputTensor<float>(kOutputNameObjectness, num_pillars);
   auto reg_logits =
       triton_interface_.getOutputTensor<float>(kOutputNameReg, num_pillars, kRegressionValuesPerClass * num_classes);
   const AuxiliaryGridMapRequest& auxiliary_grid_map_request = getAuxiliaryGridMapRequest();
@@ -691,6 +692,7 @@ std::vector<BoundingBox> PBODModel::modelOutputToBoxes() {
 
   pcod_common::PbodOutputsView view;
   view.focal_logits = focal_logits.data();
+  view.objectness_logits = objectness_logits.data();
   view.size_posterior = size_posterior.data();
   view.class_logits = class_logits.data();
   view.reg_logits = reg_logits.data();
