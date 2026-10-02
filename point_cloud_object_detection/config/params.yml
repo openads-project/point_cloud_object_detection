@@ -25,6 +25,10 @@
     # Model input feature selection
     input.point_feature_field: "intensity"
 
+    # Confidence factors for NMS filtering and ranking:
+    # existence, existence_quality, or existence_quality_class
+    postprocessing.nms.score_mode: "existence_quality"
+
     # Runtime overrides for exported manifest defaults.
     # preprocessing.detection_area.z_min: -1.0
     # preprocessing.detection_area.z_max: 4.0
