@@ -836,10 +836,17 @@ void PointCloudObjectDetection::declareParameters() {
                                 false,                                                                                  // read_only
                                 0.0, static_cast<double>(std::numeric_limits<int32_t>::max()), std::nullopt,            // from_value, to_value, step_value
                                 "Must be zero or positive.");                                                           // additional_constraints
-  this->declareAndLoadParameter("postprocessing.nms.score_mode", params_.nms_score_mode,
-                                "Confidence factors for NMS score filtering and ranking. Default: existence_quality.",
-                                true, false, false, std::nullopt, std::nullopt, std::nullopt,
-                                "Must be one of: existence, existence_quality, existence_quality_class.");
+  this->declareAndLoadParameter("postprocessing.nms.score_mode", params_.nms_score_mode,                                // name
+                                "Confidence for NMS score filtering and ranking: existence (presence only), "
+                                "existence_quality (presence times localization quality, default), or "
+                                "existence_quality_class (presence times localization quality times highest "
+                                "softmax class probability). Runtime changes reinitialize the model; score "
+                                "thresholds may need retuning.",                                                        // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
+                                "Must be one of: existence, existence_quality, existence_quality_class.");              // additional_constraints
   this->declareAndLoadParameter("postprocessing.nms.score_threshold",                                                   // name
                                 params_.nms_score_threshold,
                                 "NMS score threshold (single value or per-class list). Defaults to runtime_defaults"
