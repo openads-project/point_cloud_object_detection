@@ -73,6 +73,8 @@ flowchart LR
 | `output.frame` | `string` | - | Frame for object list |
 | `output.sensor_id` | `int` | `0` | Sensor ID for object list |
 | `output.variances` | `float[]` | `std::vector<double>(12, -1.0)` | Array with variances. Entries correspond to ISCACTR model defined in perception interfaces |
+| `postprocessing.nms.score_mode` | `string` | `existence_quality` | Confidence used for score filtering and NMS ranking: `existence`, `existence_quality` (existence × localization quality), or `existence_quality_class` (existence × localization quality × highest softmax class probability). Runtime changes reinitialize the model. |
+| `postprocessing.nms.score_threshold` | `float[]` | - | Thresholds for the selected NMS score: one shared value or one per predicted class. Defaults to runtime_defaults.postprocessing.nms.score_threshold from the model manifest. |
 | `postprocessing.nms.iou_threshold` | `float` | - | NMS IoU threshold. Defaults to runtime_defaults.postprocessing.nms.iou_threshold from the model manifest. |
 | `postprocessing.nms.max_num_objects` | `int` | - | Maximum number of objects after NMS. Defaults to runtime_defaults.postprocessing.nms.max_num_objects from the model manifest. |
 | `input.point_feature_field` | `string` | `"intensity"` | Single-feature source: 'intensity' or 'reflectivity' |

@@ -159,6 +159,7 @@ PBODModel::PBODModel(triton_cpp::TritonInterface& triton_interface, const ModelC
                                                 {model_config_.pillar_map_range[1][0], model_config_.pillar_map_range[1][1]},
                                                 {model_config_.pillar_map_range[2][0], model_config_.pillar_map_range[2][1]}}},
                                               model_config_.first_up_stride, stride);
+  postprocess_config_.score_mode = model_config_.nms_score_mode;
   postprocess_config_.class_names = model_config_.predicted_class_names;
   postprocess_config_.score_thresholds.reserve(model_config_.nms_score_threshold.size());
   for (double value : model_config_.nms_score_threshold) {

@@ -16,6 +16,7 @@
 #include <tf2_sensor_msgs/tf2_sensor_msgs.hpp>
 
 #include "pcod_common/bounding_box.hpp"
+#include "pcod_common/pbod_postprocess.hpp"
 
 namespace point_cloud_object_detection {
 using pcod_common::BoundingBox;
@@ -55,6 +56,7 @@ struct ModelConfig {
   float voxel_z = 0.0F;
 
   // NMS
+  pcod_common::PbodScoreMode nms_score_mode = pcod_common::PbodScoreMode::ExistenceQuality;
   int nms_max_num_objects;
   float nms_iou_threshold;
   std::vector<double> nms_score_threshold;
@@ -91,6 +93,7 @@ struct Params {
 
   // Exported runtime defaults from model_manifest.yml, overridable via ROS
   // parameters.
+  std::string nms_score_mode = "existence_quality";
   double nms_iou_threshold = 0.0;
   int64_t nms_max_num_objects = 0;
   double output_class_score_threshold = 0.0;

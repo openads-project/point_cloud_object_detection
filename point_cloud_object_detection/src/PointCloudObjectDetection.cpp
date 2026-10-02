@@ -94,14 +94,14 @@ bool requiresModelReinitializationForParameter(const std::string& name) {
   return name == "prediction.triton_client_timeout_s" || name == "prediction.use_shm" || name == "prediction.cuda_input_shm" ||
          name == "preprocessing.backend" || name == "preprocessing.point_feature.value_threshold" ||
          name == "preprocessing.detection_area.z_min" || name == "preprocessing.detection_area.z_max" ||
-         name == "postprocessing.nms.score_threshold" || name == "preprocessing.no_detection_zone.remove_points" ||
-         name == "preprocessing.no_detection_zone.x_min" || name == "preprocessing.no_detection_zone.x_max" ||
-         name == "preprocessing.no_detection_zone.y_min" || name == "preprocessing.no_detection_zone.y_max" ||
-         name == "preprocessing.detection_area.enabled" || name == "preprocessing.detection_area.center_x" ||
-         name == "preprocessing.detection_area.center_y" || name == "preprocessing.detection_area.radius" ||
-         name == "preprocessing.detection_area.bearing_deg" || name == "preprocessing.detection_area.fov_deg" ||
-         name == "preprocessing.detection_area.num_segments" || name == "prediction.model_repository" ||
-         name == "prediction.model_version";
+         name == "postprocessing.nms.score_mode" || name == "postprocessing.nms.score_threshold" ||
+         name == "preprocessing.no_detection_zone.remove_points" || name == "preprocessing.no_detection_zone.x_min" ||
+         name == "preprocessing.no_detection_zone.x_max" || name == "preprocessing.no_detection_zone.y_min" ||
+         name == "preprocessing.no_detection_zone.y_max" || name == "preprocessing.detection_area.enabled" ||
+         name == "preprocessing.detection_area.center_x" || name == "preprocessing.detection_area.center_y" ||
+         name == "preprocessing.detection_area.radius" || name == "preprocessing.detection_area.bearing_deg" ||
+         name == "preprocessing.detection_area.fov_deg" || name == "preprocessing.detection_area.num_segments" ||
+         name == "prediction.model_repository" || name == "prediction.model_version";
 }
 
 std::string resolveModelRepositoryPath(const std::string& path) {
@@ -836,6 +836,10 @@ void PointCloudObjectDetection::declareParameters() {
                                 false,                                                                                  // read_only
                                 0.0, static_cast<double>(std::numeric_limits<int32_t>::max()), std::nullopt,            // from_value, to_value, step_value
                                 "Must be zero or positive.");                                                           // additional_constraints
+  this->declareAndLoadParameter("postprocessing.nms.score_mode", params_.nms_score_mode,
+                                "Confidence factors for NMS score filtering and ranking. Default: existence_quality.",
+                                true, false, false, std::nullopt, std::nullopt, std::nullopt,
+                                "Must be one of: existence, existence_quality, existence_quality_class.");
   this->declareAndLoadParameter("postprocessing.nms.score_threshold",                                                   // name
                                 params_.nms_score_threshold,
                                 "NMS score threshold (single value or per-class list). Defaults to runtime_defaults"
@@ -1145,6 +1149,11 @@ void PointCloudObjectDetection::syncNmsRuntimeConfigFromParams(ModelConfig& mode
       throwParameterError(this->get_logger(), "postprocessing.nms.score_threshold",
                           "must contain exactly one value or one per predicted class");
     }
+  }
+  try {
+    model_config.nms_score_mode = pcod_common::ParsePbodScoreMode(params.nms_score_mode);
+  } catch (const std::invalid_argument& error) {
+    throwParameterError(this->get_logger(), "postprocessing.nms.score_mode", error.what());
   }
   model_config.nms_score_threshold = std::move(score_thresholds);
   model_config.nms_iou_threshold = static_cast<float>(params.nms_iou_threshold);
