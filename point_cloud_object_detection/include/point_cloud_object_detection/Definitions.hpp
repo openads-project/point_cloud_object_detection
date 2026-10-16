@@ -121,7 +121,7 @@ struct Params {
   double combined_grid_map_gain = 1.0;
   double static_grid_map_gain = 1.0;
 
-  std::vector<double> variance = std::vector<double>(12, -1.0);  // CONTINUOUS_STATE_COVARIANCE_UNKNOWN sentinel
+  std::vector<double> variance = std::vector<double>(12, -1.0);  // CONTINUOUS_STATE_COVARIANCE_INVALID sentinel
   std::vector<double> nms_score_threshold;
 
   std::string preprocessing_backend = "cpu";

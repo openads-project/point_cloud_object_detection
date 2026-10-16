@@ -736,7 +736,7 @@ void PointCloudObjectDetection::declareAndLoadParameter(const std::string& name,
 }
 
 void PointCloudObjectDetection::declareParameters() {
-  const double cscu = pm::object_access::CONTINUOUS_STATE_COVARIANCE_UNKNOWN;
+  const double csci = pm::object_access::CONTINUOUS_STATE_COVARIANCE_INVALID;
 
   // clang-format off
   this->declareAndLoadParameter("preprocessing.backend", params_.preprocessing_backend,                                 // name
@@ -809,7 +809,7 @@ void PointCloudObjectDetection::declareParameters() {
       false,                                                                                                            // read_only
       std::nullopt, std::nullopt, std::nullopt,                                                                         // from_value, to_value, step_value
       "");                                                                                                              // additional_constraints
-  sanitizeVarianceVector(params_.variance, cscu);
+  sanitizeVarianceVector(params_.variance, csci);
 
   this->declareAndLoadParameter("postprocessing.class_score_threshold",                                                 // name
                                 params_.output_class_score_threshold,
@@ -1224,7 +1224,7 @@ void PointCloudObjectDetection::validateParamsOrThrow() const {
     throwParameterError(this->get_logger(), param, message);
   };
 
-  const double cscu = pm::object_access::CONTINUOUS_STATE_COVARIANCE_UNKNOWN;
+  const double csci = pm::object_access::CONTINUOUS_STATE_COVARIANCE_INVALID;
   if (params_.variance.size() != kExpectedVarianceSize) {
     fail("output.variances",
          "must contain " + std::to_string(kExpectedVarianceSize) + " entries corresponding to the ISCACTR state");
@@ -1234,10 +1234,10 @@ void PointCloudObjectDetection::validateParamsOrThrow() const {
     if (!isFinite(value)) {
       fail("output.variances", "all entries must be finite");
     }
-    if (value < 0.0 && std::fabs(value - cscu) > 1e-9) {
+    if (value < 0.0 && std::fabs(value - csci) > 1e-9) {
       fail("output.variances",
            "entries must be non-negative or equal to "
-           "CONTINUOUS_STATE_COVARIANCE_UNKNOWN (-1)");
+           "CONTINUOUS_STATE_COVARIANCE_INVALID (-1)");
     }
   }
 
@@ -1669,8 +1669,8 @@ rcl_interfaces::msg::SetParametersResult PointCloudObjectDetection::parametersCa
         }
       }
 
-      const double cscu = pm::object_access::CONTINUOUS_STATE_COVARIANCE_UNKNOWN;
-      sanitizeVarianceVector(params_.variance, cscu);
+      const double csci = pm::object_access::CONTINUOUS_STATE_COVARIANCE_INVALID;
+      sanitizeVarianceVector(params_.variance, csci);
       if (repository_changed) {
         // All runtime-configurable fields are read from the current params_
         // inside refreshResolvedModelConfigLocked, so they are preserved across
