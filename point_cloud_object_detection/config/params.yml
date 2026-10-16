@@ -19,8 +19,8 @@
     postprocessing.class_score_threshold: 0.0
 
     # Object covariance defaults
-    # CONTINUOUS_STATE_COVARIANCE_INVALID = -1.0
-    output.variances: [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0]
+    # CONTINUOUS_STATE_COVARIANCE_UNKNOWN = float64 max: value supplied, variance unknown
+    output.variances: [1.7976931348623157e+308, 1.7976931348623157e+308, 1.7976931348623157e+308, 1.7976931348623157e+308, 1.7976931348623157e+308, 1.7976931348623157e+308, 1.7976931348623157e+308, 1.7976931348623157e+308, 1.7976931348623157e+308, 1.7976931348623157e+308, 1.7976931348623157e+308, 1.7976931348623157e+308]
 
     # Model input feature selection
     input.point_feature_field: "intensity"
