@@ -125,9 +125,9 @@ struct Params {
   // Models supplying velocity should override its two variance entries.
   std::vector<double> variance = [] {
     std::vector<double> values(12, perception_msgs::object_access::CONTINUOUS_STATE_COVARIANCE_UNKNOWN);
-    for (const auto index : {perception_msgs::msg::ISCACTR::VEL_LON, perception_msgs::msg::ISCACTR::VEL_LAT,
-                             perception_msgs::msg::ISCACTR::ACC_LON, perception_msgs::msg::ISCACTR::ACC_LAT,
-                             perception_msgs::msg::ISCACTR::YAW_RATE}) {
+    for (const auto index :
+         {perception_msgs::msg::ISCACTR::VEL_LON, perception_msgs::msg::ISCACTR::VEL_LAT, perception_msgs::msg::ISCACTR::ACC_LON,
+          perception_msgs::msg::ISCACTR::ACC_LAT, perception_msgs::msg::ISCACTR::YAW_RATE}) {
       values[index] = perception_msgs::object_access::CONTINUOUS_STATE_COVARIANCE_INVALID;
     }
     return values;
