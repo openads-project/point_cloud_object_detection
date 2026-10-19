@@ -46,7 +46,7 @@ jobs:
           trap 'docker rm "${container_id}" >/dev/null' EXIT
           mkdir -p "${RUNNER_TEMP}/models"
           docker cp "${container_id}:/models/." "${RUNNER_TEMP}/models"
-      - uses: ika-rwth-aachen/docker-ros@feature/required-packages-only
+      - uses: ika-rwth-aachen/docker-ros@main
         with:
           platform: ${{ matrix.platform }}
           target: dev,run
