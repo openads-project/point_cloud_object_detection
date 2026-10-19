@@ -67,7 +67,8 @@ flowchart LR
 | `preprocessing.inference_frame` | `string` | - | Frame for inference |
 | `output.frame` | `string` | - | Frame for object list |
 | `output.sensor_id` | `int` | `0` | Sensor ID for object list |
-| `output.variances` | `float[]` | `std::vector<double>(12, std::numeric_limits<double>::max())` | Array with variances. Entries correspond to ISCACTR model defined in perception interfaces |
+| `output.variances` | `float[]` | `[] {
+    std::vector<double> values(12, perception_msgs::object_access::CONTINUOUS_STATE_COVARIANCE_UNKNOWN)` | Array with variances. Entries correspond to ISCACTR model defined in perception interfaces |
 | `postprocessing.nms.iou_threshold` | `float` | - | NMS IoU threshold. Defaults to runtime_defaults.postprocessing.nms.iou_threshold from the model manifest. |
 | `postprocessing.nms.max_num_objects` | `int` | - | Maximum number of objects after NMS. Defaults to runtime_defaults.postprocessing.nms.max_num_objects from the model manifest. |
 | `input.point_feature_field` | `string` | `"intensity"` | Single-feature source: 'intensity' or 'reflectivity' |

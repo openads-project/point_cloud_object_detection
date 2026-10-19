@@ -5,7 +5,6 @@
 
 #include <array>
 #include <cstdint>
-#include <limits>
 
 #include <tf2/transform_datatypes.h>
 #include <tf2_ros/buffer.h>
@@ -13,6 +12,7 @@
 
 #include <Eigen/Dense>
 #include <geometry_msgs/msg/transform_stamped.hpp>
+#include <perception_msgs_utils/object_access.hpp>
 #include <tf2_sensor_msgs/tf2_sensor_msgs.hpp>
 
 #include "pcod_common/bounding_box.hpp"
@@ -121,8 +121,17 @@ struct Params {
   double combined_grid_map_gain = 1.0;
   double static_grid_map_gain = 1.0;
 
-  // CONTINUOUS_STATE_COVARIANCE_UNKNOWN: state value supplied, variance unknown.
-  std::vector<double> variance = std::vector<double>(12, std::numeric_limits<double>::max());
+  // Default to unknown uncertainty for supplied fields and invalid for unmeasured fields.
+  // Models supplying velocity should override its two variance entries.
+  std::vector<double> variance = [] {
+    std::vector<double> values(12, perception_msgs::object_access::CONTINUOUS_STATE_COVARIANCE_UNKNOWN);
+    for (const auto index : {perception_msgs::msg::ISCACTR::VEL_LON, perception_msgs::msg::ISCACTR::VEL_LAT,
+                             perception_msgs::msg::ISCACTR::ACC_LON, perception_msgs::msg::ISCACTR::ACC_LAT,
+                             perception_msgs::msg::ISCACTR::YAW_RATE}) {
+      values[index] = perception_msgs::object_access::CONTINUOUS_STATE_COVARIANCE_INVALID;
+    }
+    return values;
+  }();
   std::vector<double> nms_score_threshold;
 
   std::string preprocessing_backend = "cpu";
