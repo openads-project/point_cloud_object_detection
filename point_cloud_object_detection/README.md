@@ -128,3 +128,4 @@ flowchart LR
 | `log_level` | `"info"` | ROS logging level (debug, info, warn, error, fatal) |
 | `use_sim_time` | `"false"` | use simulation clock |
 | `ros_tracing` | `"false"` | Enable tracing |
+| `triton_server_url` | `"triton-server:8001"` | Triton server URL |

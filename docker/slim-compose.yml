@@ -9,6 +9,7 @@ services:
       bash -lc "
       ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py
       params:=/params.yml
+      triton_server_url:=127.0.0.1:8001
       log_level:=info
       use_sim_time:=false
       "
