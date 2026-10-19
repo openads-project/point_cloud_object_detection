@@ -46,7 +46,7 @@ jobs:
           trap 'docker rm "${container_id}" >/dev/null' EXIT
           mkdir -p "${RUNNER_TEMP}/models"
           docker cp "${container_id}:/models/." "${RUNNER_TEMP}/models"
-      - uses: ika-rwth-aachen/docker-ros@main
+      - uses: ika-rwth-aachen/docker-ros@feature/required-packages-only
         with:
           platform: ${{ matrix.platform }}
           target: dev,run
@@ -54,7 +54,7 @@ jobs:
           base-image: rwthika/ros2-triton:jazzy
           rmw-implementation: rmw_zenoh_cpp
           command: ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py
-          enable-industrial-ci: false # reenable once recursive perception/planning_interfaces dependency is merged/released: https://github.com/ika-rwth-aachen/rviz_2d_overlay_plugins/pull/2
+          enable-industrial-ci: true
           cmake-args: >-
             -DCMAKE_BUILD_TYPE=Release
             -DREQUIRE_CUDA=ON
