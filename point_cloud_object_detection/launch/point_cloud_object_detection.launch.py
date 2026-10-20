@@ -61,6 +61,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument("use_sim_time", default_value="false", description="use simulation clock"),
         DeclareLaunchArgument("ros_tracing", default_value="false", description="Enable tracing"),
+        DeclareLaunchArgument("triton_server_url", default_value="triton-server:8001", description="Triton server URL"),
         *remappable_topics,
     ]
 
@@ -70,7 +71,10 @@ def generate_launch_description():
             executable="point_cloud_object_detection",
             namespace=LaunchConfiguration("namespace"),
             name=LaunchConfiguration("name"),
-            parameters=[LaunchConfiguration("params")],
+            parameters=[
+                LaunchConfiguration("params"),
+                {"prediction.triton_server_url": LaunchConfiguration("triton_server_url")},
+            ],
             arguments=["--ros-args", "--log-level", LaunchConfiguration("log_level")],
             remappings=[(la.default_value[0].text, LaunchConfiguration(la.name)) for la in remappable_topics],
             output="screen",

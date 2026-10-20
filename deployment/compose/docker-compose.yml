@@ -1,7 +1,7 @@
 services:
 
   point-cloud-object-detection:
-    image: ghcr.io/openads-project/point_cloud_object_detection:v3.0.0
+    image: ghcr.io/openads-project/point_cloud_object_detection:v3.1.0
     environment:
       # --- name ------
       NAMESPACE: /
@@ -23,6 +23,7 @@ services:
       USE_SIM_TIME: ${USE_SIM_TIME:-false}
       PARAMS: /docker-ros/ws/install/point_cloud_object_detection/share/point_cloud_object_detection/config/params.yml
       ROS_TRACING: ${ROS_TRACING:-false}
+      TRITON_SERVER_URL: triton-server:8001
     command:
       - /bin/bash
       - -ic
@@ -34,6 +35,7 @@ services:
           use_sim_time:=$${USE_SIM_TIME} \
           params:=$${PARAMS} \
           ros_tracing:=$${ROS_TRACING} \
+          triton_server_url:=$${TRITON_SERVER_URL} \
           point_cloud_topic:=$${POINT_CLOUD_TOPIC} \
           object_list_topic:=$${OBJECT_LIST_TOPIC} \
           no_detection_zone_topic:=$${NO_DETECTION_ZONE_TOPIC} \

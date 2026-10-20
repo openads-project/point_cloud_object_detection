@@ -2,7 +2,6 @@
   ros__parameters:
 
     # Core node configuration
-    prediction.server_url: "127.0.0.1:8001"
     prediction.model_repository: "point-cloud-object-detection"
     prediction.model_version: "1"
     preprocessing.backend: "cpu"

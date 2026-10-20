@@ -746,7 +746,7 @@ void PointCloudObjectDetection::declareParameters() {
                                 false,                                                                                  // read_only
                                 std::nullopt, std::nullopt, std::nullopt,                                               // from_value, to_value, step_value
                                 "Must be one of: 'cpu', 'cuda'.");                                                      // additional_constraints
-  this->declareAndLoadParameter("prediction.server_url", params_.server_url,                                            // name
+  this->declareAndLoadParameter("prediction.triton_server_url", params_.server_url,                                     // name
                                 "URL of the triton server, e.g. 134.130.20.221:8001",                                   // description
                                 false,                                                                                  // add_to_auto_reconfigurable_params
                                 true,                                                                                   // is_required
@@ -1293,7 +1293,7 @@ void PointCloudObjectDetection::validateParamsOrThrow() const {
     fail("postprocessing.nms.max_num_objects", "must be zero or positive");
   }
   if (params_.server_url.empty()) {
-    fail("prediction.server_url", "must be set to the Triton server address");
+    fail("prediction.triton_server_url", "must be set to the Triton server address");
   }
   if (!isFinite(params_.triton_client_timeout_s)) {
     fail("prediction.triton_client_timeout_s", "must be finite");
