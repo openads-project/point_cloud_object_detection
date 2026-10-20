@@ -28,7 +28,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">point_cloud_object_detection<span id="projectnumber">&#160;v3.0.0</span>
+   <div id="projectname">point_cloud_object_detection<span id="projectnumber">&#160;v3.1.0</span>
    </div>
   </td>
  </tr>
@@ -102,25 +102,25 @@ $(function(){initNavTree('index.html',''); initResizable(true); });
 <div class="contents">
 <div class="textblock"><p><a class="anchor" id="md_README"></a></p>
 <p align="center"></p>
-<p><a href="https://github.com/openads-project"><img src="https://img.shields.io/badge/OpenADS-f5ff01" alt="" class="inline"/></a> <a href="https://www.ros.org"><img src="https://img.shields.io/badge/ROS 2-jazzy-22314e" alt="" class="inline"/></a> <a href="https://github.com/openads-project/point_cloud_object_detection/releases/latest"><img src="https://img.shields.io/github/v/release/openads-project/point_cloud_object_detection" alt="" class="inline"/></a> <a href="https://github.com/openads-project/point_cloud_object_detection/blob/main/LICENSE"><img src="https://img.shields.io/github/license/openads-project/point_cloud_object_detection" alt="" class="inline"/></a> <br  />
- <a href="https://github.com/openads-project/point_cloud_object_detection/actions/workflows/docker-ros.yml"><img src="https://github.com/openads-project/point_cloud_object_detection/actions/workflows/docker-ros.yml/badge.svg" alt="" style="pointer-events: none;" class="inline"/></a> <a href="https://github.com/openads-project/point_cloud_object_detection/actions/workflows/compose-oci.yml"><img src="https://github.com/openads-project/point_cloud_object_detection/actions/workflows/compose-oci.yml/badge.svg" alt="" style="pointer-events: none;" class="inline"/></a> <a href="https://openads-project.github.io/point_cloud_object_detection"><img src="https://github.com/openads-project/point_cloud_object_detection/actions/workflows/docs.yml/badge.svg" alt="" style="pointer-events: none;" class="inline"/></a> <a href="https://github.com/openads-project/point_cloud_object_detection/actions/workflows/consistency.yml"><img src="https://github.com/openads-project/point_cloud_object_detection/actions/workflows/consistency.yml/badge.svg" alt="" style="pointer-events: none;" class="inline"/></a> </p>
+<p><a href="https://openads-project.github.io"><img src="https://img.shields.io/badge/OpenADS-45ccc6" alt="" class="inline"/></a> <a href="https://www.ros.org"><img src="https://img.shields.io/badge/ROS 2-jazzy-22314e" alt="" class="inline"/></a> <a href="https://github.com/openads-project/point_cloud_object_detection/releases/latest"><img src="https://img.shields.io/github/v/release/openads-project/point_cloud_object_detection" alt="" class="inline"/></a> <a href="https://github.com/openads-project/point_cloud_object_detection/blob/main/LICENSE"><img src="https://img.shields.io/github/license/openads-project/point_cloud_object_detection" alt="" class="inline"/></a> <br  />
+ <a href="https://github.com/openads-project/point_cloud_object_detection/actions/workflows/docker-ros.yml"><img src="https://github.com/openads-project/point_cloud_object_detection/actions/workflows/docker-ros.yml/badge.svg" alt="" style="pointer-events: none;" class="inline"/></a> <a href="https://github.com/openads-project/point_cloud_object_detection/actions/workflows/compose-oci.yml"><img src="https://github.com/openads-project/point_cloud_object_detection/actions/workflows/compose-oci.yml/badge.svg" alt="" style="pointer-events: none;" class="inline"/></a> <a href="https://github.com/openads-project/point_cloud_object_detection/actions/workflows/helm-oci.yml"><img src="https://github.com/openads-project/point_cloud_object_detection/actions/workflows/helm-oci.yml/badge.svg" alt="" style="pointer-events: none;" class="inline"/></a> <a href="https://openads-project.github.io/point_cloud_object_detection"><img src="https://github.com/openads-project/point_cloud_object_detection/actions/workflows/docs.yml/badge.svg" alt="" style="pointer-events: none;" class="inline"/></a> <a href="https://github.com/openads-project/point_cloud_object_detection/actions/workflows/consistency.yml"><img src="https://github.com/openads-project/point_cloud_object_detection/actions/workflows/consistency.yml/badge.svg" alt="" style="pointer-events: none;" class="inline"/></a> </p>
 <p><b>ROS 2 Object Detection in Point Clouds for Automated Driving</b></p>
 <p>This repository provides a ROS 2 point cloud object detection node for automated driving perception stacks. The node subscribes to a <code>sensor_msgs/msg/PointCloud2</code>, sends preprocessed point data to a Triton-served detection model, and publishes detected objects as <code>perception_msgs/msg/ObjectList</code>. Additionally, the node optionally provides four auxiliary grid maps published as <code>nav_msgs/msg/OccupancyGrid</code>.</p>
 <p>The detector itself does not host the neural network. A <a href="https://github.com/triton-inference-server/server">Triton Inference Server</a> with a compatible exported model repository must be available at runtime.</p>
 <p align="center"></p>
 <p><b>🚀 <a href="#-quick-start">Quick Start</a></b> • <b>💻 <a href="#-development">Development</a></b> • <b>📝 <a href="#-documentation">Documentation</a></b> </p>
-<dl class="section important"><dt>Important</dt><dd>This repository is part of <a href="https://github.com/openads-project"><em><b>OpenADS</b></em></a>, the <em>Open Automated Driving Systems</em> project. <em>OpenADS</em> and its modules have been initiated and are currently being maintained by the <a href="https://www.ika.rwth-aachen.de/de/"><b>Institute for Automotive Engineering (ika) at RWTH Aachen University</b></a>.</dd></dl>
+<dl class="section important"><dt>Important</dt><dd>This repository is part of <a href="https://openads-project.github.io/"><em><b>OpenADS</b></em></a>, the <em>Open Automated Driving Systems</em> project. <em>OpenADS</em> and its modules have been initiated and are currently being maintained by the <a href="https://www.ika.rwth-aachen.de/de/"><b>Institute for Automotive Engineering (ika) at RWTH Aachen University</b></a>.</dd></dl>
 <p>&lt;video src="https://github.com/user-attachments/assets/89f1dbc1-1e82-403a-96e9-3422ca66a526" width="720" style="max-width: 100%;"&gt; &lt;/video&gt;</p>
 <h1><a class="anchor" id="autotoc_md1"></a>
 🚀 Quick Start</h1>
-<p>The [demo](demo) provides an example setup for the <code><a class="el" href="namespacepoint__cloud__object__detection.html">point_cloud_object_detection</a></code> node. It can download and replay the <a href="https://doi.org/10.7910/DVN/VBZKDY">DrivIng dataset</a> with the help of the <a href="https://github.com/thinking-cars/autonomy_datasets">autonomy_datasets</a> ROS package. Alternatively, it can replay ten local <a href="demo/assets/pcds/">PCD files</a>. See Additional dataset demos for another example.</p>
-<dl class="section note"><dt>Note</dt><dd>Running the demo requires an NVIDIA GPU and a host NVIDIA driver compatible with CUDA 13.1 or newer. 8 GB of VRAM is recommended.</dd></dl>
+<p>The [demo](demo) provides an example setup for the <code><a class="el" href="namespacepoint__cloud__object__detection.html">point_cloud_object_detection</a></code> node. It can download and replay the <a href="https://doi.org/10.7910/DVN/VBZKDY">DrivIng dataset</a> with the help of the <a href="https://github.com/thinking-cars/autonomy_datasets">autonomy_datasets</a> ROS package. Alternatively, it can replay ten PCD files contained in the demo's PCD publisher image. See Additional dataset demos for another example and information on how to process your own data.</p>
+<dl class="section note"><dt>Note</dt><dd>Running the demo requires an NVIDIA GPU with compute capability 8.0 or higher, and a host NVIDIA driver compatible with CUDA 13.1 or newer. 8 GB of VRAM is recommended.</dd></dl>
 <ol type="1">
 <li><p class="startli">Allow local Docker containers to connect to the X server for RViz visualization.</p>
 <div class="fragment"><div class="line">xhost +local:</div>
 </div><!-- fragment --></li>
 <li>Run the demo with either the <code>pcd</code> or <code>driving</code> profile.<ul>
-<li><p class="startli">Use the <code>pcd</code> profile to immediately replay and process the ten PCD files provided in this repository. This is by far the fastest way to see example output of the detection node.</p>
+<li><p class="startli">Use the <code>pcd</code> profile to immediately replay and process the ten PCD files provided by the PCD publisher image. This is by far the fastest way to see example output of the detection node.</p>
 <div class="fragment"><div class="line">cd demo</div>
 <div class="line">docker compose --profile pcd up -d</div>
 </div><!-- fragment --></li>
@@ -130,7 +130,7 @@ $(function(){initNavTree('index.html',''); initResizable(true); });
  <code>docker compose --profile driving logs -f autonomy-datasets-driving</code></p>
 <p class="startli">⚠️ Make sure to comply with the <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/">DrivIng dataset’s license</a>.</p>
 <p class="startli">ℹ️ See <a href="demo/config/point_cloud_object_detection.driving.params.yml">point_cloud_object_detection.driving.params.yml</a> for further configuration options.</p>
-<p class="startli">ℹ️ Since a subset of the <a href="https://doi.org/10.7910/DVN/VBZKDY">DrivIng dataset</a> was used in the training of the <a href="demo/assets/models/point-cloud-object-detection/">demo model</a>, interpret its apparent performance in the demo with care. Apply the model to your own data to estimate the model performance.</p>
+<p class="startli">ℹ️ Since a subset of the <a href="https://doi.org/10.7910/DVN/VBZKDY">DrivIng dataset</a> was used in the training of the demo model, interpret its apparent performance in the demo with care. Apply the model to your own data to estimate the model performance.</p>
 </li>
 </ul>
 </li>
