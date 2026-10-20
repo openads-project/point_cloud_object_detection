@@ -60,7 +60,7 @@ flowchart LR
 | Parameter | Type | Default | Description |
 | --- | --- | --- | --- |
 | `preprocessing.backend` | `string` | `"cpu"` | Point preprocessing backend: 'cpu' or 'cuda'. If 'cuda' is selected, the node fails fast when CUDA preprocessing support is unavailable. |
-| `prediction.server_url` | `string` | - | URL of the triton server, e.g. 134.130.20.221:8001 |
+| `prediction.triton_server_url` | `string` | - | URL of the triton server, e.g. 134.130.20.221:8001 |
 | `prediction.triton_client_timeout_s` | `float` | `2.0` | Client timeout for Triton requests in seconds (0.0 disables timeout) |
 | `prediction.use_shm` | `bool` | `false` | Whether or not to use shared memory for Triton |
 | `prediction.cuda_input_shm` | `bool` | `false` | If true, require Triton input tensors to use CUDA shared memory. This is only used when preprocessing.backend='cuda' and is independent of prediction.use_shm. If CUDA shared memory is unavailable, node startup fails. |
