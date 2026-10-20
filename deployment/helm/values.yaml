@@ -1,6 +1,6 @@
 openadservice:
   name: point-cloud-object-detection
-  image: ghcr.io/openads-project/point_cloud_object_detection:v3.0.0
+  image: ghcr.io/openads-project/point_cloud_object_detection:v3.1.0
   env:
     # --- name ------
     NAMESPACE: /

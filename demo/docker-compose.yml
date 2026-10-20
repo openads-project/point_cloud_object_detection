@@ -46,7 +46,7 @@ services:
 
   point-cloud-object-detection-driving: &point_cloud_object_detection
     profiles: [driving]
-    image: ghcr.io/openads-project/point_cloud_object_detection:v3.0.0-slim
+    image: ghcr.io/openads-project/point_cloud_object_detection:v3.1.0-slim
     depends_on:
       triton-server:
         condition: service_healthy
