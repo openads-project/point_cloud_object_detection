@@ -7,6 +7,10 @@ repositories:
     type: git
     url: https://github.com/ika-rwth-aachen/perception_interfaces.git
     version: v1.2.0
+  rviz_2d_overlay_plugins: # TODO: remove once merged and released: https://github.com/teamspatzenhirn/rviz_2d_overlay_plugins/pull/31
+    type: git
+    url: https://github.com/ika-rwth-aachen/rviz_2d_overlay_plugins.git
+    version: new/camera-overlay-fix
   triton_cpp:
     type: git
     url: https://github.com/openads-project/triton_cpp.git
