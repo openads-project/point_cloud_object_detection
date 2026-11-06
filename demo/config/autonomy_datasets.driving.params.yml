@@ -1,7 +1,7 @@
 /**/*:
   ros__parameters:
     dataset: driving
-    dataset_split: dusk # Options: day, dusk, night, or all. Each split contains the splits named before it due to the way the data was uploaded by its authors.
+    dataset_split: night # Options: night, day, dusk, or all. Each split contains the splits named before it due to the way the data was uploaded by its authors.
     driving_auto_download: true
     driving_download_workers: 8 # Increasing this value may speed up the download of the dataset, but will also increase the load on your computer.
     driving_rosbag_duration_seconds: 20.0
