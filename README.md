@@ -44,24 +44,18 @@ The [demo](demo) provides an example setup for the `point_cloud_object_detection
    xhost +local:
    ```
 
-2. Run the demo with either the `pcd` or `driving` profile.
+2. Choose the data to run the demo on by setting `DATASET` in [`demo/.env`](demo/.env).
 
-   - Use the `pcd` profile to immediately replay and process the ten PCD files provided by the PCD publisher image. This is by far the fastest way to see example output of the detection node.
+   ```dotenv
+   DATASET=pcd
+   ```
 
-        ```bash
-        cd demo
-        docker compose --profile pcd up -d
-        ```
+   - `pcd` replays and processes the ten PCD files provided by the PCD publisher image. This is by far the fastest way to see example output of the detection node.
 
-   - Alternatively, use the `driving` profile to download, convert, replay, and process the [DrivIng dataset](https://doi.org/10.7910/DVN/VBZKDY).
-
-        ```bash
-        cd demo
-        docker compose --profile driving up -d
-        ```
+   - `driving` uses [autonomy_datasets](https://github.com/thinking-cars/autonomy_datasets) to download, convert, replay, and process the [DrivIng dataset](https://doi.org/10.7910/DVN/VBZKDY).
 
         ⚠️ Depending on your bandwidth, it may take **several hours** to start the first run due to the initial download and conversion of the selected sequence. Check the current progress with  
-        `docker compose --profile driving logs -f autonomy-datasets-driving`
+        `docker compose logs -f autonomy-datasets`
 
         ⚠️ Make sure to comply with the [DrivIng dataset’s license](https://creativecommons.org/licenses/by-nc-nd/4.0/).
 
@@ -69,24 +63,30 @@ The [demo](demo) provides an example setup for the `point_cloud_object_detection
 
         ℹ️ Since a subset of the [DrivIng dataset](https://doi.org/10.7910/DVN/VBZKDY) was used in the training of the [demo model](demo/assets/models/README.md), interpret its apparent performance in the demo with care. Apply the model to your own data to estimate the model performance.
 
-        
-
-3. Stop the demo once you're done:
-
-    - For the `pcd` profile:
-        ```bash
-        cd demo
-        docker compose --profile pcd down
-        ```
-
-    - For the `driving` profile:
+   - `nvidia_physicalai_av_dataset` uses [autonomy_datasets](https://github.com/thinking-cars/autonomy_datasets) to download, convert, replay, and process the [NVIDIA PhysicalAI Autonomous Vehicles dataset](https://huggingface.co/datasets/nvidia/PhysicalAI-Autonomous-Vehicles). This dataset requires a Hugging Face access token, which must be exported in the shell you start the demo from:
 
         ```bash
-        cd demo
-        docker compose --profile driving down
+        export HF_TOKEN=your_token_here
         ```
 
-4. Disable the connection to the X server after you're done with the demo:
+        ℹ️ See [Additional dataset demos](demo/README.md) for how to get a token and accept the dataset terms.
+
+3. Start the demo.
+
+   ```bash
+   cd demo
+   docker compose up -d
+   ```
+
+   ℹ️ `demo/.env` selects the matching Docker Compose profile, so no `--profile` option is needed.
+
+4. Stop the demo once you're done. Do this before changing `DATASET`, so that all services of the current run are stopped.
+
+   ```bash
+   docker compose down
+   ```
+
+5. Disable the connection to the X server after you're done with the demo:
 
    ```bash
    xhost -local:

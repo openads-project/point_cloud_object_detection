@@ -1,0 +1,211 @@
+# SOURCE: https://github.com/openads-project/openadstack/blob/main/utils/compose/docker-compose.template.yml
+
+services:
+
+  # === BASE SERVICES ==========================================================
+
+  base-service:
+    restart: ${RESTART_POLICY:-no}
+    environment:
+      - DOCKER_UID
+      - DOCKER_GID
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    ulimits:
+      nofile: # increase maximum number of open files for non-root users [https://lttng.org/man/8/lttng-sessiond/v2.13/]
+        soft: 65536
+        hard: 65536
+
+  x11-service:
+    extends:
+      service: base-service
+    environment:
+      - DISPLAY=${DISPLAY_X11_DOCKER:-${DISPLAY:-""}}
+      - XAUTHORITY${XAUTHORITY_DOCKER:+=/.Xauthority}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ${XAUTHORITY_DOCKER:-/dev/null:/dev/null}${XAUTHORITY_DOCKER:+:/.Xauthority:ro}
+
+  gpu-service:
+    extends:
+      service: base-service
+    deploy:
+      resources:
+          reservations:
+            devices:
+              - driver: nvidia
+                count: all
+                capabilities: [gpu]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      - __NV_PRIME_RENDER_OFFLOAD=1
+      - __GLX_VENDOR_LIBRARY_NAME=nvidia
+
+  nvidia-soc-service:
+    extends:
+      service: base-service
+    runtime: nvidia
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: all
+
+  gpu-x11-service:
+    extends:
+      service: gpu-service
+    environment:
+      - DISPLAY=${DISPLAY_X11_DOCKER:-${DISPLAY:-""}}
+      - XAUTHORITY${XAUTHORITY_DOCKER:+=/.Xauthority}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ${XAUTHORITY_DOCKER:-/dev/null:/dev/null}${XAUTHORITY_DOCKER:+:/.Xauthority:ro}
+
+  nvidia-soc-x11-service:
+    extends:
+      service: nvidia-soc-service
+    environment:
+      - DISPLAY=${DISPLAY_X11_DOCKER:-${DISPLAY:-""}}
+      - XAUTHORITY${XAUTHORITY_DOCKER:+=/.Xauthority}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ${XAUTHORITY_DOCKER:-/dev/null:/dev/null}${XAUTHORITY_DOCKER:+:/.Xauthority:ro}
+
+  # === ROS 2 SERVICES =========================================================
+
+  ros2-service:
+    extends:
+      service: ros2-${RMW:-zenoh}-service # RMW: zenoh|fastrtps|cyclone
+    environment:
+      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
+
+  ros2-zenoh-service:
+    extends:
+      service: base-service
+    environment:
+      RMW_IMPLEMENTATION: rmw_zenoh_cpp
+      RUST_LOG: zenoh=warn
+      # https://github.com/ros2/rmw_zenoh/blob/jazzy/rmw_zenoh_cpp/config/DEFAULT_RMW_ZENOH_SESSION_CONFIG.json5
+      ZENOH_CONFIG_OVERRIDE: >-
+        mode="client"
+        ;connect/endpoints=["tcp/zenoh-router:7447"]
+        ;transport/shared_memory/enabled=true
+        ;transport/shared_memory/transport_optimization/pool_size=100663296
+      ZENOH_ROUTER_CHECK_ATTEMPTS: 0
+    ipc: service:zenoh-router  # overwrite with `ipc: ""` in extending service when running on machine without zenoh-router
+    ulimits:
+      memlock:
+        soft: 17179869184
+        hard: 17179869184
+
+  ros2-fastrtps-service:
+    extends:
+      service: base-service
+    environment:
+      RMW_IMPLEMENTATION: rmw_fastrtps_cpp
+
+  ros2-cyclone-service:
+    extends:
+      service: base-service
+    environment:
+      RMW_IMPLEMENTATION: rmw_cyclone_cpp
+
+  ros2-x11-service:
+    extends:
+      service: ros2-service
+    environment:
+      - DISPLAY=${DISPLAY_X11_DOCKER:-${DISPLAY:-""}}
+      - XAUTHORITY${XAUTHORITY_DOCKER:+=/.Xauthority}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ${XAUTHORITY_DOCKER:-/dev/null:/dev/null}${XAUTHORITY_DOCKER:+:/.Xauthority:ro}
+
+  ros2-gpu-service:
+    extends:
+      service: ros2-service
+    deploy:
+      resources:
+          reservations:
+            devices:
+              - driver: nvidia
+                count: all
+                capabilities: [gpu]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      - __NV_PRIME_RENDER_OFFLOAD=1
+      - __GLX_VENDOR_LIBRARY_NAME=nvidia
+
+  ros2-nvidia-soc-service:
+    extends:
+      service: ros2-service
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+
+  ros2-gpu-x11-service:
+    extends:
+      service: ros2-gpu-service
+    environment:
+      - DISPLAY=${DISPLAY_X11_DOCKER:-${DISPLAY:-""}}
+      - XAUTHORITY${XAUTHORITY_DOCKER:+=/.Xauthority}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ${XAUTHORITY_DOCKER:-/dev/null:/dev/null}${XAUTHORITY_DOCKER:+:/.Xauthority:ro}
+
+  ros2-nvidia-soc-x11-service:
+    extends:
+      service: ros2-nvidia-soc-service
+    environment:
+      - DISPLAY=${DISPLAY_X11_DOCKER:-${DISPLAY:-""}}
+      - XAUTHORITY${XAUTHORITY_DOCKER:+=/.Xauthority}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ${XAUTHORITY_DOCKER:-/dev/null:/dev/null}${XAUTHORITY_DOCKER:+:/.Xauthority:ro}
+
+  # === OTHER SERVICES =========================================================
+
+  triton-server:
+    extends: gpu-service
+    image: nvcr.io/nvidia/tritonserver:26.05-py3
+    ipc: "service:zenoh-router"
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+    command: >
+      tritonserver
+      --model-repository=/models
+      --allow-client-shm=true
+      --grpc-port=8001
+      --http-port=8000
+      --metrics-port=8002
+      --log-verbose=0
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo > /dev/tcp/127.0.0.1/8001"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+      start_period: 120s
+
+  zenoh-router:
+    image: rwthika/ros2:jazzy-ros-base-alternative-rmw
+    restart: ${RESTART_POLICY:-no}
+    environment:
+      RMW_IMPLEMENTATION: rmw_zenoh_cpp
+      RUST_LOG: zenoh=info,zenoh_transport=debug
+      # https://github.com/ros2/rmw_zenoh/blob/jazzy/rmw_zenoh_cpp/config/DEFAULT_RMW_ZENOH_ROUTER_CONFIG.json5
+      ZENOH_CONFIG_OVERRIDE: >-
+        transport/shared_memory/enabled=true
+        ;transport/shared_memory/transport_optimization/pool_size=100663296
+    command: ros2 run rmw_zenoh_cpp rmw_zenohd
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo > /dev/tcp/127.0.0.1/7447"]
+      interval: 1s
+      timeout: 1s
+      retries: 5
+    ipc: shareable
+    shm_size: 16gb
+    ulimits:
+      memlock:
+        soft: 17179869184
+        hard: 17179869184
