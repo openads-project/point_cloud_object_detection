@@ -130,9 +130,10 @@ services:
       service: ros2-service
     environment:
       CONFIG: /params.yml
+      CONTINUE: false
       DATASET: ${DATASET}
       RVIZ: no
-      TARGET_FRAME_RATE: "0.2"
+      TARGET_FRAME_RATE: "1.0"
       HF_TOKEN: ${HF_TOKEN:-}
       HF_HOME: /datasets/.cache/huggingface
     volumes:
