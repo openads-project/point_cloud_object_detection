@@ -112,13 +112,12 @@ services:
         condition: service_started
     volumes:
       - ./rviz/config.${DATASET}.rviz:/config.rviz
-      - ./rviz/reset_rviz_on_clock_jump.py:/opt/demo/reset_rviz_on_clock_jump.py:ro
     command: >
       bash -lc "
         if [ "${DATASET}" = pcd ]; then
             rviz2 -d /config.rviz --ros-args -r __node:=rviz -p use_sim_time:=false;
         else
-            python3 /opt/demo/reset_rviz_on_clock_jump.py -- rviz2 -d /config.rviz --ros-args -r __node:=rviz -p use_sim_time:=true;
+            rviz2 -d /config.rviz --ros-args -r __node:=rviz -p use_sim_time:=true;
         fi
       "
 
@@ -139,7 +138,6 @@ services:
     volumes:
       - ${DATASET_DIR:-./data/datasets}:/datasets
       - ./config/autonomy_datasets.${DATASET}.params.yml:/params.yml:ro
-    #command: sleep infinity
 
   pcd-publisher:
     profiles: [pcd]
