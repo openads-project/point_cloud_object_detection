@@ -65,14 +65,15 @@ flowchart LR
 | Parameter | Type | Default | Description |
 | --- | --- | --- | --- |
 | `preprocessing.backend` | `string` | `"cpu"` | Point preprocessing backend: 'cpu' or 'cuda'. If 'cuda' is selected, the node fails fast when CUDA preprocessing support is unavailable. |
-| `prediction.server_url` | `string` | - | URL of the triton server, e.g. 134.130.20.221:8001 |
+| `prediction.triton_server_url` | `string` | - | URL of the triton server, e.g. 134.130.20.221:8001 |
 | `prediction.triton_client_timeout_s` | `float` | `2.0` | Client timeout for Triton requests in seconds (0.0 disables timeout) |
 | `prediction.use_shm` | `bool` | `false` | Whether or not to use shared memory for Triton |
 | `prediction.cuda_input_shm` | `bool` | `false` | If true, require Triton input tensors to use CUDA shared memory. This is only used when preprocessing.backend='cuda' and is independent of prediction.use_shm. If CUDA shared memory is unavailable, node startup fails. |
 | `preprocessing.inference_frame` | `string` | - | Frame for inference |
 | `output.frame` | `string` | - | Frame for object list |
 | `output.sensor_id` | `int` | `0` | Sensor ID for object list |
-| `output.variances` | `float[]` | `std::vector<double>(12, -1.0)` | Array with variances. Entries correspond to ISCACTR model defined in perception interfaces |
+| `output.variances` | `float[]` | `[] {
+    std::vector<double> values(12, perception_msgs::object_access::CONTINUOUS_STATE_COVARIANCE_UNKNOWN)` | Array with variances. Entries correspond to ISCACTR model defined in perception interfaces |
 | `postprocessing.merging.enabled` | `bool` | `false` | Merge high-overlap boxes independently of class before ordinary NMS. Retain the strongest geometry and average full class probabilities using detection scores. |
 | `postprocessing.merging.score_threshold` | `float` | `0.5` | Merge score threshold: rotated 3D intersection volume / sqrt(volume_a * volume_b). Independent of NMS; positive heights required. Changes do not reload the model. |
 | `postprocessing.nms.iou_threshold` | `float` | - | NMS IoU threshold. Defaults to runtime_defaults.postprocessing.nms.iou_threshold from the model manifest. |
@@ -135,3 +136,4 @@ flowchart LR
 | `log_level` | `"info"` | ROS logging level (debug, info, warn, error, fatal) |
 | `use_sim_time` | `"false"` | use simulation clock |
 | `ros_tracing` | `"false"` | Enable tracing |
+| `triton_server_url` | `"triton-server:8001"` | Triton server URL |

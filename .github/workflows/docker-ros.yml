@@ -54,6 +54,7 @@ jobs:
           base-image: rwthika/ros2-triton:jazzy
           rmw-implementation: rmw_zenoh_cpp
           command: ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py
+          enable-recursive-vcs-import: "false"
           enable-industrial-ci: true
           cmake-args: >-
             -DCMAKE_BUILD_TYPE=Release
@@ -65,7 +66,6 @@ jobs:
             --target-compose-svc point-cloud-object-detection
             --dep-exclude-compose-svc-all
         env:
-          ENABLE_RECURSIVE_VCS_IMPORT: 'false'
           FAT_IMAGE: ghcr.io/${{ github.repository }}:${{ github.ref_type == 'tag' && github.ref_name || github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && 'latest' || format('latest_{0}_ci', steps.slug.outputs.slug) }}-${{ matrix.platform }}
           SLIM_MODEL_DIR: ${{ runner.temp }}/models
           SLIM_WORKSPACE: ${{ github.workspace }}
