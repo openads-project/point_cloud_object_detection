@@ -820,6 +820,20 @@ void PointCloudObjectDetection::declareParameters() {
                                 false,                                                                                  // read_only
                                 kMinClassScoreThreshold, kMaxClassScoreThreshold, std::nullopt,                         // from_value, to_value, step_value
                                 "Must be within [0.0, 1.0].");                                                          // additional_constraints
+  this->declareAndLoadParameter("postprocessing.merging.enabled", params_.merging_enabled,                              // name
+                                "Merge high-overlap boxes independently of class before ordinary NMS. Retain the "
+                                "strongest geometry and average full class probabilities using detection scores.",      // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false);                                                                                 // read_only
+  this->declareAndLoadParameter("postprocessing.merging.score_threshold", params_.merging_score_threshold,              // name
+                                "Merge score threshold: rotated 3D intersection volume / sqrt(volume_a * volume_b). "
+                                "Independent of NMS; positive heights required. Changes do not reload the model.",      // description
+                                true,                                                                                   // add_to_auto_reconfigurable_params
+                                false,                                                                                  // is_required
+                                false,                                                                                  // read_only
+                                0.0, 1.0, std::nullopt,                                                                 // from_value, to_value, step_value
+                                "Must be finite and within [0.0, 1.0].");                                               // additional_constraints
   this->declareAndLoadParameter("postprocessing.nms.iou_threshold", params_.nms_iou_threshold,                          // name
                                 "NMS IoU threshold. Defaults to runtime_defaults.postprocessing.nms."
                                 "iou_threshold from the model manifest.",                                               // description
@@ -838,10 +852,10 @@ void PointCloudObjectDetection::declareParameters() {
                                 "Must be zero or positive.");                                                           // additional_constraints
   this->declareAndLoadParameter("postprocessing.nms.score_mode", params_.nms_score_mode,                                // name
                                 "Confidence for NMS score filtering and ranking: existence (presence only), "
-                                "existence_quality (presence times localization quality, default), or "
+                                "existence_quality (presence times localization quality), or "
                                 "existence_quality_class (presence times localization quality times highest "
-                                "softmax class probability). Runtime changes reinitialize the model; score "
-                                "thresholds may need retuning.",                                                        // description
+                                "softmax class probability). Defaults to runtime_defaults.postprocessing.score_mode "
+                                "in the model manifest. Runtime changes reinitialize the model; score thresholds may need retuning.",                                                        // description
                                 true,                                                                                   // add_to_auto_reconfigurable_params
                                 false,                                                                                  // is_required
                                 false,                                                                                  // read_only
@@ -1166,6 +1180,12 @@ void PointCloudObjectDetection::syncNmsRuntimeConfigFromParams(ModelConfig& mode
   model_config.nms_iou_threshold = static_cast<float>(params.nms_iou_threshold);
   model_config.nms_max_num_objects = static_cast<int>(params.nms_max_num_objects);
 
+  if (!std::isfinite(params.merging_score_threshold) || params.merging_score_threshold < 0.0 ||
+      params.merging_score_threshold > 1.0) {
+    throwParameterError(this->get_logger(), "postprocessing.merging.score_threshold", "must be finite and within [0.0, 1.0]");
+  }
+  nms_config.merge_enabled = params.merging_enabled;
+  nms_config.merge_score_threshold = static_cast<float>(params.merging_score_threshold);
   nms_config.iou_threshold = model_config.nms_iou_threshold;
   nms_config.max_detections = model_config.nms_max_num_objects;
   nms_config.score_thresholds.clear();
@@ -1229,6 +1249,7 @@ void PointCloudObjectDetection::loadManifestBackedParameterDefaults() {
   params_.detection_area_z_min = manifest.frozen_contract.preprocessing.z_range[0];
   params_.detection_area_z_max = manifest.frozen_contract.preprocessing.z_range[1];
   params_.output_class_score_threshold = manifest.runtime_defaults.postprocessing.class_score_threshold;
+  params_.nms_score_mode = manifest.runtime_defaults.postprocessing.score_mode;
   params_.nms_iou_threshold = manifest.runtime_defaults.postprocessing.nms_iou_threshold;
   params_.nms_max_num_objects = manifest.runtime_defaults.postprocessing.max_detections;
   params_.nms_score_threshold.assign(manifest.runtime_defaults.postprocessing.nms_score_thresholds.begin(),
@@ -2494,7 +2515,10 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
     const std::size_t boxes_before_nms = center_boxes.size();
 
     // non-maximum suppression
-    pcod_common::ApplyRotatedNms(center_boxes, nms_config_snapshot);
+    pcod_common::NmsStats nms_stats;
+    const auto nms_started = std::chrono::steady_clock::now();
+    pcod_common::ApplyRotatedNms(center_boxes, nms_config_snapshot, &nms_stats);
+    const auto nms_compute_time = std::chrono::steady_clock::now() - nms_started;
     timestamps.push_back(std::chrono::high_resolution_clock::now());  // index: 5, after nms
     const std::size_t boxes_after_nms = center_boxes.size();
 
@@ -2614,14 +2638,17 @@ void PointCloudObjectDetection::predict(const sensor_msgs::msg::PointCloud2::Con
     const char* event_name = "pcod_timing";
     RCLCPP_DEBUG(this->get_logger(),
                  "%s points=%zu used_points=%zu boxes_in=%zu boxes_nms=%zu "
+                 "candidates=%zu boxes_merged=%zu iou_evaluations=%zu "
                  "boxes_out=%zu objects=%zu "
                  "e2e_ms=%.3f pcl_pre_ms=%.3f model_input_ms=%.3f infer_ms=%.3f "
                  "decode_ms=%.3f "
-                 "nms_ms=%.3f filter_ms=%.3f boxes_to_msg_ms=%.3f publish_ms=%.3f",
-                 event_name, prepared_input.total_points, used_points, boxes_before_nms, boxes_after_nms, center_boxes.size(),
-                 size, to_ms(timestamps[8] - timestamps[0]), to_ms(timestamps[1] - timestamps[0]),
-                 to_ms(timestamps[2] - timestamps[1]), to_ms(timestamps[3] - timestamps[2]), to_ms(timestamps[4] - timestamps[3]),
-                 to_ms(timestamps[5] - timestamps[4]), to_ms(timestamps[6] - timestamps[5]), to_ms(timestamps[7] - timestamps[6]),
+                 "nms_ms=%.3f nms_compute_ms=%.3f filter_ms=%.3f boxes_to_msg_ms=%.3f "
+                 "publish_ms=%.3f",
+                 event_name, prepared_input.total_points, used_points, boxes_before_nms, boxes_after_nms, nms_stats.candidates,
+                 nms_stats.merged_boxes, nms_stats.iou_evaluations, center_boxes.size(), size,
+                 to_ms(timestamps[8] - timestamps[0]), to_ms(timestamps[1] - timestamps[0]), to_ms(timestamps[2] - timestamps[1]),
+                 to_ms(timestamps[3] - timestamps[2]), to_ms(timestamps[4] - timestamps[3]), to_ms(timestamps[5] - timestamps[4]),
+                 to_ms(nms_compute_time), to_ms(timestamps[6] - timestamps[5]), to_ms(timestamps[7] - timestamps[6]),
                  to_ms(timestamps[8] - timestamps[7]));
   } catch (const std::exception& e) {
     RCLCPP_ERROR(this->get_logger(), "Failed to process point cloud frame: %s", e.what());

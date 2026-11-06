@@ -27,7 +27,13 @@
 
     # Confidence factors for NMS filtering and ranking:
     # existence, existence_quality, or existence_quality_class
-    postprocessing.nms.score_mode: "existence_quality"
+    # postprocessing.nms.score_mode: "existence_quality"
+
+    # Optional duplicate merging, independent of the class-aware NMS threshold.
+    # Score = rotated 3D intersection volume / sqrt(volume_a * volume_b).
+    # Keep the strongest geometry/existence and combine the full class distributions.
+    postprocessing.merging.enabled: false
+    postprocessing.merging.score_threshold: 0.5
 
     # Runtime overrides for exported manifest defaults.
     # preprocessing.detection_area.z_min: -1.0

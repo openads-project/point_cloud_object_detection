@@ -104,7 +104,9 @@ set(PCOD_COMMON_BUILD_TESTS OFF CACHE BOOL "Disable pcod-common tests in this wo
 set(PCOD_COMMON_ENABLE_CUDA ${ENABLE_CUDA} CACHE BOOL "Enable optional CUDA components for pcod-common" FORCE)
 add_subdirectory(pcod-common)
 if(TARGET pcod_common)
-  set_target_properties(pcod_common PROPERTIES POSITION_INDEPENDENT_CODE ON)
+  # The submodule has its own CI and style configuration. Keep its sources and
+  # NVCC command lines out of the ROS package's clang-tidy compilation database.
+  set_target_properties(pcod_common PROPERTIES POSITION_INDEPENDENT_CODE ON EXPORT_COMPILE_COMMANDS OFF)
   if(PCOD_CUDA_FAST_MATH)
     target_compile_options(pcod_common PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--use_fast_math>)
   endif()
@@ -180,6 +182,12 @@ if(BUILD_TESTING)
   add_executable(test_pbod_feature_utils tests/test_pbod_feature_utils.cpp)
   target_include_directories(test_pbod_feature_utils PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
   ament_add_test(test_pbod_feature_utils COMMAND $<TARGET_FILE:test_pbod_feature_utils> GENERATE_RESULT_FOR_RETURN_CODE_ZERO)
+
+  add_executable(test_classification_merging tests/test_classification_merging.cpp src/Utils.cpp)
+  target_include_directories(test_classification_merging PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  target_link_libraries(test_classification_merging pcod_common)
+  ament_target_dependencies(test_classification_merging perception_msgs)
+  ament_add_test(test_classification_merging COMMAND $<TARGET_FILE:test_classification_merging> GENERATE_RESULT_FOR_RETURN_CODE_ZERO)
 
   add_executable(test_point_utils tests/test_point_utils.cpp)
   target_include_directories(test_point_utils PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)

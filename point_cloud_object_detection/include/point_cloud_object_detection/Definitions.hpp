@@ -94,6 +94,8 @@ struct Params {
   // Exported runtime defaults from model_manifest.yml, overridable via ROS
   // parameters.
   std::string nms_score_mode = "existence_quality";
+  bool merging_enabled = false;
+  double merging_score_threshold = 0.5;
   double nms_iou_threshold = 0.0;
   int64_t nms_max_num_objects = 0;
   double output_class_score_threshold = 0.0;
