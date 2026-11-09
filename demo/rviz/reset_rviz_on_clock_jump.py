@@ -8,6 +8,7 @@ import sys
 import time
 
 import rclpy
+from rclpy.clock import Clock as RclpyClock, ClockType
 from rclpy.node import Node
 from rclpy.qos import QoSDurabilityPolicy, QoSProfile, QoSReliabilityPolicy
 from rosgraph_msgs.msg import Clock
@@ -29,6 +30,9 @@ class RvizClockResetWatchdog(Node):
         self._last_reset_monotonic = 0.0
         self._rviz_process = subprocess.Popen(rviz_command)
         self._reset_client = self.create_client(Empty, RESET_SERVICE)
+        self._reset_future = None
+        self._reset_deadline = 0.0
+        self._reset_timer = self.create_timer(0.1, self._check_reset_result, clock=RclpyClock(clock_type=ClockType.STEADY_TIME))
 
         qos = QoSProfile(
             depth=10,
@@ -54,13 +58,25 @@ class RvizClockResetWatchdog(Node):
         self._last_reset_monotonic = now
         self.get_logger().info(f"Calling {RESET_SERVICE}")
 
-        if not self._reset_client.wait_for_service(timeout_sec=RESET_TIMEOUT_SEC):
+        if not self._reset_client.service_is_ready():
             self.get_logger().warn(f"{RESET_SERVICE} is not available; skipping RViz reset")
             return
 
-        future = self._reset_client.call_async(Empty.Request())
-        rclpy.spin_until_future_complete(self, future, timeout_sec=RESET_TIMEOUT_SEC)
-        if not future.done() or future.exception() is not None:
+        self._reset_future = self._reset_client.call_async(Empty.Request())
+        self._reset_deadline = now + RESET_TIMEOUT_SEC
+
+    def _check_reset_result(self):
+        """Check the asynchronous reset without recursively spinning the executor."""
+        future = self._reset_future
+        if future is None:
+            return
+        if future.done():
+            self._reset_future = None
+            if future.cancelled() or future.exception() is not None:
+                self.get_logger().warn("RViz reset_time call failed or timed out")
+        elif time.monotonic() >= self._reset_deadline:
+            self._reset_future = None
+            future.cancel()
             self.get_logger().warn("RViz reset_time call failed or timed out")
 
     def destroy_node(self):
