@@ -98,6 +98,31 @@ The [demo](demo) provides an example setup for the `point_cloud_object_detection
 
 The `ros-parameter-gui` service starts `rqt` with the `rqt_reconfigure` plugin. You may use it to inspect and adjust the parameters of the `point_cloud_object_detection` node while the demo is active. Click **Refresh** in rqt after startup if not all nodes are listed.
 
+### 📊 Results
+
+The metrics are computed by the `object_detection_3d` evaluation (version 1.0.0) of [autonomy_evaluation](https://github.com/thinking-cars/autonomy_evaluation/blob/main/docs/IMPLEMENTATION.md). The detector does not estimate velocities, so the velocity error is not computed and is left out of the detection score. AP is averaged over center-distance thresholds of 0.5, 1, 2 and 4 m. Classes without true positives count with an error of 1 in the mean errors, and classes without labels are not evaluated.
+
+| Dataset | Split | Scenes | Samples | Score ↑ | mAP ↑ | mATE (m) ↓ | mASE ↓ | mAOE (rad) ↓ |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| [DrivIng](https://doi.org/10.7910/DVN/VBZKDY) | night | 99 | 19,559 | 0.271 | 0.232 | 0.564 | 0.430 | 1.112 |
+
+<details>
+<summary>Per-class results on DrivIng (night)</summary>
+
+| Class | Labels | Detections | AP ↑ | ATE (m) ↓ | ASE ↓ | AOE (rad) ↓ |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| car | 114,815 | 71,658 | 0.551 | 0.161 | 0.175 | 0.283 |
+| motorcycle | 1,568 | 986 | 0.523 | 0.198 | 0.104 | 2.735 |
+| pedestrian | 9,160 | 9,044 | 0.321 | 0.145 | 0.289 | 1.774 |
+| bicycle | 3,886 | 1,589 | 0.205 | 0.170 | 0.327 | 1.600 |
+| bus | 331 | 176 | 0.179 | 1.057 | 0.275 | 0.171 |
+| utility | 3,107 | 1,043 | 0.076 | 0.780 | 0.267 | 0.332 |
+| micro | 268 | 0 | 0.000 | – | – | – |
+| animal | 145 | 5 | 0.000 | – | – | – |
+| vru | 0 | 5 | – | – | – | – |
+
+</details>
+
 ## 💻 Development
 
 ### Set up Development Environment
