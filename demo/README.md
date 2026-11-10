@@ -41,6 +41,28 @@ Feel free to configure additional demos with one of the datasets available throu
     xhost -local:
     ```
 
+## Evaluating the detector
+
+[autonomy_evaluation](https://github.com/thinking-cars/autonomy_evaluation) compares the detections with the labels of the dataset, and is therefore available for `DATASET=driving` and `DATASET=nvidia_physicalai_av_dataset`, but not for `DATASET=pcd`.
+
+1. Enable the evaluation by uncommenting `COMPOSE_FILE` in [`demo/.env`](.env):
+
+   ```dotenv
+   COMPOSE_FILE=docker-compose.yml:docker-compose.evaluation.yml
+   ```
+
+2. Start the demo as usual:
+
+   ```bash
+   docker compose up -d
+   ```
+
+   Instead of replaying at a fixed rate, the evaluation requests the samples one by one and advances as soon as the detector has processed each of them.
+
+3. A second RViz window shows the result of each sample: true positives in green, false positives in red, false negatives in yellow, and ignored objects in gray.
+
+4. Once all samples are evaluated, the report is written to `demo/data/results/object_detection_3d.<DATASET>.json`. It contains the metrics over all samples and per scene, which are [documented by autonomy_evaluation](https://github.com/thinking-cars/autonomy_evaluation/blob/main/docs/IMPLEMENTATION.md). The evaluation RViz stays open until you stop the demo with `docker compose down`.
+
 ## Custom PCD files
 
 To process your own PCD files, follow [these instructions](services/pcd-publisher/README.md) and run the demo with `DATASET=pcd` in [`.env`](.env).

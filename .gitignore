@@ -1,3 +1,5 @@
 __pycache__
 demo/data/datasets/*
 !demo/data/datasets/.gitkeep
+demo/data/results/*
+!demo/data/results/.gitkeep

@@ -80,6 +80,8 @@ The [demo](demo) provides an example setup for the `point_cloud_object_detection
 
    ℹ️ `demo/.env` selects the matching Docker Compose profile, so no `--profile` option is needed.
 
+   ℹ️ For the datasets, `demo/.env` can also enable an evaluation of the detector that shows true positives, false positives and false negatives in RViz and writes a JSON report. See [Evaluating the detector](demo/README.md#evaluating-the-detector).
+
 4. Stop the demo once you're done. Do this before changing `DATASET`, so that all services of the current run are stopped.
 
    ```bash
