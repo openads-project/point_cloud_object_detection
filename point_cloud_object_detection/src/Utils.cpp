@@ -3,7 +3,17 @@
 
 #include "point_cloud_object_detection/Utils.hpp"
 
+#include <stdexcept>
+
 namespace point_cloud_object_detection {
+void setDetectionConfidence(const pcod_common::BoundingBox& box, perception_msgs::msg::Object& object) {
+  if (!box.detection_score || !std::isfinite(*box.detection_score) || *box.detection_score < 0.0F ||
+      *box.detection_score > 1.0F) {
+    throw std::invalid_argument("Detection score must be present, finite and within [0, 1]");
+  }
+  object.existence_probability = *box.detection_score;
+}
+
 // Sanitizes a ROS topic name by removing leading special characters and
 // replacing invalid characters with underscores.
 std::string sanitizeTopicName(const std::string& name) {

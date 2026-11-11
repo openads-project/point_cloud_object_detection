@@ -25,7 +25,7 @@
     # Model input feature selection
     input.point_feature_field: "intensity"
 
-    # Confidence factors for NMS filtering and ranking:
+    # Confidence published in existence_probability and used for NMS filtering/ranking.
     # existence, existence_quality, or existence_quality_class
     # postprocessing.nms.score_mode: "existence_quality"
 

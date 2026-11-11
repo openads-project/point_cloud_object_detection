@@ -189,6 +189,12 @@ if(BUILD_TESTING)
   ament_target_dependencies(test_classification_merging perception_msgs)
   ament_add_test(test_classification_merging COMMAND $<TARGET_FILE:test_classification_merging> GENERATE_RESULT_FOR_RETURN_CODE_ZERO)
 
+  add_executable(test_detection_confidence tests/test_detection_confidence.cpp src/Utils.cpp)
+  target_include_directories(test_detection_confidence PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  target_link_libraries(test_detection_confidence pcod_common)
+  ament_target_dependencies(test_detection_confidence perception_msgs perception_msgs_utils tf2_perception_msgs)
+  ament_add_test(test_detection_confidence COMMAND $<TARGET_FILE:test_detection_confidence> GENERATE_RESULT_FOR_RETURN_CODE_ZERO)
+
   add_executable(test_point_utils tests/test_point_utils.cpp)
   target_include_directories(test_point_utils PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
   ament_target_dependencies(test_point_utils pcl_ros)

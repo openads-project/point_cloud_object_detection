@@ -6,11 +6,22 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <perception_msgs/msg/object.hpp>
 #include <perception_msgs/msg/object_classification.hpp>
 #include <string>
 #include <vector>
 
+#include "pcod_common/bounding_box.hpp"
+
 namespace point_cloud_object_detection {
+/**
+ * @brief Set object.existence_probability to box.detection_score.
+ *
+ * The detection score is computed according to postprocessing.nms.score_mode.
+ * @throws std::invalid_argument if the score is missing, non-finite or outside [0, 1].
+ */
+void setDetectionConfidence(const pcod_common::BoundingBox& box, perception_msgs::msg::Object& object);
+
 /**
  * @brief Convert an arbitrary class name into a topic-safe suffix.
  */

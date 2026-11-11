@@ -850,7 +850,7 @@ void PointCloudObjectDetection::declareParameters() {
                                 0.0, static_cast<double>(std::numeric_limits<int32_t>::max()), std::nullopt,            // from_value, to_value, step_value
                                 "Must be zero or positive.");                                                           // additional_constraints
   this->declareAndLoadParameter("postprocessing.nms.score_mode", params_.nms_score_mode,                                // name
-                                "Confidence for NMS score filtering and ranking: existence (presence only), "
+                                "Confidence published in existence_probability and used for NMS filtering and ranking: existence (presence only), "
                                 "existence_quality (presence times localization quality), or "
                                 "existence_quality_class (presence times localization quality times highest "
                                 "softmax class probability). Defaults to runtime_defaults.postprocessing.score_mode "
@@ -1989,8 +1989,14 @@ void PointCloudObjectDetection::boxesToObjectList(const std::vector<BoundingBox>
     // set id
     object.id = idx;
 
-    // Publish objectness independently of the class-weighted NMS score.
-    object.existence_probability = bboxes[idx].existence_probability;
+    // Use the score selected by postprocessing.nms.score_mode as the published confidence.
+    try {
+      setDetectionConfidence(bboxes[idx], object);
+    } catch (const std::invalid_argument& error) {
+      RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), 5000, "Skipping detection with invalid score (mode '%s'): %s",
+                            params.nms_score_mode.c_str(), error.what());
+      continue;
+    }
 
     // set object position
     pm::object_access::setX(object, bboxes[idx].center[0]);
