@@ -61,7 +61,8 @@ var NAVTREE =
       [ "File List", "files.html", "files_dup" ],
       [ "File Members", "globals.html", [
         [ "All", "globals.html", null ],
-        [ "Functions", "globals_func.html", null ]
+        [ "Functions", "globals_func.html", null ],
+        [ "Variables", "globals_vars.html", null ]
       ] ]
     ] ]
   ] ]
@@ -70,11 +71,11 @@ var NAVTREE =
 var NAVTREEINDEX =
 [
 "Definitions_8hpp.html",
-"classpoint__cloud__object__detection_1_1PBODModel.html#a748951ce96c862cc4dfb1bc4142b221e",
-"functions_y.html",
-"structpcod__common_1_1BoundingBoxVertex.html#ac9739b25e480aed7ef24aa3c2d437e8e",
-"structpcod__common_1_1PointPreprocessConfig.html#a905a32da195d0f4d8d448a5407fb4293",
-"structpoint__cloud__object__detection_1_1Params.html#ae23273198805a6e904cdee92192291ff"
+"classpoint__cloud__object__detection_1_1PBODModel.html#a73e3608112525dc54cee6895535b5dbf",
+"functions_w.html",
+"structpcod__common_1_1BoundingBox.html#a1106ddad21e6a7ccfebdbb12a2cdb0de",
+"structpcod__common_1_1PillarPreprocessCudaDeviceOutputs.html#a37500bb681096798865d8a40b3ec3bfb",
+"structpoint__cloud__object__detection_1_1Params.html#a4258dae2f8d40688df2cd4c7aa050db1"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

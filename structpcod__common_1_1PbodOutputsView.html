@@ -28,7 +28,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">point_cloud_object_detection<span id="projectnumber">&#160;v3.1.1</span>
+   <div id="projectname">point_cloud_object_detection<span id="projectnumber">&#160;v4.0.0</span>
    </div>
   </td>
  </tr>
@@ -109,8 +109,11 @@ $(function(){initNavTree('structpcod__common_1_1PbodOutputsView.html',''); initR
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
 <tr class="memitem:a12ef5928a3974b62149505adf6e73009" id="r_a12ef5928a3974b62149505adf6e73009"><td class="memItemLeft" align="right" valign="top">const float *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a12ef5928a3974b62149505adf6e73009">focal_logits</a> = nullptr</td></tr>
-<tr class="memdesc:a12ef5928a3974b62149505adf6e73009"><td class="mdescLeft">&#160;</td><td class="mdescRight">Shape <code>[num_pillars]</code>.  <br /></td></tr>
+<tr class="memdesc:a12ef5928a3974b62149505adf6e73009"><td class="mdescLeft">&#160;</td><td class="mdescRight">Quality-weighted presence logits, shape <code>[num_pillars]</code>.  <br /></td></tr>
 <tr class="separator:a12ef5928a3974b62149505adf6e73009"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad0b7cd49f05d77f1da3394722e378c68" id="r_ad0b7cd49f05d77f1da3394722e378c68"><td class="memItemLeft" align="right" valign="top">const float *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ad0b7cd49f05d77f1da3394722e378c68">objectness_logits</a> = nullptr</td></tr>
+<tr class="memdesc:ad0b7cd49f05d77f1da3394722e378c68"><td class="mdescLeft">&#160;</td><td class="mdescRight">Presence logits, shape <code>[num_pillars]</code>.  <br /></td></tr>
+<tr class="separator:ad0b7cd49f05d77f1da3394722e378c68"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae9fa97aa5ff28f36fad0e5187cdcd712" id="r_ae9fa97aa5ff28f36fad0e5187cdcd712"><td class="memItemLeft" align="right" valign="top">const float *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ae9fa97aa5ff28f36fad0e5187cdcd712">size_posterior</a> = nullptr</td></tr>
 <tr class="memdesc:ae9fa97aa5ff28f36fad0e5187cdcd712"><td class="mdescLeft">&#160;</td><td class="mdescRight">Shape <code>[num_pillars, num_classes * 3]</code>.  <br /></td></tr>
 <tr class="separator:ae9fa97aa5ff28f36fad0e5187cdcd712"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -133,7 +136,7 @@ Public Attributes</h2></td></tr>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Non-owning view over the dense tensors emitted by a PBOD head. </p>
 
-<p class="definition">Definition at line <a class="el" href="pbod__postprocess_8hpp_source.html#l00021">21</a> of file <a class="el" href="pbod__postprocess_8hpp_source.html">pbod_postprocess.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="pbod__postprocess_8hpp_source.html#l00032">32</a> of file <a class="el" href="pbod__postprocess_8hpp_source.html">pbod_postprocess.hpp</a>.</p>
 </div><h2 class="groupheader">Member Data Documentation</h2>
 <a id="adb78ae95ef4587ec61ee185191860d37" name="adb78ae95ef4587ec61ee185191860d37"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#adb78ae95ef4587ec61ee185191860d37">&#9670;&#160;</a></span>class_logits</h2>
@@ -149,7 +152,7 @@ Public Attributes</h2></td></tr>
 
 <p>Shape <code>[num_pillars, num_classes]</code>. </p>
 
-<p class="definition">Definition at line <a class="el" href="pbod__postprocess_8hpp_source.html#l00024">24</a> of file <a class="el" href="pbod__postprocess_8hpp_source.html">pbod_postprocess.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="pbod__postprocess_8hpp_source.html#l00036">36</a> of file <a class="el" href="pbod__postprocess_8hpp_source.html">pbod_postprocess.hpp</a>.</p>
 
 </div>
 </div>
@@ -165,9 +168,9 @@ Public Attributes</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p>Shape <code>[num_pillars]</code>. </p>
+<p>Quality-weighted presence logits, shape <code>[num_pillars]</code>. </p>
 
-<p class="definition">Definition at line <a class="el" href="pbod__postprocess_8hpp_source.html#l00022">22</a> of file <a class="el" href="pbod__postprocess_8hpp_source.html">pbod_postprocess.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="pbod__postprocess_8hpp_source.html#l00033">33</a> of file <a class="el" href="pbod__postprocess_8hpp_source.html">pbod_postprocess.hpp</a>.</p>
 
 </div>
 </div>
@@ -185,7 +188,7 @@ Public Attributes</h2></td></tr>
 
 <p>Number of semantic classes. </p>
 
-<p class="definition">Definition at line <a class="el" href="pbod__postprocess_8hpp_source.html#l00027">27</a> of file <a class="el" href="pbod__postprocess_8hpp_source.html">pbod_postprocess.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="pbod__postprocess_8hpp_source.html#l00039">39</a> of file <a class="el" href="pbod__postprocess_8hpp_source.html">pbod_postprocess.hpp</a>.</p>
 
 </div>
 </div>
@@ -203,7 +206,25 @@ Public Attributes</h2></td></tr>
 
 <p>Number of spatial pillars. </p>
 
-<p class="definition">Definition at line <a class="el" href="pbod__postprocess_8hpp_source.html#l00026">26</a> of file <a class="el" href="pbod__postprocess_8hpp_source.html">pbod_postprocess.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="pbod__postprocess_8hpp_source.html#l00038">38</a> of file <a class="el" href="pbod__postprocess_8hpp_source.html">pbod_postprocess.hpp</a>.</p>
+
+</div>
+</div>
+<a id="ad0b7cd49f05d77f1da3394722e378c68" name="ad0b7cd49f05d77f1da3394722e378c68"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad0b7cd49f05d77f1da3394722e378c68">&#9670;&#160;</a></span>objectness_logits</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">const float* pcod_common::PbodOutputsView::objectness_logits = nullptr</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Presence logits, shape <code>[num_pillars]</code>. </p>
+
+<p class="definition">Definition at line <a class="el" href="pbod__postprocess_8hpp_source.html#l00034">34</a> of file <a class="el" href="pbod__postprocess_8hpp_source.html">pbod_postprocess.hpp</a>.</p>
 
 </div>
 </div>
@@ -221,7 +242,7 @@ Public Attributes</h2></td></tr>
 
 <p>Regression values per pillar and class. </p>
 
-<p class="definition">Definition at line <a class="el" href="pbod__postprocess_8hpp_source.html#l00028">28</a> of file <a class="el" href="pbod__postprocess_8hpp_source.html">pbod_postprocess.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="pbod__postprocess_8hpp_source.html#l00040">40</a> of file <a class="el" href="pbod__postprocess_8hpp_source.html">pbod_postprocess.hpp</a>.</p>
 
 </div>
 </div>
@@ -239,7 +260,7 @@ Public Attributes</h2></td></tr>
 
 <p>Shape <code>[num_pillars, num_classes * reg_dim]</code>. </p>
 
-<p class="definition">Definition at line <a class="el" href="pbod__postprocess_8hpp_source.html#l00025">25</a> of file <a class="el" href="pbod__postprocess_8hpp_source.html">pbod_postprocess.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="pbod__postprocess_8hpp_source.html#l00037">37</a> of file <a class="el" href="pbod__postprocess_8hpp_source.html">pbod_postprocess.hpp</a>.</p>
 
 </div>
 </div>
@@ -257,7 +278,7 @@ Public Attributes</h2></td></tr>
 
 <p>Shape <code>[num_pillars, num_classes * 3]</code>. </p>
 
-<p class="definition">Definition at line <a class="el" href="pbod__postprocess_8hpp_source.html#l00023">23</a> of file <a class="el" href="pbod__postprocess_8hpp_source.html">pbod_postprocess.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="pbod__postprocess_8hpp_source.html#l00035">35</a> of file <a class="el" href="pbod__postprocess_8hpp_source.html">pbod_postprocess.hpp</a>.</p>
 
 </div>
 </div>

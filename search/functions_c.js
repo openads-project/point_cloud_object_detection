@@ -9,6 +9,7 @@ var searchData=
   ['refreshresolvedmodelconfiglocked_6',['refreshResolvedModelConfigLocked',['../classpoint__cloud__object__detection_1_1PointCloudObjectDetection.html#a0d8b42e07759f3c7fb35304165e3f21a',1,'point_cloud_object_detection::PointCloudObjectDetection']]],
   ['rotated_5fnms_7',['rotated_nms',['../rotated__nms_8cpp.html#a865a49b685013f839834f750c819b1d3',1,'rotated_nms.cpp']]],
   ['rotated_5fnms_5fcuda_8',['rotated_nms_cuda',['../rotated__nms_8cpp.html#a47d2cf6d8eb4014d9107b5921095c649',1,'rotated_nms.cpp']]],
-  ['run_9',['run',['../classpcod__common_1_1PillarPreprocessCudaContext.html#aec8dc1602dc37f4704878ffd817f9195',1,'pcod_common::PillarPreprocessCudaContext']]],
-  ['runtodevice_10',['runToDevice',['../classpcod__common_1_1PillarPreprocessCudaContext.html#add1fc6b2b168552e57128666e2ef21ad',1,'pcod_common::PillarPreprocessCudaContext']]]
+  ['rotated_5fnms_5fcuda_5fbatched_9',['rotated_nms_cuda_batched',['../rotated__nms_8cpp.html#a884942b571d06c5e35066cd14ce7588a',1,'rotated_nms.cpp']]],
+  ['run_10',['run',['../classpcod__common_1_1PillarPreprocessCudaContext.html#aec8dc1602dc37f4704878ffd817f9195',1,'pcod_common::PillarPreprocessCudaContext']]],
+  ['runtodevice_11',['runToDevice',['../classpcod__common_1_1PillarPreprocessCudaContext.html#add1fc6b2b168552e57128666e2ef21ad',1,'pcod_common::PillarPreprocessCudaContext']]]
 ];

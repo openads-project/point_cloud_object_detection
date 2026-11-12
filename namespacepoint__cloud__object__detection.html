@@ -28,7 +28,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">point_cloud_object_detection<span id="projectnumber">&#160;v3.1.1</span>
+   <div id="projectname">point_cloud_object_detection<span id="projectnumber">&#160;v4.0.0</span>
    </div>
   </td>
  </tr>
@@ -201,10 +201,10 @@ Functions</h2></td></tr>
 <tr class="memitem:aa15e37c3538ab3cf93df8f8a49cb5b57" id="r_aa15e37c3538ab3cf93df8f8a49cb5b57"><td class="memItemLeft" align="right" valign="top">float&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#aa15e37c3538ab3cf93df8f8a49cb5b57">readPointFieldAsFloat</a> (const std::vector&lt; std::uint8_t &gt; &amp;data, std::size_t offset, std::uint8_t datatype, bool needs_swap)</td></tr>
 <tr class="memdesc:aa15e37c3538ab3cf93df8f8a49cb5b57"><td class="mdescLeft">&#160;</td><td class="mdescRight">Read a supported PointCloud2 field datatype as float.  <br /></td></tr>
 <tr class="separator:aa15e37c3538ab3cf93df8f8a49cb5b57"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a67a3ccc1fe6bd5c7539423712ee19bab" id="r_a67a3ccc1fe6bd5c7539423712ee19bab"><td class="memItemLeft" align="right" valign="top">std::size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a67a3ccc1fe6bd5c7539423712ee19bab">pointCloud2PointOffset</a> (const sensor_msgs::msg::PointCloud2 &amp;msg, std::size_t index)</td></tr>
+<tr class="memitem:a67a3ccc1fe6bd5c7539423712ee19bab" id="r_a67a3ccc1fe6bd5c7539423712ee19bab"><td class="memItemLeft" align="right" valign="top">std::size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a67a3ccc1fe6bd5c7539423712ee19bab">pointCloud2PointOffset</a> (const sensor_msgs::msg::PointCloud2 &amp;msg, std::size_t <a class="el" href="nms_8cpp.html#ac28efa16fb8062e271f8b7a373cc1734">index</a>)</td></tr>
 <tr class="memdesc:a67a3ccc1fe6bd5c7539423712ee19bab"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compute the byte offset of a point record in a PointCloud2 message.  <br /></td></tr>
 <tr class="separator:a67a3ccc1fe6bd5c7539423712ee19bab"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a8c02bd93ea4c613b6febed11016f0a9a" id="r_a8c02bd93ea4c613b6febed11016f0a9a"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structpoint__cloud__object__detection_1_1PointCloud2PointRecord.html">PointCloud2PointRecord</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a8c02bd93ea4c613b6febed11016f0a9a">readPointCloud2PointRecord</a> (const sensor_msgs::msg::PointCloud2 &amp;msg, std::size_t index, std::size_t x_offset, std::size_t y_offset, std::size_t z_offset, std::size_t feature_offset, std::uint8_t feature_datatype, bool needs_swap)</td></tr>
+<tr class="memitem:a8c02bd93ea4c613b6febed11016f0a9a" id="r_a8c02bd93ea4c613b6febed11016f0a9a"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structpoint__cloud__object__detection_1_1PointCloud2PointRecord.html">PointCloud2PointRecord</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a8c02bd93ea4c613b6febed11016f0a9a">readPointCloud2PointRecord</a> (const sensor_msgs::msg::PointCloud2 &amp;msg, std::size_t <a class="el" href="nms_8cpp.html#ac28efa16fb8062e271f8b7a373cc1734">index</a>, std::size_t x_offset, std::size_t y_offset, std::size_t z_offset, std::size_t feature_offset, std::uint8_t feature_datatype, bool needs_swap)</td></tr>
 <tr class="memdesc:a8c02bd93ea4c613b6febed11016f0a9a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Read XYZ and feature values from one PointCloud2 point record.  <br /></td></tr>
 <tr class="separator:a8c02bd93ea4c613b6febed11016f0a9a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aafe6ae31431fd38b1e50e70c4d61bd27" id="r_aafe6ae31431fd38b1e50e70c4d61bd27"><td class="memItemLeft" align="right" valign="top">float&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#aafe6ae31431fd38b1e50e70c4d61bd27">getPointX</a> (const <a class="el" href="#a83c01597f73aaf20ab5cad6ed7987831">Point</a> &amp;point)</td></tr>
@@ -225,6 +225,9 @@ Functions</h2></td></tr>
 <tr class="memitem:a8b58bd8c860ec8a4d30680573de529b6" id="r_a8b58bd8c860ec8a4d30680573de529b6"><td class="memItemLeft" align="right" valign="top"><a class="el" href="#a83c01597f73aaf20ab5cad6ed7987831">Point</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a8b58bd8c860ec8a4d30680573de529b6">makePoint</a> (float x, float y, float z, float intensity)</td></tr>
 <tr class="memdesc:a8b58bd8c860ec8a4d30680573de529b6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Create a configured PCL point with XYZ and intensity fields set.  <br /></td></tr>
 <tr class="separator:a8b58bd8c860ec8a4d30680573de529b6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a87f14d90cad26eb12a2eacfd4a03e50e" id="r_a87f14d90cad26eb12a2eacfd4a03e50e"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a87f14d90cad26eb12a2eacfd4a03e50e">setDetectionConfidence</a> (const <a class="el" href="structpcod__common_1_1BoundingBox.html">pcod_common::BoundingBox</a> &amp;box, perception_msgs::msg::Object &amp;object)</td></tr>
+<tr class="memdesc:a87f14d90cad26eb12a2eacfd4a03e50e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set object.existence_probability to box.detection_score.  <br /></td></tr>
+<tr class="separator:a87f14d90cad26eb12a2eacfd4a03e50e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4d37d715c4c6ec79be0e63867e0ab85a" id="r_a4d37d715c4c6ec79be0e63867e0ab85a"><td class="memItemLeft" align="right" valign="top">std::string&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a4d37d715c4c6ec79be0e63867e0ab85a">sanitizeTopicName</a> (const std::string &amp;class_name)</td></tr>
 <tr class="memdesc:a4d37d715c4c6ec79be0e63867e0ab85a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Convert an arbitrary class name into a topic-safe suffix.  <br /></td></tr>
 <tr class="separator:a4d37d715c4c6ec79be0e63867e0ab85a"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -512,17 +515,17 @@ template&lt;class T &gt; </div>
 
 <p>Own implementation of std::clamp, since this is only available starting from C++17. </p>
 
-<p class="definition">Definition at line <a class="el" href="Utils_8hpp_source.html#l00025">25</a> of file <a class="el" href="Utils_8hpp_source.html">Utils.hpp</a>.</p>
-<div class="fragment"><div class="line"><span class="lineno">   25</span>                                                                      {</div>
-<div class="line"><span class="lineno">   26</span>  assert(!(high &lt; low));</div>
-<div class="line"><span class="lineno">   27</span>  <span class="keywordflow">if</span> (value &lt; low) {</div>
-<div class="line"><span class="lineno">   28</span>    <span class="keywordflow">return</span> low;</div>
-<div class="line"><span class="lineno">   29</span>  }</div>
-<div class="line"><span class="lineno">   30</span>  <span class="keywordflow">if</span> (high &lt; value) {</div>
-<div class="line"><span class="lineno">   31</span>    <span class="keywordflow">return</span> high;</div>
-<div class="line"><span class="lineno">   32</span>  }</div>
-<div class="line"><span class="lineno">   33</span>  <span class="keywordflow">return</span> value;</div>
-<div class="line"><span class="lineno">   34</span>}</div>
+<p class="definition">Definition at line <a class="el" href="Utils_8hpp_source.html#l00036">36</a> of file <a class="el" href="Utils_8hpp_source.html">Utils.hpp</a>.</p>
+<div class="fragment"><div class="line"><span class="lineno">   36</span>                                                                      {</div>
+<div class="line"><span class="lineno">   37</span>  assert(!(high &lt; low));</div>
+<div class="line"><span class="lineno">   38</span>  <span class="keywordflow">if</span> (value &lt; low) {</div>
+<div class="line"><span class="lineno">   39</span>    <span class="keywordflow">return</span> low;</div>
+<div class="line"><span class="lineno">   40</span>  }</div>
+<div class="line"><span class="lineno">   41</span>  <span class="keywordflow">if</span> (high &lt; value) {</div>
+<div class="line"><span class="lineno">   42</span>    <span class="keywordflow">return</span> high;</div>
+<div class="line"><span class="lineno">   43</span>  }</div>
+<div class="line"><span class="lineno">   44</span>  <span class="keywordflow">return</span> value;</div>
+<div class="line"><span class="lineno">   45</span>}</div>
 </div><!-- fragment -->
 </div>
 </div>
@@ -832,10 +835,11 @@ template&lt;class T &gt; </div>
 <p class="definition">Definition at line <a class="el" href="PointCloud2Utils_8hpp_source.html#l00141">141</a> of file <a class="el" href="PointCloud2Utils_8hpp_source.html">PointCloud2Utils.hpp</a>.</p>
 <div class="fragment"><div class="line"><span class="lineno">  141</span>                                                                                               {</div>
 <div class="line"><span class="lineno">  142</span>  <span class="keyword">const</span> std::size_t width = msg.width;</div>
-<div class="line"><span class="lineno">  143</span>  <span class="keyword">const</span> std::size_t row = index / width;</div>
-<div class="line"><span class="lineno">  144</span>  <span class="keyword">const</span> std::size_t col = index % width;</div>
+<div class="line"><span class="lineno">  143</span>  <span class="keyword">const</span> std::size_t row = <a class="code hl_variable" href="nms_8cpp.html#ac28efa16fb8062e271f8b7a373cc1734">index</a> / width;</div>
+<div class="line"><span class="lineno">  144</span>  <span class="keyword">const</span> std::size_t col = <a class="code hl_variable" href="nms_8cpp.html#ac28efa16fb8062e271f8b7a373cc1734">index</a> % width;</div>
 <div class="line"><span class="lineno">  145</span>  <span class="keywordflow">return</span> row * <span class="keyword">static_cast&lt;</span>std::size_t<span class="keyword">&gt;</span>(msg.row_step) + col * <span class="keyword">static_cast&lt;</span>std::size_t<span class="keyword">&gt;</span>(msg.point_step);</div>
 <div class="line"><span class="lineno">  146</span>}</div>
+<div class="ttc" id="anms_8cpp_html_ac28efa16fb8062e271f8b7a373cc1734"><div class="ttname"><a href="nms_8cpp.html#ac28efa16fb8062e271f8b7a373cc1734">index</a></div><div class="ttdeci">std::size_t index</div><div class="ttdoc">Original input index, also the deterministic tie breaker.</div><div class="ttdef"><b>Definition</b> <a href="nms_8cpp_source.html#l00228">nms.cpp:228</a></div></div>
 </div><!-- fragment -->
 </div>
 </div>
@@ -996,7 +1000,7 @@ template&lt;class T &gt; </div>
 
 <p class="definition">Definition at line <a class="el" href="PointCloud2Utils_8hpp_source.html#l00151">151</a> of file <a class="el" href="PointCloud2Utils_8hpp_source.html">PointCloud2Utils.hpp</a>.</p>
 <div class="fragment"><div class="line"><span class="lineno">  158</span>                                                                          {</div>
-<div class="line"><span class="lineno">  159</span>  <span class="keyword">const</span> std::size_t point_offset = <a class="code hl_function" href="#a67a3ccc1fe6bd5c7539423712ee19bab">pointCloud2PointOffset</a>(msg, index);</div>
+<div class="line"><span class="lineno">  159</span>  <span class="keyword">const</span> std::size_t point_offset = <a class="code hl_function" href="#a67a3ccc1fe6bd5c7539423712ee19bab">pointCloud2PointOffset</a>(msg, <a class="code hl_variable" href="nms_8cpp.html#ac28efa16fb8062e271f8b7a373cc1734">index</a>);</div>
 <div class="line"><span class="lineno">  160</span>  <span class="keywordflow">return</span> {<a class="code hl_function" href="#a0ac023a290dfda5d6afd7f5d5ee47649">readFloat32At</a>(msg.data, point_offset + x_offset, needs_swap),</div>
 <div class="line"><span class="lineno">  161</span>          <a class="code hl_function" href="#a0ac023a290dfda5d6afd7f5d5ee47649">readFloat32At</a>(msg.data, point_offset + y_offset, needs_swap),</div>
 <div class="line"><span class="lineno">  162</span>          <a class="code hl_function" href="#a0ac023a290dfda5d6afd7f5d5ee47649">readFloat32At</a>(msg.data, point_offset + z_offset, needs_swap),</div>
@@ -1166,50 +1170,50 @@ template&lt;typename T &gt; </div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="Utils_8cpp_source.html#l00026">26</a> of file <a class="el" href="Utils_8cpp_source.html">Utils.cpp</a>.</p>
-<div class="fragment"><div class="line"><span class="lineno">   28</span>                                            {</div>
-<div class="line"><span class="lineno">   29</span>  <span class="comment">// Compute softmax from logits (needed for PBOD)</span></div>
-<div class="line"><span class="lineno">   30</span>  <span class="keywordflow">if</span> (softmax) {</div>
-<div class="line"><span class="lineno">   31</span>    <span class="keywordtype">double</span> total_score = 0;</div>
-<div class="line"><span class="lineno">   32</span>    <span class="keywordflow">for</span> (<span class="keyword">auto</span>&amp; classification : classifications) {</div>
-<div class="line"><span class="lineno">   33</span>      classification.probability = std::exp(classification.probability);</div>
-<div class="line"><span class="lineno">   34</span>      total_score += classification.probability;</div>
-<div class="line"><span class="lineno">   35</span>    }</div>
-<div class="line"><span class="lineno">   36</span>    <span class="keywordflow">for</span> (<span class="keyword">auto</span>&amp; classification : classifications) {</div>
-<div class="line"><span class="lineno">   37</span>      classification.probability /= total_score;</div>
-<div class="line"><span class="lineno">   38</span>    }</div>
-<div class="line"><span class="lineno">   39</span>  }</div>
-<div class="line"><span class="lineno">   40</span> </div>
-<div class="line"><span class="lineno">   41</span>  <span class="comment">// Remove classifications with a score lower than the threshold and count the</span></div>
-<div class="line"><span class="lineno">   42</span>  <span class="comment">// sum of remaining scores</span></div>
-<div class="line"><span class="lineno">   43</span>  <span class="keywordtype">double</span> total_score = 0;</div>
-<div class="line"><span class="lineno">   44</span>  <span class="keywordflow">for</span> (<span class="keyword">auto</span> classification = classifications.begin(); classification != classifications.end();) {</div>
-<div class="line"><span class="lineno">   45</span>    <span class="keywordflow">if</span> (classification-&gt;probability &lt; threshold) {</div>
-<div class="line"><span class="lineno">   46</span>      classification = classifications.erase(classification);</div>
-<div class="line"><span class="lineno">   47</span>    } <span class="keywordflow">else</span> {</div>
-<div class="line"><span class="lineno">   48</span>      total_score += classification-&gt;probability;</div>
-<div class="line"><span class="lineno">   49</span>      ++classification;</div>
-<div class="line"><span class="lineno">   50</span>    }</div>
-<div class="line"><span class="lineno">   51</span>  }</div>
-<div class="line"><span class="lineno">   52</span> </div>
-<div class="line"><span class="lineno">   53</span>  <span class="keywordflow">if</span> (classifications.empty()) {</div>
-<div class="line"><span class="lineno">   54</span>    <span class="comment">// If no type has a score of more than the threshold, use unknwon (which is</span></div>
-<div class="line"><span class="lineno">   55</span>    <span class="comment">// actually made for exactly this case)</span></div>
-<div class="line"><span class="lineno">   56</span>    perception_msgs::msg::ObjectClassification classification;</div>
-<div class="line"><span class="lineno">   57</span>    classification.probability = 1;</div>
-<div class="line"><span class="lineno">   58</span>    classification.type = perception_msgs::msg::ObjectClassification::UNKNOWN;</div>
-<div class="line"><span class="lineno">   59</span>    classifications.push_back(classification);</div>
-<div class="line"><span class="lineno">   60</span> </div>
-<div class="line"><span class="lineno">   61</span>  } <span class="keywordflow">else</span> {</div>
-<div class="line"><span class="lineno">   62</span>    <span class="comment">// Sort descending and normalize</span></div>
-<div class="line"><span class="lineno">   63</span>    std::sort(classifications.begin(), classifications.end(),</div>
-<div class="line"><span class="lineno">   64</span>              [](<span class="keyword">const</span> perception_msgs::msg::ObjectClassification&amp; first,</div>
-<div class="line"><span class="lineno">   65</span>                 <span class="keyword">const</span> perception_msgs::msg::ObjectClassification&amp; second) { return first.probability &gt; second.probability; });</div>
-<div class="line"><span class="lineno">   66</span>    <span class="keywordflow">for</span> (<span class="keyword">auto</span>&amp; classification : classifications) {</div>
-<div class="line"><span class="lineno">   67</span>      classification.probability /= total_score;</div>
-<div class="line"><span class="lineno">   68</span>    }</div>
-<div class="line"><span class="lineno">   69</span>  }</div>
-<div class="line"><span class="lineno">   70</span>}</div>
+<p class="definition">Definition at line <a class="el" href="Utils_8cpp_source.html#l00036">36</a> of file <a class="el" href="Utils_8cpp_source.html">Utils.cpp</a>.</p>
+<div class="fragment"><div class="line"><span class="lineno">   38</span>                                            {</div>
+<div class="line"><span class="lineno">   39</span>  <span class="comment">// Compute softmax from logits (needed for PBOD)</span></div>
+<div class="line"><span class="lineno">   40</span>  <span class="keywordflow">if</span> (softmax) {</div>
+<div class="line"><span class="lineno">   41</span>    <span class="keywordtype">double</span> total_score = 0;</div>
+<div class="line"><span class="lineno">   42</span>    <span class="keywordflow">for</span> (<span class="keyword">auto</span>&amp; classification : classifications) {</div>
+<div class="line"><span class="lineno">   43</span>      classification.probability = std::exp(classification.probability);</div>
+<div class="line"><span class="lineno">   44</span>      total_score += classification.probability;</div>
+<div class="line"><span class="lineno">   45</span>    }</div>
+<div class="line"><span class="lineno">   46</span>    <span class="keywordflow">for</span> (<span class="keyword">auto</span>&amp; classification : classifications) {</div>
+<div class="line"><span class="lineno">   47</span>      classification.probability /= total_score;</div>
+<div class="line"><span class="lineno">   48</span>    }</div>
+<div class="line"><span class="lineno">   49</span>  }</div>
+<div class="line"><span class="lineno">   50</span> </div>
+<div class="line"><span class="lineno">   51</span>  <span class="comment">// Remove classifications with a score lower than the threshold and count the</span></div>
+<div class="line"><span class="lineno">   52</span>  <span class="comment">// sum of remaining scores</span></div>
+<div class="line"><span class="lineno">   53</span>  <span class="keywordtype">double</span> total_score = 0;</div>
+<div class="line"><span class="lineno">   54</span>  <span class="keywordflow">for</span> (<span class="keyword">auto</span> classification = classifications.begin(); classification != classifications.end();) {</div>
+<div class="line"><span class="lineno">   55</span>    <span class="keywordflow">if</span> (classification-&gt;probability &lt; threshold) {</div>
+<div class="line"><span class="lineno">   56</span>      classification = classifications.erase(classification);</div>
+<div class="line"><span class="lineno">   57</span>    } <span class="keywordflow">else</span> {</div>
+<div class="line"><span class="lineno">   58</span>      total_score += classification-&gt;probability;</div>
+<div class="line"><span class="lineno">   59</span>      ++classification;</div>
+<div class="line"><span class="lineno">   60</span>    }</div>
+<div class="line"><span class="lineno">   61</span>  }</div>
+<div class="line"><span class="lineno">   62</span> </div>
+<div class="line"><span class="lineno">   63</span>  <span class="keywordflow">if</span> (classifications.empty()) {</div>
+<div class="line"><span class="lineno">   64</span>    <span class="comment">// If no type has a score of more than the threshold, use unknwon (which is</span></div>
+<div class="line"><span class="lineno">   65</span>    <span class="comment">// actually made for exactly this case)</span></div>
+<div class="line"><span class="lineno">   66</span>    perception_msgs::msg::ObjectClassification classification;</div>
+<div class="line"><span class="lineno">   67</span>    classification.probability = 1;</div>
+<div class="line"><span class="lineno">   68</span>    classification.type = perception_msgs::msg::ObjectClassification::UNKNOWN;</div>
+<div class="line"><span class="lineno">   69</span>    classifications.push_back(classification);</div>
+<div class="line"><span class="lineno">   70</span> </div>
+<div class="line"><span class="lineno">   71</span>  } <span class="keywordflow">else</span> {</div>
+<div class="line"><span class="lineno">   72</span>    <span class="comment">// Sort descending and normalize</span></div>
+<div class="line"><span class="lineno">   73</span>    std::sort(classifications.begin(), classifications.end(),</div>
+<div class="line"><span class="lineno">   74</span>              [](<span class="keyword">const</span> perception_msgs::msg::ObjectClassification&amp; first,</div>
+<div class="line"><span class="lineno">   75</span>                 <span class="keyword">const</span> perception_msgs::msg::ObjectClassification&amp; second) { return first.probability &gt; second.probability; });</div>
+<div class="line"><span class="lineno">   76</span>    <span class="keywordflow">for</span> (<span class="keyword">auto</span>&amp; classification : classifications) {</div>
+<div class="line"><span class="lineno">   77</span>      classification.probability /= total_score;</div>
+<div class="line"><span class="lineno">   78</span>    }</div>
+<div class="line"><span class="lineno">   79</span>  }</div>
+<div class="line"><span class="lineno">   80</span>}</div>
 </div><!-- fragment -->
 </div>
 </div>
@@ -1230,23 +1234,62 @@ template&lt;typename T &gt; </div>
 
 <p>Convert an arbitrary class name into a topic-safe suffix. </p>
 
+<p class="definition">Definition at line <a class="el" href="Utils_8cpp_source.html#l00019">19</a> of file <a class="el" href="Utils_8cpp_source.html">Utils.cpp</a>.</p>
+<div class="fragment"><div class="line"><span class="lineno">   19</span>                                                   {</div>
+<div class="line"><span class="lineno">   20</span>  std::string sanitized = name;</div>
+<div class="line"><span class="lineno">   21</span> </div>
+<div class="line"><span class="lineno">   22</span>  <span class="comment">// Remove all leading &#39;~&#39; or &#39;/&#39; characters.</span></div>
+<div class="line"><span class="lineno">   23</span>  <span class="keyword">auto</span> first_valid = sanitized.find_first_not_of(<span class="stringliteral">&quot;~/&quot;</span>);</div>
+<div class="line"><span class="lineno">   24</span>  sanitized = (first_valid == std::string::npos) ? <span class="stringliteral">&quot;&quot;</span> : sanitized.substr(first_valid);</div>
+<div class="line"><span class="lineno">   25</span> </div>
+<div class="line"><span class="lineno">   26</span>  <span class="comment">// Replace invalid characters with underscores.</span></div>
+<div class="line"><span class="lineno">   27</span>  <span class="keywordflow">for</span> (<span class="keywordtype">char</span>&amp; c : sanitized) {</div>
+<div class="line"><span class="lineno">   28</span>    <span class="keywordflow">if</span> ((std::isalnum(<span class="keyword">static_cast&lt;</span><span class="keywordtype">unsigned</span> <span class="keywordtype">char</span><span class="keyword">&gt;</span>(c)) == 0) &amp;&amp; c != <span class="charliteral">&#39;_&#39;</span> &amp;&amp; c != <span class="charliteral">&#39;~&#39;</span> &amp;&amp; c != <span class="charliteral">&#39;{&#39;</span> &amp;&amp; c != <span class="charliteral">&#39;}&#39;</span>) {</div>
+<div class="line"><span class="lineno">   29</span>      c = <span class="charliteral">&#39;_&#39;</span>;</div>
+<div class="line"><span class="lineno">   30</span>    }</div>
+<div class="line"><span class="lineno">   31</span>  }</div>
+<div class="line"><span class="lineno">   32</span> </div>
+<div class="line"><span class="lineno">   33</span>  <span class="keywordflow">return</span> sanitized;</div>
+<div class="line"><span class="lineno">   34</span>}</div>
+</div><!-- fragment -->
+</div>
+</div>
+<a id="a87f14d90cad26eb12a2eacfd4a03e50e" name="a87f14d90cad26eb12a2eacfd4a03e50e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a87f14d90cad26eb12a2eacfd4a03e50e">&#9670;&#160;</a></span>setDetectionConfidence()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void point_cloud_object_detection::setDetectionConfidence </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structpcod__common_1_1BoundingBox.html">pcod_common::BoundingBox</a> &amp;</td>          <td class="paramname"><span class="paramname"><em>box</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">perception_msgs::msg::Object &amp;</td>          <td class="paramname"><span class="paramname"><em>object</em></span>&#160;)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Set object.existence_probability to box.detection_score. </p>
+<p>The detection score is computed according to postprocessing.nms.score_mode. </p><dl class="exception"><dt>Exceptions</dt><dd>
+  <table class="exception">
+    <tr><td class="paramname">std::invalid_argument</td><td>if the score is missing, non-finite or outside [0, 1]. </td></tr>
+  </table>
+  </dd>
+</dl>
+
 <p class="definition">Definition at line <a class="el" href="Utils_8cpp_source.html#l00009">9</a> of file <a class="el" href="Utils_8cpp_source.html">Utils.cpp</a>.</p>
-<div class="fragment"><div class="line"><span class="lineno">    9</span>                                                   {</div>
-<div class="line"><span class="lineno">   10</span>  std::string sanitized = name;</div>
-<div class="line"><span class="lineno">   11</span> </div>
-<div class="line"><span class="lineno">   12</span>  <span class="comment">// Remove all leading &#39;~&#39; or &#39;/&#39; characters.</span></div>
-<div class="line"><span class="lineno">   13</span>  <span class="keyword">auto</span> first_valid = sanitized.find_first_not_of(<span class="stringliteral">&quot;~/&quot;</span>);</div>
-<div class="line"><span class="lineno">   14</span>  sanitized = (first_valid == std::string::npos) ? <span class="stringliteral">&quot;&quot;</span> : sanitized.substr(first_valid);</div>
-<div class="line"><span class="lineno">   15</span> </div>
-<div class="line"><span class="lineno">   16</span>  <span class="comment">// Replace invalid characters with underscores.</span></div>
-<div class="line"><span class="lineno">   17</span>  <span class="keywordflow">for</span> (<span class="keywordtype">char</span>&amp; c : sanitized) {</div>
-<div class="line"><span class="lineno">   18</span>    <span class="keywordflow">if</span> ((std::isalnum(<span class="keyword">static_cast&lt;</span><span class="keywordtype">unsigned</span> <span class="keywordtype">char</span><span class="keyword">&gt;</span>(c)) == 0) &amp;&amp; c != <span class="charliteral">&#39;_&#39;</span> &amp;&amp; c != <span class="charliteral">&#39;~&#39;</span> &amp;&amp; c != <span class="charliteral">&#39;{&#39;</span> &amp;&amp; c != <span class="charliteral">&#39;}&#39;</span>) {</div>
-<div class="line"><span class="lineno">   19</span>      c = <span class="charliteral">&#39;_&#39;</span>;</div>
-<div class="line"><span class="lineno">   20</span>    }</div>
-<div class="line"><span class="lineno">   21</span>  }</div>
-<div class="line"><span class="lineno">   22</span> </div>
-<div class="line"><span class="lineno">   23</span>  <span class="keywordflow">return</span> sanitized;</div>
-<div class="line"><span class="lineno">   24</span>}</div>
+<div class="fragment"><div class="line"><span class="lineno">    9</span>                                                                                                 {</div>
+<div class="line"><span class="lineno">   10</span>  <span class="keywordflow">if</span> (!box.<a class="code hl_variable" href="structpcod__common_1_1BoundingBox.html#ae15d691d73ac32479152639c1f2107f2">detection_score</a> || !std::isfinite(*box.<a class="code hl_variable" href="structpcod__common_1_1BoundingBox.html#ae15d691d73ac32479152639c1f2107f2">detection_score</a>) || *box.<a class="code hl_variable" href="structpcod__common_1_1BoundingBox.html#ae15d691d73ac32479152639c1f2107f2">detection_score</a> &lt; 0.0F ||</div>
+<div class="line"><span class="lineno">   11</span>      *box.<a class="code hl_variable" href="structpcod__common_1_1BoundingBox.html#ae15d691d73ac32479152639c1f2107f2">detection_score</a> &gt; 1.0F) {</div>
+<div class="line"><span class="lineno">   12</span>    <span class="keywordflow">throw</span> std::invalid_argument(<span class="stringliteral">&quot;Detection score must be present, finite and within [0, 1]&quot;</span>);</div>
+<div class="line"><span class="lineno">   13</span>  }</div>
+<div class="line"><span class="lineno">   14</span>  <span class="keywordtype">object</span>.existence_probability = *box.<a class="code hl_variable" href="structpcod__common_1_1BoundingBox.html#ae15d691d73ac32479152639c1f2107f2">detection_score</a>;</div>
+<div class="line"><span class="lineno">   15</span>}</div>
+<div class="ttc" id="astructpcod__common_1_1BoundingBox_html_ae15d691d73ac32479152639c1f2107f2"><div class="ttname"><a href="structpcod__common_1_1BoundingBox.html#ae15d691d73ac32479152639c1f2107f2">pcod_common::BoundingBox::detection_score</a></div><div class="ttdeci">std::optional&lt; float &gt; detection_score</div><div class="ttdoc">Class-weighted score for filtering and NMS, if available.</div><div class="ttdef"><b>Definition</b> <a href="bounding__box_8hpp_source.html#l00072">bounding_box.hpp:72</a></div></div>
 </div><!-- fragment -->
 </div>
 </div>
@@ -1338,8 +1381,8 @@ template&lt;typename C &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="Definitions_8hpp_source.html#l00024">24</a> of file <a class="el" href="Definitions_8hpp_source.html">Definitions.hpp</a>.</p>
-<div class="fragment"><div class="line"><span class="lineno">   24</span>{<span class="stringliteral">&quot;intensity&quot;</span>, <span class="stringliteral">&quot;reflectivity&quot;</span>};</div>
+<p class="definition">Definition at line <a class="el" href="Definitions_8hpp_source.html#l00025">25</a> of file <a class="el" href="Definitions_8hpp_source.html">Definitions.hpp</a>.</p>
+<div class="fragment"><div class="line"><span class="lineno">   25</span>{<span class="stringliteral">&quot;intensity&quot;</span>, <span class="stringliteral">&quot;reflectivity&quot;</span>};</div>
 </div><!-- fragment -->
 </div>
 </div>
@@ -1363,8 +1406,8 @@ template&lt;typename C &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="Definitions_8hpp_source.html#l00026">26</a> of file <a class="el" href="Definitions_8hpp_source.html">Definitions.hpp</a>.</p>
-<div class="fragment"><div class="line"><span class="lineno">   26</span>{<span class="stringliteral">&quot;cpu&quot;</span>, <span class="stringliteral">&quot;cuda&quot;</span>};</div>
+<p class="definition">Definition at line <a class="el" href="Definitions_8hpp_source.html#l00027">27</a> of file <a class="el" href="Definitions_8hpp_source.html">Definitions.hpp</a>.</p>
+<div class="fragment"><div class="line"><span class="lineno">   27</span>{<span class="stringliteral">&quot;cpu&quot;</span>, <span class="stringliteral">&quot;cuda&quot;</span>};</div>
 </div><!-- fragment -->
 </div>
 </div>
@@ -1414,8 +1457,8 @@ template&lt;typename C &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="Definitions_8hpp_source.html#l00025">25</a> of file <a class="el" href="Definitions_8hpp_source.html">Definitions.hpp</a>.</p>
-<div class="fragment"><div class="line"><span class="lineno">   25</span>{<span class="stringliteral">&quot;fp32&quot;</span>, <span class="stringliteral">&quot;fp16&quot;</span>, <span class="stringliteral">&quot;int8&quot;</span>};</div>
+<p class="definition">Definition at line <a class="el" href="Definitions_8hpp_source.html#l00026">26</a> of file <a class="el" href="Definitions_8hpp_source.html">Definitions.hpp</a>.</p>
+<div class="fragment"><div class="line"><span class="lineno">   26</span>{<span class="stringliteral">&quot;fp32&quot;</span>, <span class="stringliteral">&quot;fp16&quot;</span>, <span class="stringliteral">&quot;int8&quot;</span>};</div>
 </div><!-- fragment -->
 </div>
 </div>

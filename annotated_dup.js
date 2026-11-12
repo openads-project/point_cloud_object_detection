@@ -12,6 +12,7 @@ var annotated_dup =
       [ "Line", "structpcod__common_1_1Line.html", "structpcod__common_1_1Line" ],
       [ "ModelManifest", "structpcod__common_1_1ModelManifest.html", "structpcod__common_1_1ModelManifest" ],
       [ "NmsConfig", "structpcod__common_1_1NmsConfig.html", "structpcod__common_1_1NmsConfig" ],
+      [ "NmsStats", "structpcod__common_1_1NmsStats.html", "structpcod__common_1_1NmsStats" ],
       [ "PbodOutputsView", "structpcod__common_1_1PbodOutputsView.html", "structpcod__common_1_1PbodOutputsView" ],
       [ "PbodPostprocessConfig", "structpcod__common_1_1PbodPostprocessConfig.html", "structpcod__common_1_1PbodPostprocessConfig" ],
       [ "PillarGrid", "structpcod__common_1_1PillarGrid.html", "structpcod__common_1_1PillarGrid" ],

@@ -28,7 +28,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">point_cloud_object_detection<span id="projectnumber">&#160;v3.1.1</span>
+   <div id="projectname">point_cloud_object_detection<span id="projectnumber">&#160;v4.0.0</span>
    </div>
   </td>
  </tr>
@@ -106,76 +106,320 @@ $(function(){initNavTree('nms_8cpp_source.html',''); initResizable(true); });
 <div class="line"><a id="l00004" name="l00004"></a><span class="lineno">    4</span><span class="preprocessor">#include &quot;<a class="code" href="nms_8hpp.html">pcod_common/nms.hpp</a>&quot;</span></div>
 <div class="line"><a id="l00005" name="l00005"></a><span class="lineno">    5</span> </div>
 <div class="line"><a id="l00006" name="l00006"></a><span class="lineno">    6</span><span class="preprocessor">#include &lt;algorithm&gt;</span></div>
-<div class="line"><a id="l00007" name="l00007"></a><span class="lineno">    7</span> </div>
-<div class="line"><a id="l00008" name="l00008"></a><span class="lineno">    8</span><span class="preprocessor">#include &quot;<a class="code" href="math_8hpp.html">pcod_common/math.hpp</a>&quot;</span></div>
-<div class="line"><a id="l00009" name="l00009"></a><span class="lineno">    9</span> </div>
-<div class="line"><a id="l00010" name="l00010"></a><span class="lineno">   10</span><span class="keyword">namespace </span><a class="code hl_namespace" href="namespacepcod__common.html">pcod_common</a> {</div>
+<div class="line"><a id="l00007" name="l00007"></a><span class="lineno">    7</span><span class="preprocessor">#include &lt;array&gt;</span></div>
+<div class="line"><a id="l00008" name="l00008"></a><span class="lineno">    8</span><span class="preprocessor">#include &lt;cmath&gt;</span></div>
+<div class="line"><a id="l00009" name="l00009"></a><span class="lineno">    9</span><span class="preprocessor">#include &lt;limits&gt;</span></div>
+<div class="line"><a id="l00010" name="l00010"></a><span class="lineno">   10</span><span class="preprocessor">#include &lt;stdexcept&gt;</span></div>
 <div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span> </div>
-<div class="foldopen" id="foldopen00012" data-start="{" data-end="}">
-<div class="line"><a id="l00012" name="l00012"></a><span class="lineno"><a class="line" href="namespacepcod__common.html#a5be13ed700e3f92b1523d7dace40a4a5">   12</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="namespacepcod__common.html#a5be13ed700e3f92b1523d7dace40a4a5">ApplyRotatedNms</a>(std::vector&lt;BoundingBox&gt;&amp; bboxes, <span class="keyword">const</span> <a class="code hl_struct" href="structpcod__common_1_1NmsConfig.html">NmsConfig</a>&amp; config) {</div>
-<div class="line"><a id="l00013" name="l00013"></a><span class="lineno">   13</span>  <span class="keywordflow">if</span> (bboxes.empty()) {</div>
-<div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span>    <span class="keywordflow">return</span>;</div>
-<div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span>  }</div>
-<div class="line"><a id="l00016" name="l00016"></a><span class="lineno">   16</span> </div>
-<div class="line"><a id="l00017" name="l00017"></a><span class="lineno">   17</span>  std::vector&lt;std::pair&lt;float, BoundingBox*&gt;&gt; scored;</div>
-<div class="line"><a id="l00018" name="l00018"></a><span class="lineno">   18</span>  scored.reserve(bboxes.size());</div>
-<div class="line"><a id="l00019" name="l00019"></a><span class="lineno">   19</span> </div>
-<div class="line"><a id="l00020" name="l00020"></a><span class="lineno">   20</span>  <span class="keywordflow">for</span> (<span class="keyword">auto</span>&amp; bbox : bboxes) {</div>
-<div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span>    <span class="keywordtype">float</span> max_class_score = 0.0F;</div>
-<div class="line"><a id="l00022" name="l00022"></a><span class="lineno">   22</span>    std::size_t max_class_idx = 0;</div>
-<div class="line"><a id="l00023" name="l00023"></a><span class="lineno">   23</span>    <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; entry : bbox.classification) {</div>
-<div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span>      <span class="keywordflow">if</span> (entry.score &gt; max_class_score) {</div>
-<div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span>        max_class_score = entry.score;</div>
-<div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span>        max_class_idx = entry.class_idx;</div>
-<div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span>      }</div>
-<div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span>    }</div>
-<div class="line"><a id="l00029" name="l00029"></a><span class="lineno">   29</span>    <span class="keywordtype">float</span> class_thresh = config.<a class="code hl_variable" href="structpcod__common_1_1NmsConfig.html#aae927f2adadd6e25c61ad73f85c1dd1a">internal_score_threshold</a>;</div>
-<div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span>    <span class="keywordflow">if</span> (max_class_idx &lt; config.<a class="code hl_variable" href="structpcod__common_1_1NmsConfig.html#a56ab21100af944a759b28fc573ac52d3">score_thresholds</a>.size()) {</div>
-<div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span>      class_thresh = config.<a class="code hl_variable" href="structpcod__common_1_1NmsConfig.html#a56ab21100af944a759b28fc573ac52d3">score_thresholds</a>[max_class_idx];</div>
-<div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span>    }</div>
-<div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span>    <span class="keywordtype">float</span> score = <a class="code hl_function" href="namespacepcod__common.html#a6ad2ca73c71991dbced15f692d6f29c3">scale_score</a>(bbox.existence_probability, class_thresh, config.<a class="code hl_variable" href="structpcod__common_1_1NmsConfig.html#aae927f2adadd6e25c61ad73f85c1dd1a">internal_score_threshold</a>);</div>
-<div class="line"><a id="l00034" name="l00034"></a><span class="lineno">   34</span>    scored.emplace_back(score, &amp;bbox);</div>
-<div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span>  }</div>
-<div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span> </div>
-<div class="line"><a id="l00037" name="l00037"></a><span class="lineno">   37</span>  std::sort(scored.begin(), scored.end(), [](<span class="keyword">const</span> <span class="keyword">auto</span>&amp; a, <span class="keyword">const</span> <span class="keyword">auto</span>&amp; b) { return a.first &gt; b.first; });</div>
-<div class="line"><a id="l00038" name="l00038"></a><span class="lineno">   38</span> </div>
-<div class="line"><a id="l00039" name="l00039"></a><span class="lineno">   39</span>  std::vector&lt;BoundingBox&gt; kept;</div>
-<div class="line"><a id="l00040" name="l00040"></a><span class="lineno">   40</span>  kept.reserve(bboxes.size());</div>
-<div class="line"><a id="l00041" name="l00041"></a><span class="lineno">   41</span> </div>
-<div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span>  <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; candidate : scored) {</div>
-<div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span>    <span class="keywordflow">if</span> (candidate.first &lt; config.<a class="code hl_variable" href="structpcod__common_1_1NmsConfig.html#aae927f2adadd6e25c61ad73f85c1dd1a">internal_score_threshold</a>) {</div>
-<div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span>      <span class="keywordflow">break</span>;</div>
-<div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span>    }</div>
-<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span>    <span class="keywordtype">bool</span> keep = <span class="keyword">true</span>;</div>
-<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span>    <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; kept_box : kept) {</div>
-<div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span>      <span class="keywordflow">if</span> (candidate.second-&gt;overlaps(kept_box, config.<a class="code hl_variable" href="structpcod__common_1_1NmsConfig.html#a38d89565d76217b63c7ee80303ebb0b7">iou_threshold</a>)) {</div>
-<div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span>        keep = <span class="keyword">false</span>;</div>
-<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span>        <span class="keywordflow">break</span>;</div>
-<div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span>      }</div>
-<div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span>    }</div>
-<div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span>    <span class="keywordflow">if</span> (keep) {</div>
-<div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span>      kept.push_back(*candidate.second);</div>
-<div class="line"><a id="l00055" name="l00055"></a><span class="lineno">   55</span>      <span class="keywordflow">if</span> (<span class="keyword">static_cast&lt;</span><span class="keywordtype">int</span><span class="keyword">&gt;</span>(kept.size()) &gt;= config.<a class="code hl_variable" href="structpcod__common_1_1NmsConfig.html#a5cffc9e3de1bdb5bbea58ca90e495b34">max_detections</a>) {</div>
-<div class="line"><a id="l00056" name="l00056"></a><span class="lineno">   56</span>        <span class="keywordflow">break</span>;</div>
-<div class="line"><a id="l00057" name="l00057"></a><span class="lineno">   57</span>      }</div>
-<div class="line"><a id="l00058" name="l00058"></a><span class="lineno">   58</span>    }</div>
-<div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span>  }</div>
-<div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span> </div>
-<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span>  bboxes = std::move(kept);</div>
-<div class="line"><a id="l00062" name="l00062"></a><span class="lineno">   62</span>}</div>
+<div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span><span class="keyword">namespace </span><a class="code hl_namespace" href="namespacepcod__common.html">pcod_common</a> {</div>
+<div class="line"><a id="l00013" name="l00013"></a><span class="lineno">   13</span><span class="keyword">namespace </span>{</div>
+<div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span> </div>
+<div class="line"><a id="l00016" name="l00016"></a><span class="lineno">   16</span><span class="keyword">using </span><a class="code hl_typedef" href="namespacepoint__cloud__object__detection.html#a83c01597f73aaf20ab5cad6ed7987831">Point</a> = std::array&lt;double, 2&gt;;</div>
+<div class="line"><a id="l00017" name="l00017"></a><span class="lineno">   17</span> </div>
+<div class="line"><a id="l00019" name="l00019"></a><span class="lineno">   19</span><span class="keyword">struct </span>PreparedBox {</div>
+<div class="line"><a id="l00020" name="l00020"></a><span class="lineno"><a class="line" href="nms_8cpp.html#a0e7a9049f082d855a0d1a6a3041a4b63">   20</a></span>  std::array&lt;Point, 4&gt; <a class="code hl_variable" href="nms_8cpp.html#a0e7a9049f082d855a0d1a6a3041a4b63">vertices</a>;  </div>
+<div class="line"><a id="l00021" name="l00021"></a><span class="lineno"><a class="line" href="nms_8cpp.html#ac5ca90d1b28886aee6e1411cd7155e93">   21</a></span>  Point <a class="code hl_variable" href="nms_8cpp.html#ac5ca90d1b28886aee6e1411cd7155e93">minimum</a>;                  </div>
+<div class="line"><a id="l00022" name="l00022"></a><span class="lineno"><a class="line" href="nms_8cpp.html#a0ec9c616ddd0e2bf63bc89f2692d274b">   22</a></span>  Point <a class="code hl_variable" href="nms_8cpp.html#a0ec9c616ddd0e2bf63bc89f2692d274b">maximum</a>;                  </div>
+<div class="line"><a id="l00023" name="l00023"></a><span class="lineno"><a class="line" href="nms_8cpp.html#a24c109489bdfad4b0937c2d19d9c0e20">   23</a></span>  <span class="keywordtype">double</span> <a class="code hl_variable" href="nms_8cpp.html#a24c109489bdfad4b0937c2d19d9c0e20">bottom</a>;                  </div>
+<div class="line"><a id="l00024" name="l00024"></a><span class="lineno"><a class="line" href="nms_8cpp.html#a4467598fbba812fe1339ab4e83806573">   24</a></span>  <span class="keywordtype">double</span> <a class="code hl_variable" href="nms_8cpp.html#a4467598fbba812fe1339ab4e83806573">top</a>;                     </div>
+<div class="line"><a id="l00025" name="l00025"></a><span class="lineno"><a class="line" href="nms_8cpp.html#ae517bffd82b9428b4f1d9500ea01c04f">   25</a></span>  <span class="keywordtype">double</span> <a class="code hl_variable" href="nms_8cpp.html#ae517bffd82b9428b4f1d9500ea01c04f">area</a>;                    </div>
+<div class="line"><a id="l00026" name="l00026"></a><span class="lineno"><a class="line" href="nms_8cpp.html#a3101a574df4f0f2772ac0a42a96c8e45">   26</a></span>  <span class="keywordtype">bool</span> <a class="code hl_variable" href="nms_8cpp.html#a3101a574df4f0f2772ac0a42a96c8e45">has_height</a>;                </div>
+<div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span> </div>
+<div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span>  <span class="keyword">explicit</span> PreparedBox(<span class="keyword">const</span> BoundingBox&amp; box)</div>
+<div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span>      : <a class="code hl_variable" href="nms_8cpp.html#ac5ca90d1b28886aee6e1411cd7155e93">minimum</a>{std::numeric_limits&lt;double&gt;::infinity(), std::numeric_limits&lt;double&gt;::infinity()},</div>
+<div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span>        <a class="code hl_variable" href="nms_8cpp.html#a0ec9c616ddd0e2bf63bc89f2692d274b">maximum</a>{-std::numeric_limits&lt;double&gt;::infinity(), -std::numeric_limits&lt;double&gt;::infinity()},</div>
+<div class="line"><a id="l00034" name="l00034"></a><span class="lineno">   34</span>        <a class="code hl_variable" href="nms_8cpp.html#a24c109489bdfad4b0937c2d19d9c0e20">bottom</a>(box.z - box.height * 0.5),</div>
+<div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span>        <a class="code hl_variable" href="nms_8cpp.html#a4467598fbba812fe1339ab4e83806573">top</a>(box.z + box.height * 0.5),</div>
+<div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span>        <a class="code hl_variable" href="nms_8cpp.html#ae517bffd82b9428b4f1d9500ea01c04f">area</a>(static_cast&lt;double&gt;(box.length) * box.width),</div>
+<div class="line"><a id="l00037" name="l00037"></a><span class="lineno">   37</span>        <a class="code hl_variable" href="nms_8cpp.html#a3101a574df4f0f2772ac0a42a96c8e45">has_height</a>(box.height &gt; 0.0f) {</div>
+<div class="line"><a id="l00038" name="l00038"></a><span class="lineno">   38</span>    <span class="keyword">const</span> <span class="keywordtype">double</span> c = std::cos(box.yaw), s = std::sin(box.yaw);</div>
+<div class="line"><a id="l00039" name="l00039"></a><span class="lineno">   39</span>    <span class="keyword">const</span> <span class="keywordtype">double</span> dx = box.length * 0.5, dy = box.width * 0.5;</div>
+<div class="line"><a id="l00040" name="l00040"></a><span class="lineno">   40</span>    <a class="code hl_variable" href="nms_8cpp.html#a0e7a9049f082d855a0d1a6a3041a4b63">vertices</a> = {{{box.center[0] - dx * c + dy * s, box.center[1] - dx * s - dy * c},</div>
+<div class="line"><a id="l00041" name="l00041"></a><span class="lineno">   41</span>                 {box.center[0] + dx * c + dy * s, box.center[1] + dx * s - dy * c},</div>
+<div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span>                 {box.center[0] + dx * c - dy * s, box.center[1] + dx * s + dy * c},</div>
+<div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span>                 {box.center[0] - dx * c - dy * s, box.center[1] - dx * s + dy * c}}};</div>
+<div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span>    <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; p : <a class="code hl_variable" href="nms_8cpp.html#a0e7a9049f082d855a0d1a6a3041a4b63">vertices</a>) {</div>
+<div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span>      <span class="keywordflow">for</span> (std::size_t k = 0; k &lt; 2; ++k) {</div>
+<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span>        <a class="code hl_variable" href="nms_8cpp.html#ac5ca90d1b28886aee6e1411cd7155e93">minimum</a>[k] = std::min(<a class="code hl_variable" href="nms_8cpp.html#ac5ca90d1b28886aee6e1411cd7155e93">minimum</a>[k], p[k]);</div>
+<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span>        <a class="code hl_variable" href="nms_8cpp.html#a0ec9c616ddd0e2bf63bc89f2692d274b">maximum</a>[k] = std::max(<a class="code hl_variable" href="nms_8cpp.html#a0ec9c616ddd0e2bf63bc89f2692d274b">maximum</a>[k], p[k]);</div>
+<div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span>      }</div>
+<div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span>    }</div>
+<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span>  }</div>
+<div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span>};</div>
+<div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span> </div>
+<div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span><span class="keywordtype">double</span> HalfPlane(<span class="keyword">const</span> Point&amp; a, <span class="keyword">const</span> Point&amp; b, <span class="keyword">const</span> Point&amp; p) {</div>
+<div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span>  <span class="keywordflow">return</span> (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]);</div>
+<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span>}</div>
+<div class="line"><a id="l00062" name="l00062"></a><span class="lineno">   62</span> </div>
+<div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span><span class="keywordtype">double</span> IntersectionArea(<span class="keyword">const</span> PreparedBox&amp; a, <span class="keyword">const</span> PreparedBox&amp; b) {</div>
+<div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span>  std::array&lt;Point, 16&gt; polygon{}, output{};</div>
+<div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span>  std::copy(a.vertices.begin(), a.vertices.end(), polygon.begin());</div>
+<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span>  std::size_t count = 4;</div>
+<div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span>  <span class="keywordflow">for</span> (std::size_t edge = 0; edge &lt; 4 &amp;&amp; count &gt; 2; ++edge) {</div>
+<div class="line"><a id="l00073" name="l00073"></a><span class="lineno">   73</span>    <span class="keyword">const</span> <span class="keyword">auto</span>&amp; start = b.vertices[edge];</div>
+<div class="line"><a id="l00074" name="l00074"></a><span class="lineno">   74</span>    <span class="keyword">const</span> <span class="keyword">auto</span>&amp; end = b.vertices[(edge + 1) % 4];</div>
+<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span>    std::size_t next_count = 0;</div>
+<div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span>    <a class="code hl_typedef" href="namespacepoint__cloud__object__detection.html#a83c01597f73aaf20ab5cad6ed7987831">Point</a> previous = polygon[count - 1];</div>
+<div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span>    <span class="keywordtype">double</span> previous_distance = HalfPlane(start, end, previous);</div>
+<div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span>    <span class="keywordflow">for</span> (std::size_t i = 0; i &lt; count; ++i) {</div>
+<div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span>      <span class="keyword">const</span> <a class="code hl_typedef" href="namespacepoint__cloud__object__detection.html#a83c01597f73aaf20ab5cad6ed7987831">Point</a> current = polygon[i];</div>
+<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span>      <span class="keyword">const</span> <span class="keywordtype">double</span> distance = HalfPlane(start, end, current);</div>
+<div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span>      <span class="keywordflow">if</span> ((distance &gt;= 0.0) != (previous_distance &gt;= 0.0)) {</div>
+<div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span>        <span class="keyword">const</span> <span class="keywordtype">double</span> t = previous_distance / (previous_distance - distance);</div>
+<div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span>        output[next_count++] = {previous[0] + t * (current[0] - previous[0]), previous[1] + t * (current[1] - previous[1])};</div>
+<div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span>      }</div>
+<div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span>      <span class="keywordflow">if</span> (distance &gt;= 0.0) {</div>
+<div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span>        output[next_count++] = current;</div>
+<div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span>      }</div>
+<div class="line"><a id="l00088" name="l00088"></a><span class="lineno">   88</span>      previous = current;</div>
+<div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span>      previous_distance = distance;</div>
+<div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span>    }</div>
+<div class="line"><a id="l00091" name="l00091"></a><span class="lineno">   91</span>    polygon.swap(output);</div>
+<div class="line"><a id="l00092" name="l00092"></a><span class="lineno">   92</span>    count = next_count;</div>
+<div class="line"><a id="l00093" name="l00093"></a><span class="lineno">   93</span>  }</div>
+<div class="line"><a id="l00094" name="l00094"></a><span class="lineno">   94</span>  <span class="keywordflow">if</span> (count &lt; 3) {</div>
+<div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span>    <span class="keywordflow">return</span> 0.0;</div>
+<div class="line"><a id="l00096" name="l00096"></a><span class="lineno">   96</span>  }</div>
+<div class="line"><a id="l00097" name="l00097"></a><span class="lineno">   97</span>  <span class="keywordtype">double</span> <a class="code hl_variable" href="nms_8cpp.html#ae517bffd82b9428b4f1d9500ea01c04f">area</a> = 0.0;</div>
+<div class="line"><a id="l00098" name="l00098"></a><span class="lineno">   98</span>  <span class="keywordflow">for</span> (std::size_t i = 1; i + 1 &lt; count; ++i) {</div>
+<div class="line"><a id="l00099" name="l00099"></a><span class="lineno">   99</span>    <a class="code hl_variable" href="nms_8cpp.html#ae517bffd82b9428b4f1d9500ea01c04f">area</a> += HalfPlane(polygon[0], polygon[i], polygon[i + 1]);</div>
+<div class="line"><a id="l00100" name="l00100"></a><span class="lineno">  100</span>  }</div>
+<div class="line"><a id="l00101" name="l00101"></a><span class="lineno">  101</span>  <span class="keywordflow">return</span> std::abs(<a class="code hl_variable" href="nms_8cpp.html#ae517bffd82b9428b4f1d9500ea01c04f">area</a>) * 0.5;</div>
+<div class="line"><a id="l00102" name="l00102"></a><span class="lineno">  102</span>}</div>
+<div class="line"><a id="l00103" name="l00103"></a><span class="lineno">  103</span> </div>
+<div class="line"><a id="l00105" name="l00105"></a><span class="lineno">  105</span><span class="keyword">struct </span>PairOverlap {</div>
+<div class="line"><a id="l00106" name="l00106"></a><span class="lineno"><a class="line" href="nms_8cpp.html#a50e9052c27e10bb273e6db873e1863be">  106</a></span>  <span class="keywordtype">double</span> <a class="code hl_variable" href="nms_8cpp.html#a50e9052c27e10bb273e6db873e1863be">iou</a> = 0.0;    </div>
+<div class="line"><a id="l00107" name="l00107"></a><span class="lineno"><a class="line" href="nms_8cpp.html#ad04e424d7e7b8ed1d45bea51cad304e6">  107</a></span>  <span class="keywordtype">bool</span> <a class="code hl_variable" href="nms_8cpp.html#ad04e424d7e7b8ed1d45bea51cad304e6">merge</a> = <span class="keyword">false</span>;  </div>
+<div class="line"><a id="l00108" name="l00108"></a><span class="lineno">  108</span>};</div>
+<div class="line"><a id="l00109" name="l00109"></a><span class="lineno">  109</span> </div>
+<div class="line"><a id="l00118" name="l00118"></a><span class="lineno">  118</span>PairOverlap EvaluateOverlap(</div>
+<div class="line"><a id="l00119" name="l00119"></a><span class="lineno">  119</span>    <span class="keyword">const</span> PreparedBox&amp; a, <span class="keyword">const</span> PreparedBox&amp; b, <span class="keywordtype">float</span> nms_threshold, <span class="keywordtype">float</span> merge_threshold, NmsStats&amp; stats) {</div>
+<div class="line"><a id="l00120" name="l00120"></a><span class="lineno">  120</span>  <span class="keywordtype">double</span> area_bound = std::min(a.area, b.area);</div>
+<div class="line"><a id="l00121" name="l00121"></a><span class="lineno">  121</span>  <span class="keywordtype">double</span> rectangle_area = 1.0;</div>
+<div class="line"><a id="l00122" name="l00122"></a><span class="lineno">  122</span>  <span class="keywordflow">for</span> (std::size_t k = 0; k &lt; 2; ++k) {</div>
+<div class="line"><a id="l00123" name="l00123"></a><span class="lineno">  123</span>    <span class="keyword">const</span> <span class="keywordtype">double</span> extent = std::min(a.maximum[k], b.maximum[k]) - std::max(a.minimum[k], b.minimum[k]);</div>
+<div class="line"><a id="l00124" name="l00124"></a><span class="lineno">  124</span>    <span class="keywordflow">if</span> (extent &lt;= 0.0) {</div>
+<div class="line"><a id="l00125" name="l00125"></a><span class="lineno">  125</span>      <span class="keywordflow">return</span> {};</div>
+<div class="line"><a id="l00126" name="l00126"></a><span class="lineno">  126</span>    }</div>
+<div class="line"><a id="l00127" name="l00127"></a><span class="lineno">  127</span>    rectangle_area *= extent;</div>
+<div class="line"><a id="l00128" name="l00128"></a><span class="lineno">  128</span>  }</div>
+<div class="line"><a id="l00129" name="l00129"></a><span class="lineno">  129</span>  area_bound = std::min(area_bound, rectangle_area);</div>
+<div class="line"><a id="l00130" name="l00130"></a><span class="lineno">  130</span>  <span class="keywordtype">double</span> overlap_height = 1.0, volume_a = a.area, volume_b = b.area;</div>
+<div class="line"><a id="l00131" name="l00131"></a><span class="lineno">  131</span>  <span class="keyword">const</span> <span class="keywordtype">bool</span> <a class="code hl_variable" href="nms_8cpp.html#a3101a574df4f0f2772ac0a42a96c8e45">has_height</a> = a.has_height &amp;&amp; b.has_height;</div>
+<div class="line"><a id="l00132" name="l00132"></a><span class="lineno">  132</span>  <span class="keywordflow">if</span> (<a class="code hl_variable" href="nms_8cpp.html#a3101a574df4f0f2772ac0a42a96c8e45">has_height</a>) {</div>
+<div class="line"><a id="l00133" name="l00133"></a><span class="lineno">  133</span>    overlap_height = std::min(a.top, b.top) - std::max(a.bottom, b.bottom);</div>
+<div class="line"><a id="l00134" name="l00134"></a><span class="lineno">  134</span>    <span class="keywordflow">if</span> (overlap_height &lt;= 0.0) {</div>
+<div class="line"><a id="l00135" name="l00135"></a><span class="lineno">  135</span>      <span class="keywordflow">return</span> {};</div>
+<div class="line"><a id="l00136" name="l00136"></a><span class="lineno">  136</span>    }</div>
+<div class="line"><a id="l00137" name="l00137"></a><span class="lineno">  137</span>    volume_a *= a.top - a.bottom;</div>
+<div class="line"><a id="l00138" name="l00138"></a><span class="lineno">  138</span>    volume_b *= b.top - b.bottom;</div>
+<div class="line"><a id="l00139" name="l00139"></a><span class="lineno">  139</span>  }</div>
+<div class="line"><a id="l00140" name="l00140"></a><span class="lineno">  140</span>  <span class="keywordflow">if</span> (!(volume_a &gt; 0.0 &amp;&amp; volume_b &gt; 0.0) || !std::isfinite(volume_a) || !std::isfinite(volume_b)) {</div>
+<div class="line"><a id="l00141" name="l00141"></a><span class="lineno">  141</span>    <span class="keywordflow">return</span> {};</div>
+<div class="line"><a id="l00142" name="l00142"></a><span class="lineno">  142</span>  }</div>
+<div class="line"><a id="l00143" name="l00143"></a><span class="lineno">  143</span>  <span class="keyword">const</span> <span class="keywordtype">double</span> intersection_bound = area_bound * overlap_height;</div>
+<div class="line"><a id="l00144" name="l00144"></a><span class="lineno">  144</span>  <span class="keyword">const</span> <span class="keywordtype">double</span> merge_bound = <span class="keyword">static_cast&lt;</span><span class="keywordtype">double</span><span class="keyword">&gt;</span>(merge_threshold) * merge_threshold * volume_a * volume_b;</div>
+<div class="line"><a id="l00145" name="l00145"></a><span class="lineno">  145</span>  <span class="keyword">const</span> <span class="keywordtype">bool</span> possible_suppression = intersection_bound &gt; nms_threshold * (volume_a + volume_b - intersection_bound);</div>
+<div class="line"><a id="l00146" name="l00146"></a><span class="lineno">  146</span>  <span class="keyword">const</span> <span class="keywordtype">bool</span> possible_merge = <a class="code hl_variable" href="nms_8cpp.html#a3101a574df4f0f2772ac0a42a96c8e45">has_height</a> &amp;&amp; intersection_bound * intersection_bound &gt; merge_bound;</div>
+<div class="line"><a id="l00147" name="l00147"></a><span class="lineno">  147</span>  <span class="keywordflow">if</span> (intersection_bound &lt;= 0.0 || (!possible_suppression &amp;&amp; !possible_merge)) {</div>
+<div class="line"><a id="l00148" name="l00148"></a><span class="lineno">  148</span>    <span class="keywordflow">return</span> {};</div>
+<div class="line"><a id="l00149" name="l00149"></a><span class="lineno">  149</span>  }</div>
+<div class="line"><a id="l00150" name="l00150"></a><span class="lineno">  150</span>  ++stats.iou_evaluations;</div>
+<div class="line"><a id="l00151" name="l00151"></a><span class="lineno">  151</span>  <span class="keyword">const</span> <span class="keywordtype">double</span> intersection = std::min(IntersectionArea(a, b), area_bound) * overlap_height;</div>
+<div class="line"><a id="l00152" name="l00152"></a><span class="lineno">  152</span>  <span class="keywordflow">return</span> {intersection / std::max(volume_a + volume_b - intersection, 1e-7),</div>
+<div class="line"><a id="l00153" name="l00153"></a><span class="lineno">  153</span>          <a class="code hl_variable" href="nms_8cpp.html#a3101a574df4f0f2772ac0a42a96c8e45">has_height</a> &amp;&amp; intersection * intersection &gt; merge_bound};</div>
+<div class="line"><a id="l00154" name="l00154"></a><span class="lineno">  154</span>}</div>
+<div class="line"><a id="l00155" name="l00155"></a><span class="lineno">  155</span> </div>
+<div class="line"><a id="l00160" name="l00160"></a><span class="lineno">  160</span>std::size_t BestClass(<span class="keyword">const</span> BoundingBox&amp; box) {</div>
+<div class="line"><a id="l00161" name="l00161"></a><span class="lineno">  161</span>  <span class="keywordtype">float</span> best = -std::numeric_limits&lt;float&gt;::infinity();</div>
+<div class="line"><a id="l00162" name="l00162"></a><span class="lineno">  162</span>  std::size_t <a class="code hl_variable" href="nms_8cpp.html#ac28efa16fb8062e271f8b7a373cc1734">index</a> = 0;</div>
+<div class="line"><a id="l00163" name="l00163"></a><span class="lineno">  163</span>  <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; entry : box.classification) {</div>
+<div class="line"><a id="l00164" name="l00164"></a><span class="lineno">  164</span>    <span class="keywordflow">if</span> (entry.score &gt; best) {</div>
+<div class="line"><a id="l00165" name="l00165"></a><span class="lineno">  165</span>      best = entry.score;</div>
+<div class="line"><a id="l00166" name="l00166"></a><span class="lineno">  166</span>      <a class="code hl_variable" href="nms_8cpp.html#ac28efa16fb8062e271f8b7a373cc1734">index</a> = entry.class_idx;</div>
+<div class="line"><a id="l00167" name="l00167"></a><span class="lineno">  167</span>    }</div>
+<div class="line"><a id="l00168" name="l00168"></a><span class="lineno">  168</span>  }</div>
+<div class="line"><a id="l00169" name="l00169"></a><span class="lineno">  169</span>  <span class="keywordflow">return</span> <a class="code hl_variable" href="nms_8cpp.html#ac28efa16fb8062e271f8b7a373cc1734">index</a>;</div>
+<div class="line"><a id="l00170" name="l00170"></a><span class="lineno">  170</span>}</div>
+<div class="line"><a id="l00171" name="l00171"></a><span class="lineno">  171</span> </div>
+<div class="line"><a id="l00173" name="l00173"></a><span class="lineno">  173</span><span class="keyword">struct </span>ClassMixture {</div>
+<div class="line"><a id="l00174" name="l00174"></a><span class="lineno"><a class="line" href="nms_8cpp.html#a759ffdbf20fa67bffc90142ef0a02a92">  174</a></span>  std::vector&lt;ClassificationEntry&gt; <a class="code hl_variable" href="nms_8cpp.html#a759ffdbf20fa67bffc90142ef0a02a92">probabilities</a>;  </div>
+<div class="line"><a id="l00175" name="l00175"></a><span class="lineno"><a class="line" href="nms_8cpp.html#a99108733d00274978a4979dc072bd513">  175</a></span>  <span class="keywordtype">double</span> <a class="code hl_variable" href="nms_8cpp.html#a99108733d00274978a4979dc072bd513">weight</a> = 0.0;                             </div>
+<div class="line"><a id="l00176" name="l00176"></a><span class="lineno">  176</span> </div>
+<div class="line"><a id="l00181" name="l00181"></a><span class="lineno">  181</span>  <span class="keywordtype">void</span> add(<span class="keyword">const</span> BoundingBox&amp; box, <span class="keywordtype">double</span> <a class="code hl_variable" href="nms_8cpp.html#a8c5cd9b525ee73a24b1d9d8e34982d1c">score</a>) {</div>
+<div class="line"><a id="l00182" name="l00182"></a><span class="lineno">  182</span>    <span class="keywordflow">if</span> (box.classification.empty()) {</div>
+<div class="line"><a id="l00183" name="l00183"></a><span class="lineno">  183</span>      <span class="keywordflow">throw</span> std::invalid_argument(<span class="stringliteral">&quot;Box merging requires class logits&quot;</span>);</div>
+<div class="line"><a id="l00184" name="l00184"></a><span class="lineno">  184</span>    }</div>
+<div class="line"><a id="l00185" name="l00185"></a><span class="lineno">  185</span>    <span class="keywordtype">float</span> <a class="code hl_variable" href="nms_8cpp.html#a0ec9c616ddd0e2bf63bc89f2692d274b">maximum</a> = -std::numeric_limits&lt;float&gt;::infinity();</div>
+<div class="line"><a id="l00186" name="l00186"></a><span class="lineno">  186</span>    <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; entry : box.classification) {</div>
+<div class="line"><a id="l00187" name="l00187"></a><span class="lineno">  187</span>      <span class="keywordflow">if</span> (std::isnan(entry.score) || entry.score == std::numeric_limits&lt;float&gt;::infinity()) {</div>
+<div class="line"><a id="l00188" name="l00188"></a><span class="lineno">  188</span>        <span class="keywordflow">throw</span> std::invalid_argument(<span class="stringliteral">&quot;Box merging requires finite logits or negative infinity&quot;</span>);</div>
+<div class="line"><a id="l00189" name="l00189"></a><span class="lineno">  189</span>      }</div>
+<div class="line"><a id="l00190" name="l00190"></a><span class="lineno">  190</span>      <a class="code hl_variable" href="nms_8cpp.html#a0ec9c616ddd0e2bf63bc89f2692d274b">maximum</a> = std::max(<a class="code hl_variable" href="nms_8cpp.html#a0ec9c616ddd0e2bf63bc89f2692d274b">maximum</a>, entry.score);</div>
+<div class="line"><a id="l00191" name="l00191"></a><span class="lineno">  191</span>    }</div>
+<div class="line"><a id="l00192" name="l00192"></a><span class="lineno">  192</span>    <span class="keywordflow">if</span> (!std::isfinite(<a class="code hl_variable" href="nms_8cpp.html#a0ec9c616ddd0e2bf63bc89f2692d274b">maximum</a>)) {</div>
+<div class="line"><a id="l00193" name="l00193"></a><span class="lineno">  193</span>      <span class="keywordflow">throw</span> std::invalid_argument(<span class="stringliteral">&quot;Box merging requires at least one finite class logit&quot;</span>);</div>
+<div class="line"><a id="l00194" name="l00194"></a><span class="lineno">  194</span>    }</div>
+<div class="line"><a id="l00195" name="l00195"></a><span class="lineno">  195</span>    <span class="keywordtype">double</span> denominator = 0.0;</div>
+<div class="line"><a id="l00196" name="l00196"></a><span class="lineno">  196</span>    <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; entry : box.classification) {</div>
+<div class="line"><a id="l00197" name="l00197"></a><span class="lineno">  197</span>      denominator += std::exp(<span class="keyword">static_cast&lt;</span><span class="keywordtype">double</span><span class="keyword">&gt;</span>(entry.score) - <a class="code hl_variable" href="nms_8cpp.html#a0ec9c616ddd0e2bf63bc89f2692d274b">maximum</a>);</div>
+<div class="line"><a id="l00198" name="l00198"></a><span class="lineno">  198</span>    }</div>
+<div class="line"><a id="l00199" name="l00199"></a><span class="lineno">  199</span>    <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; entry : box.classification) {</div>
+<div class="line"><a id="l00200" name="l00200"></a><span class="lineno">  200</span>      <span class="keyword">auto</span> existing = std::find_if(<a class="code hl_variable" href="nms_8cpp.html#a759ffdbf20fa67bffc90142ef0a02a92">probabilities</a>.begin(), <a class="code hl_variable" href="nms_8cpp.html#a759ffdbf20fa67bffc90142ef0a02a92">probabilities</a>.end(),</div>
+<div class="line"><a id="l00201" name="l00201"></a><span class="lineno">  201</span>                                   [&amp;](<span class="keyword">const</span> ClassificationEntry&amp; value) { return value.class_idx == entry.class_idx; });</div>
+<div class="line"><a id="l00202" name="l00202"></a><span class="lineno">  202</span>      <span class="keyword">const</span> <span class="keywordtype">float</span> contribution = <span class="keyword">static_cast&lt;</span><span class="keywordtype">float</span><span class="keyword">&gt;</span>(<a class="code hl_variable" href="nms_8cpp.html#a8c5cd9b525ee73a24b1d9d8e34982d1c">score</a> * std::exp(<span class="keyword">static_cast&lt;</span><span class="keywordtype">double</span><span class="keyword">&gt;</span>(entry.score) - <a class="code hl_variable" href="nms_8cpp.html#a0ec9c616ddd0e2bf63bc89f2692d274b">maximum</a>) / denominator);</div>
+<div class="line"><a id="l00203" name="l00203"></a><span class="lineno">  203</span>      <span class="keywordflow">if</span> (existing == <a class="code hl_variable" href="nms_8cpp.html#a759ffdbf20fa67bffc90142ef0a02a92">probabilities</a>.end()) {</div>
+<div class="line"><a id="l00204" name="l00204"></a><span class="lineno">  204</span>        <a class="code hl_variable" href="nms_8cpp.html#a759ffdbf20fa67bffc90142ef0a02a92">probabilities</a>.push_back({entry.class_idx, contribution});</div>
+<div class="line"><a id="l00205" name="l00205"></a><span class="lineno">  205</span>      } <span class="keywordflow">else</span> {</div>
+<div class="line"><a id="l00206" name="l00206"></a><span class="lineno">  206</span>        existing-&gt;score += contribution;</div>
+<div class="line"><a id="l00207" name="l00207"></a><span class="lineno">  207</span>      }</div>
+<div class="line"><a id="l00208" name="l00208"></a><span class="lineno">  208</span>    }</div>
+<div class="line"><a id="l00209" name="l00209"></a><span class="lineno">  209</span>    <a class="code hl_variable" href="nms_8cpp.html#a99108733d00274978a4979dc072bd513">weight</a> += <a class="code hl_variable" href="nms_8cpp.html#a8c5cd9b525ee73a24b1d9d8e34982d1c">score</a>;</div>
+<div class="line"><a id="l00210" name="l00210"></a><span class="lineno">  210</span>  }</div>
+<div class="line"><a id="l00211" name="l00211"></a><span class="lineno">  211</span> </div>
+<div class="line"><a id="l00215" name="l00215"></a><span class="lineno">  215</span>  <span class="keywordtype">void</span> finish(BoundingBox&amp; box) {</div>
+<div class="line"><a id="l00216" name="l00216"></a><span class="lineno">  216</span>    box.classification = std::move(probabilities);</div>
+<div class="line"><a id="l00217" name="l00217"></a><span class="lineno">  217</span>    std::sort(box.classification.begin(), box.classification.end(),</div>
+<div class="line"><a id="l00218" name="l00218"></a><span class="lineno">  218</span>              [](<span class="keyword">const</span> ClassificationEntry&amp; a, <span class="keyword">const</span> ClassificationEntry&amp; b) { return a.class_idx &lt; b.class_idx; });</div>
+<div class="line"><a id="l00219" name="l00219"></a><span class="lineno">  219</span>    <span class="keywordflow">for</span> (<span class="keyword">auto</span>&amp; entry : box.classification) {</div>
+<div class="line"><a id="l00220" name="l00220"></a><span class="lineno">  220</span>      entry.score = <span class="keyword">static_cast&lt;</span><span class="keywordtype">float</span><span class="keyword">&gt;</span>(std::log(entry.score / weight));</div>
+<div class="line"><a id="l00221" name="l00221"></a><span class="lineno">  221</span>    }</div>
+<div class="line"><a id="l00222" name="l00222"></a><span class="lineno">  222</span>  }</div>
+<div class="line"><a id="l00223" name="l00223"></a><span class="lineno">  223</span>};</div>
+<div class="line"><a id="l00224" name="l00224"></a><span class="lineno">  224</span> </div>
+<div class="line"><a id="l00226" name="l00226"></a><span class="lineno">  226</span><span class="keyword">struct </span>Candidate {</div>
+<div class="line"><a id="l00227" name="l00227"></a><span class="lineno"><a class="line" href="nms_8cpp.html#a8c5cd9b525ee73a24b1d9d8e34982d1c">  227</a></span>  <span class="keywordtype">float</span> <a class="code hl_variable" href="nms_8cpp.html#a8c5cd9b525ee73a24b1d9d8e34982d1c">score</a>;            </div>
+<div class="line"><a id="l00228" name="l00228"></a><span class="lineno"><a class="line" href="nms_8cpp.html#ac28efa16fb8062e271f8b7a373cc1734">  228</a></span>  std::size_t <a class="code hl_variable" href="nms_8cpp.html#ac28efa16fb8062e271f8b7a373cc1734">index</a>;      </div>
+<div class="line"><a id="l00229" name="l00229"></a><span class="lineno"><a class="line" href="nms_8cpp.html#a01c5559e7de4de3e06bf91aacf79557a">  229</a></span>  std::size_t <a class="code hl_variable" href="nms_8cpp.html#a01c5559e7de4de3e06bf91aacf79557a">class_idx</a>;  </div>
+<div class="line"><a id="l00230" name="l00230"></a><span class="lineno"><a class="line" href="nms_8cpp.html#a7f3bccf5dbb832f3d5c9034e3821daa2">  230</a></span>  PreparedBox <a class="code hl_variable" href="nms_8cpp.html#a7f3bccf5dbb832f3d5c9034e3821daa2">geometry</a>;   </div>
+<div class="line"><a id="l00231" name="l00231"></a><span class="lineno">  231</span>};</div>
+<div class="line"><a id="l00232" name="l00232"></a><span class="lineno">  232</span> </div>
+<div class="line"><a id="l00233" name="l00233"></a><span class="lineno">  233</span>}  <span class="comment">// namespace</span></div>
+<div class="line"><a id="l00234" name="l00234"></a><span class="lineno">  234</span> </div>
+<div class="line"><a id="l00235" name="l00235"></a><span class="lineno"><a class="line" href="namespacepcod__common.html#a5be13ed700e3f92b1523d7dace40a4a5">  235</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="namespacepcod__common.html#a262f6555bf2f5958b9b8adc5ac0672c0">ApplyRotatedNms</a>(std::vector&lt;BoundingBox&gt;&amp; bboxes, <span class="keyword">const</span> <a class="code hl_struct" href="structpcod__common_1_1NmsConfig.html">NmsConfig</a>&amp; config) { <a class="code hl_function" href="namespacepcod__common.html#a262f6555bf2f5958b9b8adc5ac0672c0">ApplyRotatedNms</a>(bboxes, config, <span class="keyword">nullptr</span>); }</div>
+<div class="line"><a id="l00236" name="l00236"></a><span class="lineno">  236</span> </div>
+<div class="foldopen" id="foldopen00237" data-start="{" data-end="}">
+<div class="line"><a id="l00237" name="l00237"></a><span class="lineno"><a class="line" href="namespacepcod__common.html#a262f6555bf2f5958b9b8adc5ac0672c0">  237</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="namespacepcod__common.html#a262f6555bf2f5958b9b8adc5ac0672c0">ApplyRotatedNms</a>(std::vector&lt;BoundingBox&gt;&amp; bboxes, <span class="keyword">const</span> <a class="code hl_struct" href="structpcod__common_1_1NmsConfig.html">NmsConfig</a>&amp; config, <a class="code hl_struct" href="structpcod__common_1_1NmsStats.html">NmsStats</a>* stats) {</div>
+<div class="line"><a id="l00238" name="l00238"></a><span class="lineno">  238</span>  <a class="code hl_struct" href="structpcod__common_1_1NmsStats.html">NmsStats</a> counts;</div>
+<div class="line"><a id="l00239" name="l00239"></a><span class="lineno">  239</span>  <span class="keywordflow">if</span> (stats != <span class="keyword">nullptr</span>) {</div>
+<div class="line"><a id="l00240" name="l00240"></a><span class="lineno">  240</span>    *stats = counts;</div>
+<div class="line"><a id="l00241" name="l00241"></a><span class="lineno">  241</span>  }</div>
+<div class="line"><a id="l00242" name="l00242"></a><span class="lineno">  242</span>  <span class="keywordflow">if</span> (config.<a class="code hl_variable" href="structpcod__common_1_1NmsConfig.html#a121b0f1f819b9253c949309548e2e08e">merge_enabled</a> &amp;&amp; (!std::isfinite(config.<a class="code hl_variable" href="structpcod__common_1_1NmsConfig.html#aa881162c69b07f0a2dd7d002874f8827">merge_score_threshold</a>) || config.<a class="code hl_variable" href="structpcod__common_1_1NmsConfig.html#aa881162c69b07f0a2dd7d002874f8827">merge_score_threshold</a> &lt; 0.0f ||</div>
+<div class="line"><a id="l00243" name="l00243"></a><span class="lineno">  243</span>                               config.<a class="code hl_variable" href="structpcod__common_1_1NmsConfig.html#aa881162c69b07f0a2dd7d002874f8827">merge_score_threshold</a> &gt; 1.0f)) {</div>
+<div class="line"><a id="l00244" name="l00244"></a><span class="lineno">  244</span>    <span class="keywordflow">throw</span> std::invalid_argument(<span class="stringliteral">&quot;Box merging score threshold must be finite and in [0, 1]&quot;</span>);</div>
+<div class="line"><a id="l00245" name="l00245"></a><span class="lineno">  245</span>  }</div>
+<div class="line"><a id="l00246" name="l00246"></a><span class="lineno">  246</span>  <span class="keywordflow">if</span> (config.<a class="code hl_variable" href="structpcod__common_1_1NmsConfig.html#a5cffc9e3de1bdb5bbea58ca90e495b34">max_detections</a> &lt;= 0) {</div>
+<div class="line"><a id="l00247" name="l00247"></a><span class="lineno">  247</span>    bboxes.clear();</div>
+<div class="line"><a id="l00248" name="l00248"></a><span class="lineno">  248</span>    <span class="keywordflow">return</span>;</div>
+<div class="line"><a id="l00249" name="l00249"></a><span class="lineno">  249</span>  }</div>
+<div class="line"><a id="l00250" name="l00250"></a><span class="lineno">  250</span>  std::vector&lt;Candidate&gt; scored;</div>
+<div class="line"><a id="l00251" name="l00251"></a><span class="lineno">  251</span>  scored.reserve(bboxes.size());</div>
+<div class="line"><a id="l00252" name="l00252"></a><span class="lineno">  252</span>  <span class="keywordflow">for</span> (std::size_t i = 0; i &lt; bboxes.size(); ++i) {</div>
+<div class="line"><a id="l00253" name="l00253"></a><span class="lineno">  253</span>    <span class="keyword">const</span> <span class="keyword">auto</span>&amp; box = bboxes[i];</div>
+<div class="line"><a id="l00254" name="l00254"></a><span class="lineno">  254</span>    <span class="keyword">const</span> std::size_t <a class="code hl_variable" href="nms_8cpp.html#a01c5559e7de4de3e06bf91aacf79557a">class_idx</a> = BestClass(box);</div>
+<div class="line"><a id="l00255" name="l00255"></a><span class="lineno">  255</span>    <span class="keyword">const</span> <span class="keywordtype">float</span> threshold = config.<a class="code hl_variable" href="structpcod__common_1_1NmsConfig.html#a56ab21100af944a759b28fc573ac52d3">score_thresholds</a>.empty()</div>
+<div class="line"><a id="l00256" name="l00256"></a><span class="lineno">  256</span>                                ? config.<a class="code hl_variable" href="structpcod__common_1_1NmsConfig.html#aae927f2adadd6e25c61ad73f85c1dd1a">internal_score_threshold</a></div>
+<div class="line"><a id="l00257" name="l00257"></a><span class="lineno">  257</span>                                : config.<a class="code hl_variable" href="structpcod__common_1_1NmsConfig.html#a56ab21100af944a759b28fc573ac52d3">score_thresholds</a>[std::min(<a class="code hl_variable" href="nms_8cpp.html#a01c5559e7de4de3e06bf91aacf79557a">class_idx</a>, config.<a class="code hl_variable" href="structpcod__common_1_1NmsConfig.html#a56ab21100af944a759b28fc573ac52d3">score_thresholds</a>.size() - 1)];</div>
+<div class="line"><a id="l00258" name="l00258"></a><span class="lineno">  258</span>    <span class="keyword">const</span> <span class="keywordtype">float</span> <a class="code hl_variable" href="nms_8cpp.html#a8c5cd9b525ee73a24b1d9d8e34982d1c">score</a> = box.detection_score.value_or(box.existence_probability);</div>
+<div class="line"><a id="l00259" name="l00259"></a><span class="lineno">  259</span>    <span class="keywordflow">if</span> (std::isfinite(<a class="code hl_variable" href="nms_8cpp.html#a8c5cd9b525ee73a24b1d9d8e34982d1c">score</a>) &amp;&amp; <a class="code hl_variable" href="nms_8cpp.html#a8c5cd9b525ee73a24b1d9d8e34982d1c">score</a> &gt;= threshold) {</div>
+<div class="line"><a id="l00260" name="l00260"></a><span class="lineno">  260</span>      scored.push_back({<a class="code hl_variable" href="nms_8cpp.html#a8c5cd9b525ee73a24b1d9d8e34982d1c">score</a>, i, <a class="code hl_variable" href="nms_8cpp.html#a01c5559e7de4de3e06bf91aacf79557a">class_idx</a>, PreparedBox(box)});</div>
+<div class="line"><a id="l00261" name="l00261"></a><span class="lineno">  261</span>    }</div>
+<div class="line"><a id="l00262" name="l00262"></a><span class="lineno">  262</span>  }</div>
+<div class="line"><a id="l00263" name="l00263"></a><span class="lineno">  263</span>  counts.<a class="code hl_variable" href="structpcod__common_1_1NmsStats.html#ad2d4e5f2f4e89a624fab3be2b3f9b04d">candidates</a> = scored.size();</div>
+<div class="line"><a id="l00264" name="l00264"></a><span class="lineno">  264</span>  std::sort(scored.begin(), scored.end(), [](<span class="keyword">const</span> Candidate&amp; a, <span class="keyword">const</span> Candidate&amp; b) {</div>
+<div class="line"><a id="l00265" name="l00265"></a><span class="lineno">  265</span>    return a.score &gt; b.score || (a.score == b.score &amp;&amp; a.index &lt; b.index);</div>
+<div class="line"><a id="l00266" name="l00266"></a><span class="lineno">  266</span>  });</div>
+<div class="line"><a id="l00267" name="l00267"></a><span class="lineno">  267</span>  std::vector&lt;BoundingBox&gt; kept;</div>
+<div class="line"><a id="l00268" name="l00268"></a><span class="lineno">  268</span>  std::vector&lt;std::size_t&gt; representatives;</div>
+<div class="line"><a id="l00269" name="l00269"></a><span class="lineno">  269</span>  std::vector&lt;ClassMixture&gt; mixtures;</div>
+<div class="line"><a id="l00270" name="l00270"></a><span class="lineno">  270</span>  <span class="keyword">const</span> std::size_t capacity = std::min(scored.size(), <span class="keyword">static_cast&lt;</span>std::size_t<span class="keyword">&gt;</span>(config.<a class="code hl_variable" href="structpcod__common_1_1NmsConfig.html#a5cffc9e3de1bdb5bbea58ca90e495b34">max_detections</a>));</div>
+<div class="line"><a id="l00271" name="l00271"></a><span class="lineno">  271</span>  kept.reserve(capacity);</div>
+<div class="line"><a id="l00272" name="l00272"></a><span class="lineno">  272</span>  representatives.reserve(capacity);</div>
+<div class="line"><a id="l00273" name="l00273"></a><span class="lineno">  273</span>  <span class="keywordflow">if</span> (config.<a class="code hl_variable" href="structpcod__common_1_1NmsConfig.html#a121b0f1f819b9253c949309548e2e08e">merge_enabled</a>) {</div>
+<div class="line"><a id="l00274" name="l00274"></a><span class="lineno">  274</span>    mixtures.resize(capacity);</div>
+<div class="line"><a id="l00275" name="l00275"></a><span class="lineno">  275</span>  }</div>
+<div class="line"><a id="l00276" name="l00276"></a><span class="lineno">  276</span>  <span class="keywordflow">for</span> (std::size_t i = 0; i &lt; scored.size(); ++i) {</div>
+<div class="line"><a id="l00277" name="l00277"></a><span class="lineno">  277</span>    <span class="keyword">const</span> <span class="keyword">auto</span>&amp; candidate = scored[i];</div>
+<div class="line"><a id="l00278" name="l00278"></a><span class="lineno">  278</span>    <span class="keywordtype">bool</span> suppressed = <span class="keyword">false</span>, merged = <span class="keyword">false</span>;</div>
+<div class="line"><a id="l00279" name="l00279"></a><span class="lineno">  279</span>    <span class="keywordflow">for</span> (std::size_t k = 0; k &lt; kept.size(); ++k) {</div>
+<div class="line"><a id="l00280" name="l00280"></a><span class="lineno">  280</span>      <span class="keyword">const</span> <span class="keyword">auto</span>&amp; representative = scored[representatives[k]];</div>
+<div class="line"><a id="l00281" name="l00281"></a><span class="lineno">  281</span>      <span class="keyword">const</span> <span class="keywordtype">bool</span> same_class = candidate.class_idx == representative.class_idx;</div>
+<div class="line"><a id="l00282" name="l00282"></a><span class="lineno">  282</span>      <span class="keyword">const</span> <span class="keywordtype">bool</span> can_merge = config.<a class="code hl_variable" href="structpcod__common_1_1NmsConfig.html#a121b0f1f819b9253c949309548e2e08e">merge_enabled</a> &amp;&amp; candidate.geometry.has_height &amp;&amp; representative.geometry.has_height;</div>
+<div class="line"><a id="l00283" name="l00283"></a><span class="lineno">  283</span>      <span class="keywordflow">if</span> (!same_class &amp;&amp; !can_merge) {</div>
+<div class="line"><a id="l00284" name="l00284"></a><span class="lineno">  284</span>        <span class="keywordflow">continue</span>;</div>
+<div class="line"><a id="l00285" name="l00285"></a><span class="lineno">  285</span>      }</div>
+<div class="line"><a id="l00286" name="l00286"></a><span class="lineno">  286</span>      <span class="keyword">const</span> <span class="keyword">auto</span> overlap = EvaluateOverlap(candidate.geometry, representative.geometry, same_class ? config.<a class="code hl_variable" href="structpcod__common_1_1NmsConfig.html#a38d89565d76217b63c7ee80303ebb0b7">iou_threshold</a> : 1.0f,</div>
+<div class="line"><a id="l00287" name="l00287"></a><span class="lineno">  287</span>                                           can_merge ? config.<a class="code hl_variable" href="structpcod__common_1_1NmsConfig.html#aa881162c69b07f0a2dd7d002874f8827">merge_score_threshold</a> : 1.0f, counts);</div>
+<div class="line"><a id="l00288" name="l00288"></a><span class="lineno">  288</span>      <span class="keywordflow">if</span> (can_merge &amp;&amp; overlap.merge) {</div>
+<div class="line"><a id="l00289" name="l00289"></a><span class="lineno">  289</span>        <span class="keyword">auto</span>&amp; mixture = mixtures[k];</div>
+<div class="line"><a id="l00290" name="l00290"></a><span class="lineno">  290</span>        <span class="comment">// All-zero clusters use uniform weights. Once any positive score is</span></div>
+<div class="line"><a id="l00291" name="l00291"></a><span class="lineno">  291</span>        <span class="comment">// present, zero-score members contribute no probability mass.</span></div>
+<div class="line"><a id="l00292" name="l00292"></a><span class="lineno">  292</span>        <span class="keyword">const</span> <span class="keywordtype">double</span> <a class="code hl_variable" href="nms_8cpp.html#a99108733d00274978a4979dc072bd513">weight</a> = representative.score &gt; 0.0f ? std::max(0.0f, candidate.score) : 1.0;</div>
+<div class="line"><a id="l00293" name="l00293"></a><span class="lineno">  293</span>        <span class="keywordflow">if</span> (mixture.probabilities.empty()) {</div>
+<div class="line"><a id="l00294" name="l00294"></a><span class="lineno">  294</span>          mixture.add(bboxes[representative.index], representative.score &gt; 0.0f ? representative.score : 1.0);</div>
+<div class="line"><a id="l00295" name="l00295"></a><span class="lineno">  295</span>        }</div>
+<div class="line"><a id="l00296" name="l00296"></a><span class="lineno">  296</span>        mixture.add(bboxes[candidate.index], <a class="code hl_variable" href="nms_8cpp.html#a99108733d00274978a4979dc072bd513">weight</a>);</div>
+<div class="line"><a id="l00297" name="l00297"></a><span class="lineno">  297</span>        ++counts.<a class="code hl_variable" href="structpcod__common_1_1NmsStats.html#a751eeab2c419a5e41f35c185704b238f">merged_boxes</a>;</div>
+<div class="line"><a id="l00298" name="l00298"></a><span class="lineno">  298</span>        merged = <span class="keyword">true</span>;</div>
+<div class="line"><a id="l00299" name="l00299"></a><span class="lineno">  299</span>        <span class="keywordflow">break</span>;</div>
+<div class="line"><a id="l00300" name="l00300"></a><span class="lineno">  300</span>      }</div>
+<div class="line"><a id="l00301" name="l00301"></a><span class="lineno">  301</span>      <span class="keywordflow">if</span> (same_class &amp;&amp; overlap.iou &gt; config.<a class="code hl_variable" href="structpcod__common_1_1NmsConfig.html#a38d89565d76217b63c7ee80303ebb0b7">iou_threshold</a>) {</div>
+<div class="line"><a id="l00302" name="l00302"></a><span class="lineno">  302</span>        suppressed = <span class="keyword">true</span>;</div>
+<div class="line"><a id="l00303" name="l00303"></a><span class="lineno">  303</span>        <span class="keywordflow">if</span> (!config.<a class="code hl_variable" href="structpcod__common_1_1NmsConfig.html#a121b0f1f819b9253c949309548e2e08e">merge_enabled</a>) {</div>
+<div class="line"><a id="l00304" name="l00304"></a><span class="lineno">  304</span>          <span class="keywordflow">break</span>;</div>
+<div class="line"><a id="l00305" name="l00305"></a><span class="lineno">  305</span>        }</div>
+<div class="line"><a id="l00306" name="l00306"></a><span class="lineno">  306</span>      }</div>
+<div class="line"><a id="l00307" name="l00307"></a><span class="lineno">  307</span>    }</div>
+<div class="line"><a id="l00308" name="l00308"></a><span class="lineno">  308</span>    <span class="keywordflow">if</span> (!merged &amp;&amp; !suppressed &amp;&amp; kept.size() &lt; capacity) {</div>
+<div class="line"><a id="l00309" name="l00309"></a><span class="lineno">  309</span>      kept.push_back(bboxes[candidate.index]);</div>
+<div class="line"><a id="l00310" name="l00310"></a><span class="lineno">  310</span>      representatives.push_back(i);</div>
+<div class="line"><a id="l00311" name="l00311"></a><span class="lineno">  311</span>      <span class="keywordflow">if</span> (!config.<a class="code hl_variable" href="structpcod__common_1_1NmsConfig.html#a121b0f1f819b9253c949309548e2e08e">merge_enabled</a> &amp;&amp; kept.size() == capacity) {</div>
+<div class="line"><a id="l00312" name="l00312"></a><span class="lineno">  312</span>        <span class="keywordflow">break</span>;</div>
+<div class="line"><a id="l00313" name="l00313"></a><span class="lineno">  313</span>      }</div>
+<div class="line"><a id="l00314" name="l00314"></a><span class="lineno">  314</span>    }</div>
+<div class="line"><a id="l00315" name="l00315"></a><span class="lineno">  315</span>  }</div>
+<div class="line"><a id="l00316" name="l00316"></a><span class="lineno">  316</span>  <span class="keywordflow">for</span> (std::size_t k = 0; k &lt; kept.size() &amp;&amp; config.<a class="code hl_variable" href="structpcod__common_1_1NmsConfig.html#a121b0f1f819b9253c949309548e2e08e">merge_enabled</a>; ++k) {</div>
+<div class="line"><a id="l00317" name="l00317"></a><span class="lineno">  317</span>    <span class="keywordflow">if</span> (!mixtures[k].<a class="code hl_variable" href="nms_8cpp.html#a759ffdbf20fa67bffc90142ef0a02a92">probabilities</a>.empty()) {</div>
+<div class="line"><a id="l00318" name="l00318"></a><span class="lineno">  318</span>      mixtures[k].finish(kept[k]);</div>
+<div class="line"><a id="l00319" name="l00319"></a><span class="lineno">  319</span>    }</div>
+<div class="line"><a id="l00320" name="l00320"></a><span class="lineno">  320</span>  }</div>
+<div class="line"><a id="l00321" name="l00321"></a><span class="lineno">  321</span>  bboxes = std::move(kept);</div>
+<div class="line"><a id="l00322" name="l00322"></a><span class="lineno">  322</span>  <span class="keywordflow">if</span> (stats != <span class="keyword">nullptr</span>) {</div>
+<div class="line"><a id="l00323" name="l00323"></a><span class="lineno">  323</span>    *stats = counts;</div>
+<div class="line"><a id="l00324" name="l00324"></a><span class="lineno">  324</span>  }</div>
+<div class="line"><a id="l00325" name="l00325"></a><span class="lineno">  325</span>}</div>
 </div>
-<div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span> </div>
-<div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span>}  <span class="comment">// namespace pcod_common</span></div>
-<div class="ttc" id="amath_8hpp_html"><div class="ttname"><a href="math_8hpp.html">math.hpp</a></div></div>
-<div class="ttc" id="anamespacepcod__common_html"><div class="ttname"><a href="namespacepcod__common.html">pcod_common</a></div><div class="ttdef"><b>Definition</b> <a href="bounding__box_8hpp_source.html#l00009">bounding_box.hpp:9</a></div></div>
-<div class="ttc" id="anamespacepcod__common_html_a5be13ed700e3f92b1523d7dace40a4a5"><div class="ttname"><a href="namespacepcod__common.html#a5be13ed700e3f92b1523d7dace40a4a5">pcod_common::ApplyRotatedNms</a></div><div class="ttdeci">void ApplyRotatedNms(std::vector&lt; BoundingBox &gt; &amp;bboxes, const NmsConfig &amp;config)</div><div class="ttdef"><b>Definition</b> <a href="#l00012">nms.cpp:12</a></div></div>
-<div class="ttc" id="anamespacepcod__common_html_a6ad2ca73c71991dbced15f692d6f29c3"><div class="ttname"><a href="namespacepcod__common.html#a6ad2ca73c71991dbced15f692d6f29c3">pcod_common::scale_score</a></div><div class="ttdeci">T scale_score(T score, T old_thresh, T new_thresh)</div><div class="ttdef"><b>Definition</b> <a href="math_8hpp_source.html#l00023">math.hpp:23</a></div></div>
+<div class="line"><a id="l00326" name="l00326"></a><span class="lineno">  326</span> </div>
+<div class="line"><a id="l00327" name="l00327"></a><span class="lineno">  327</span>}  <span class="comment">// namespace pcod_common</span></div>
+<div class="ttc" id="anamespacepcod__common_html"><div class="ttname"><a href="namespacepcod__common.html">pcod_common</a></div><div class="ttdef"><b>Definition</b> <a href="bounding__box_8hpp_source.html#l00010">bounding_box.hpp:10</a></div></div>
+<div class="ttc" id="anamespacepcod__common_html_a262f6555bf2f5958b9b8adc5ac0672c0"><div class="ttname"><a href="namespacepcod__common.html#a262f6555bf2f5958b9b8adc5ac0672c0">pcod_common::ApplyRotatedNms</a></div><div class="ttdeci">void ApplyRotatedNms(std::vector&lt; BoundingBox &gt; &amp;bboxes, const NmsConfig &amp;config, NmsStats *stats)</div><div class="ttdef"><b>Definition</b> <a href="#l00237">nms.cpp:237</a></div></div>
+<div class="ttc" id="anamespacepoint__cloud__object__detection_html_a83c01597f73aaf20ab5cad6ed7987831"><div class="ttname"><a href="namespacepoint__cloud__object__detection.html#a83c01597f73aaf20ab5cad6ed7987831">point_cloud_object_detection::Point</a></div><div class="ttdeci">pcl::PointXYZI Point</div><div class="ttdef"><b>Definition</b> <a href="PointTypes_8hpp_source.html#l00011">PointTypes.hpp:11</a></div></div>
+<div class="ttc" id="anms_8cpp_html_a01c5559e7de4de3e06bf91aacf79557a"><div class="ttname"><a href="nms_8cpp.html#a01c5559e7de4de3e06bf91aacf79557a">class_idx</a></div><div class="ttdeci">std::size_t class_idx</div><div class="ttdoc">Original winning class.</div><div class="ttdef"><b>Definition</b> <a href="#l00229">nms.cpp:229</a></div></div>
+<div class="ttc" id="anms_8cpp_html_a0e7a9049f082d855a0d1a6a3041a4b63"><div class="ttname"><a href="nms_8cpp.html#a0e7a9049f082d855a0d1a6a3041a4b63">vertices</a></div><div class="ttdeci">std::array&lt; Point, 4 &gt; vertices</div><div class="ttdoc">Counterclockwise footprint corners.</div><div class="ttdef"><b>Definition</b> <a href="#l00020">nms.cpp:20</a></div></div>
+<div class="ttc" id="anms_8cpp_html_a0ec9c616ddd0e2bf63bc89f2692d274b"><div class="ttname"><a href="nms_8cpp.html#a0ec9c616ddd0e2bf63bc89f2692d274b">maximum</a></div><div class="ttdeci">Point maximum</div><div class="ttdoc">Axis-aligned XY maximum.</div><div class="ttdef"><b>Definition</b> <a href="#l00022">nms.cpp:22</a></div></div>
+<div class="ttc" id="anms_8cpp_html_a24c109489bdfad4b0937c2d19d9c0e20"><div class="ttname"><a href="nms_8cpp.html#a24c109489bdfad4b0937c2d19d9c0e20">bottom</a></div><div class="ttdeci">double bottom</div><div class="ttdoc">Lower Z bound.</div><div class="ttdef"><b>Definition</b> <a href="#l00023">nms.cpp:23</a></div></div>
+<div class="ttc" id="anms_8cpp_html_a3101a574df4f0f2772ac0a42a96c8e45"><div class="ttname"><a href="nms_8cpp.html#a3101a574df4f0f2772ac0a42a96c8e45">has_height</a></div><div class="ttdeci">bool has_height</div><div class="ttdoc">Whether a positive height is available.</div><div class="ttdef"><b>Definition</b> <a href="#l00026">nms.cpp:26</a></div></div>
+<div class="ttc" id="anms_8cpp_html_a4467598fbba812fe1339ab4e83806573"><div class="ttname"><a href="nms_8cpp.html#a4467598fbba812fe1339ab4e83806573">top</a></div><div class="ttdeci">double top</div><div class="ttdoc">Upper Z bound.</div><div class="ttdef"><b>Definition</b> <a href="#l00024">nms.cpp:24</a></div></div>
+<div class="ttc" id="anms_8cpp_html_a50e9052c27e10bb273e6db873e1863be"><div class="ttname"><a href="nms_8cpp.html#a50e9052c27e10bb273e6db873e1863be">iou</a></div><div class="ttdeci">double iou</div><div class="ttdoc">Ordinary intersection over union.</div><div class="ttdef"><b>Definition</b> <a href="#l00106">nms.cpp:106</a></div></div>
+<div class="ttc" id="anms_8cpp_html_a759ffdbf20fa67bffc90142ef0a02a92"><div class="ttname"><a href="nms_8cpp.html#a759ffdbf20fa67bffc90142ef0a02a92">probabilities</a></div><div class="ttdeci">std::vector&lt; ClassificationEntry &gt; probabilities</div><div class="ttdoc">Class-indexed weighted probability sums.</div><div class="ttdef"><b>Definition</b> <a href="#l00174">nms.cpp:174</a></div></div>
+<div class="ttc" id="anms_8cpp_html_a7f3bccf5dbb832f3d5c9034e3821daa2"><div class="ttname"><a href="nms_8cpp.html#a7f3bccf5dbb832f3d5c9034e3821daa2">geometry</a></div><div class="ttdeci">PreparedBox geometry</div><div class="ttdoc">Cached geometry.</div><div class="ttdef"><b>Definition</b> <a href="#l00230">nms.cpp:230</a></div></div>
+<div class="ttc" id="anms_8cpp_html_a8c5cd9b525ee73a24b1d9d8e34982d1c"><div class="ttname"><a href="nms_8cpp.html#a8c5cd9b525ee73a24b1d9d8e34982d1c">score</a></div><div class="ttdeci">float score</div><div class="ttdoc">Ranking and mixture score.</div><div class="ttdef"><b>Definition</b> <a href="#l00227">nms.cpp:227</a></div></div>
+<div class="ttc" id="anms_8cpp_html_a99108733d00274978a4979dc072bd513"><div class="ttname"><a href="nms_8cpp.html#a99108733d00274978a4979dc072bd513">weight</a></div><div class="ttdeci">double weight</div><div class="ttdoc">Total detection-score weight.</div><div class="ttdef"><b>Definition</b> <a href="#l00175">nms.cpp:175</a></div></div>
+<div class="ttc" id="anms_8cpp_html_ac28efa16fb8062e271f8b7a373cc1734"><div class="ttname"><a href="nms_8cpp.html#ac28efa16fb8062e271f8b7a373cc1734">index</a></div><div class="ttdeci">std::size_t index</div><div class="ttdoc">Original input index, also the deterministic tie breaker.</div><div class="ttdef"><b>Definition</b> <a href="#l00228">nms.cpp:228</a></div></div>
+<div class="ttc" id="anms_8cpp_html_ac5ca90d1b28886aee6e1411cd7155e93"><div class="ttname"><a href="nms_8cpp.html#ac5ca90d1b28886aee6e1411cd7155e93">minimum</a></div><div class="ttdeci">Point minimum</div><div class="ttdoc">Axis-aligned XY minimum.</div><div class="ttdef"><b>Definition</b> <a href="#l00021">nms.cpp:21</a></div></div>
+<div class="ttc" id="anms_8cpp_html_ad04e424d7e7b8ed1d45bea51cad304e6"><div class="ttname"><a href="nms_8cpp.html#ad04e424d7e7b8ed1d45bea51cad304e6">merge</a></div><div class="ttdeci">bool merge</div><div class="ttdoc">Whether the geometric-mean-volume score exceeds its threshold.</div><div class="ttdef"><b>Definition</b> <a href="#l00107">nms.cpp:107</a></div></div>
+<div class="ttc" id="anms_8cpp_html_ae517bffd82b9428b4f1d9500ea01c04f"><div class="ttname"><a href="nms_8cpp.html#ae517bffd82b9428b4f1d9500ea01c04f">area</a></div><div class="ttdeci">double area</div><div class="ttdoc">Footprint area.</div><div class="ttdef"><b>Definition</b> <a href="#l00025">nms.cpp:25</a></div></div>
 <div class="ttc" id="anms_8hpp_html"><div class="ttname"><a href="nms_8hpp.html">nms.hpp</a></div></div>
 <div class="ttc" id="astructpcod__common_1_1NmsConfig_html"><div class="ttname"><a href="structpcod__common_1_1NmsConfig.html">pcod_common::NmsConfig</a></div><div class="ttdef"><b>Definition</b> <a href="nms_8hpp_source.html#l00013">nms.hpp:13</a></div></div>
-<div class="ttc" id="astructpcod__common_1_1NmsConfig_html_a38d89565d76217b63c7ee80303ebb0b7"><div class="ttname"><a href="structpcod__common_1_1NmsConfig.html#a38d89565d76217b63c7ee80303ebb0b7">pcod_common::NmsConfig::iou_threshold</a></div><div class="ttdeci">float iou_threshold</div><div class="ttdoc">IoU above which a lower-scored box is suppressed.</div><div class="ttdef"><b>Definition</b> <a href="nms_8hpp_source.html#l00015">nms.hpp:15</a></div></div>
+<div class="ttc" id="astructpcod__common_1_1NmsConfig_html_a121b0f1f819b9253c949309548e2e08e"><div class="ttname"><a href="structpcod__common_1_1NmsConfig.html#a121b0f1f819b9253c949309548e2e08e">pcod_common::NmsConfig::merge_enabled</a></div><div class="ttdeci">bool merge_enabled</div><div class="ttdoc">Merge high-overlap candidates independently of their winning class.</div><div class="ttdef"><b>Definition</b> <a href="nms_8hpp_source.html#l00018">nms.hpp:18</a></div></div>
+<div class="ttc" id="astructpcod__common_1_1NmsConfig_html_a38d89565d76217b63c7ee80303ebb0b7"><div class="ttname"><a href="structpcod__common_1_1NmsConfig.html#a38d89565d76217b63c7ee80303ebb0b7">pcod_common::NmsConfig::iou_threshold</a></div><div class="ttdeci">float iou_threshold</div><div class="ttdoc">Rotated 3D IoU above which a lower-scored box is suppressed.</div><div class="ttdef"><b>Definition</b> <a href="nms_8hpp_source.html#l00015">nms.hpp:15</a></div></div>
 <div class="ttc" id="astructpcod__common_1_1NmsConfig_html_a56ab21100af944a759b28fc573ac52d3"><div class="ttname"><a href="structpcod__common_1_1NmsConfig.html#a56ab21100af944a759b28fc573ac52d3">pcod_common::NmsConfig::score_thresholds</a></div><div class="ttdeci">std::vector&lt; float &gt; score_thresholds</div><div class="ttdoc">Per-class thresholds, or one threshold shared by all classes.</div><div class="ttdef"><b>Definition</b> <a href="nms_8hpp_source.html#l00014">nms.hpp:14</a></div></div>
 <div class="ttc" id="astructpcod__common_1_1NmsConfig_html_a5cffc9e3de1bdb5bbea58ca90e495b34"><div class="ttname"><a href="structpcod__common_1_1NmsConfig.html#a5cffc9e3de1bdb5bbea58ca90e495b34">pcod_common::NmsConfig::max_detections</a></div><div class="ttdeci">int max_detections</div><div class="ttdoc">Maximum number of boxes retained.</div><div class="ttdef"><b>Definition</b> <a href="nms_8hpp_source.html#l00016">nms.hpp:16</a></div></div>
-<div class="ttc" id="astructpcod__common_1_1NmsConfig_html_aae927f2adadd6e25c61ad73f85c1dd1a"><div class="ttname"><a href="structpcod__common_1_1NmsConfig.html#aae927f2adadd6e25c61ad73f85c1dd1a">pcod_common::NmsConfig::internal_score_threshold</a></div><div class="ttdeci">float internal_score_threshold</div><div class="ttdoc">Score pivot used when rescaling class thresholds.</div><div class="ttdef"><b>Definition</b> <a href="nms_8hpp_source.html#l00017">nms.hpp:17</a></div></div>
+<div class="ttc" id="astructpcod__common_1_1NmsConfig_html_aa881162c69b07f0a2dd7d002874f8827"><div class="ttname"><a href="structpcod__common_1_1NmsConfig.html#aa881162c69b07f0a2dd7d002874f8827">pcod_common::NmsConfig::merge_score_threshold</a></div><div class="ttdeci">float merge_score_threshold</div><div class="ttdoc">Strict rotated 3D intersection/geometric-mean-volume score threshold for merging; must be in [0,...</div><div class="ttdef"><b>Definition</b> <a href="nms_8hpp_source.html#l00019">nms.hpp:19</a></div></div>
+<div class="ttc" id="astructpcod__common_1_1NmsConfig_html_aae927f2adadd6e25c61ad73f85c1dd1a"><div class="ttname"><a href="structpcod__common_1_1NmsConfig.html#aae927f2adadd6e25c61ad73f85c1dd1a">pcod_common::NmsConfig::internal_score_threshold</a></div><div class="ttdeci">float internal_score_threshold</div><div class="ttdoc">Fallback score threshold when no per-class thresholds are supplied.</div><div class="ttdef"><b>Definition</b> <a href="nms_8hpp_source.html#l00017">nms.hpp:17</a></div></div>
+<div class="ttc" id="astructpcod__common_1_1NmsStats_html"><div class="ttname"><a href="structpcod__common_1_1NmsStats.html">pcod_common::NmsStats</a></div><div class="ttdef"><b>Definition</b> <a href="nms_8hpp_source.html#l00024">nms.hpp:24</a></div></div>
+<div class="ttc" id="astructpcod__common_1_1NmsStats_html_a751eeab2c419a5e41f35c185704b238f"><div class="ttname"><a href="structpcod__common_1_1NmsStats.html#a751eeab2c419a5e41f35c185704b238f">pcod_common::NmsStats::merged_boxes</a></div><div class="ttdeci">std::size_t merged_boxes</div><div class="ttdoc">Candidates merged into a retained representative.</div><div class="ttdef"><b>Definition</b> <a href="nms_8hpp_source.html#l00027">nms.hpp:27</a></div></div>
+<div class="ttc" id="astructpcod__common_1_1NmsStats_html_ad2d4e5f2f4e89a624fab3be2b3f9b04d"><div class="ttname"><a href="structpcod__common_1_1NmsStats.html#ad2d4e5f2f4e89a624fab3be2b3f9b04d">pcod_common::NmsStats::candidates</a></div><div class="ttdeci">std::size_t candidates</div><div class="ttdoc">Candidates passing the score threshold.</div><div class="ttdef"><b>Definition</b> <a href="nms_8hpp_source.html#l00025">nms.hpp:25</a></div></div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->

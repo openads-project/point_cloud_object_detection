@@ -28,7 +28,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">point_cloud_object_detection<span id="projectnumber">&#160;v3.1.1</span>
+   <div id="projectname">point_cloud_object_detection<span id="projectnumber">&#160;v4.0.0</span>
    </div>
   </td>
  </tr>
@@ -189,92 +189,94 @@ Functions</h2></td></tr>
 <div class="line"><span class="lineno">   65</span>  out &lt;&lt; <span class="stringliteral">&quot;    point_feature:\n&quot;</span>;</div>
 <div class="line"><span class="lineno">   66</span>  out &lt;&lt; <span class="stringliteral">&quot;      value_threshold: 1.0\n&quot;</span>;</div>
 <div class="line"><span class="lineno">   67</span>  out &lt;&lt; <span class="stringliteral">&quot;  postprocessing:\n&quot;</span>;</div>
-<div class="line"><span class="lineno">   68</span>  out &lt;&lt; <span class="stringliteral">&quot;    class_score_threshold: 0.0\n&quot;</span>;</div>
-<div class="line"><span class="lineno">   69</span>  out &lt;&lt; <span class="stringliteral">&quot;    nms:\n&quot;</span>;</div>
-<div class="line"><span class="lineno">   70</span>  out &lt;&lt; <span class="stringliteral">&quot;      score_threshold: 0.2\n&quot;</span>;</div>
-<div class="line"><span class="lineno">   71</span>  out &lt;&lt; <span class="stringliteral">&quot;      iou_threshold: 0.5\n&quot;</span>;</div>
-<div class="line"><span class="lineno">   72</span>  out &lt;&lt; <span class="stringliteral">&quot;      max_num_objects: 10\n&quot;</span>;</div>
-<div class="line"><span class="lineno">   73</span>  out.close();</div>
-<div class="line"><span class="lineno">   74</span> </div>
-<div class="line"><span class="lineno">   75</span>  <span class="keyword">auto</span> manifest = <a class="code hl_function" href="namespacepcod__common.html#aebbc026e4d8755a3f147854eac935918">pcod_common::LoadModelManifest</a>(path);</div>
-<div class="line"><span class="lineno">   76</span>  <a class="code hl_function" href="namespacepcod__common.html#a7810c570c1bf57bb8d0096291e0da165">pcod_common::ValidateModelManifest</a>(manifest);</div>
-<div class="line"><span class="lineno">   77</span>  assert(manifest.frozen_contract.preprocessing.max_num_points == 100);</div>
-<div class="line"><span class="lineno">   78</span>  assert(manifest.runtime_defaults.preprocessing.point_feature.value_threshold == 1.0f);</div>
-<div class="line"><span class="lineno">   79</span> </div>
-<div class="line"><span class="lineno">   80</span>  <span class="keyword">const</span> std::string invalid_path = <span class="stringliteral">&quot;./test_manifest_invalid.yml&quot;</span>;</div>
-<div class="line"><span class="lineno">   81</span>  std::ofstream invalid(invalid_path);</div>
-<div class="line"><span class="lineno">   82</span>  invalid &lt;&lt; <span class="stringliteral">&quot;schema_version: &#39;2.0&#39;\n&quot;</span>;</div>
-<div class="line"><span class="lineno">   83</span>  invalid &lt;&lt; <span class="stringliteral">&quot;artifact:\n&quot;</span>;</div>
-<div class="line"><span class="lineno">   84</span>  invalid &lt;&lt; <span class="stringliteral">&quot;  bundle_name: &#39;pbod_fp16_gpu_onnx_test&#39;\n&quot;</span>;</div>
-<div class="line"><span class="lineno">   85</span>  invalid &lt;&lt; <span class="stringliteral">&quot;  export_format: &#39;onnx_fp16_gpu&#39;\n&quot;</span>;</div>
-<div class="line"><span class="lineno">   86</span>  invalid &lt;&lt; <span class="stringliteral">&quot;  backend: &#39;onnx&#39;\n&quot;</span>;</div>
-<div class="line"><span class="lineno">   87</span>  invalid &lt;&lt; <span class="stringliteral">&quot;  precision: &#39;fp16&#39;\n&quot;</span>;</div>
-<div class="line"><span class="lineno">   88</span>  invalid &lt;&lt; <span class="stringliteral">&quot;  device: &#39;cuda&#39;\n&quot;</span>;</div>
-<div class="line"><span class="lineno">   89</span>  invalid &lt;&lt; <span class="stringliteral">&quot;  hardware_compatible: true\n&quot;</span>;</div>
-<div class="line"><span class="lineno">   90</span>  invalid &lt;&lt; <span class="stringliteral">&quot;  files:\n&quot;</span>;</div>
-<div class="line"><span class="lineno">   91</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    model: &#39;model.onnx&#39;\n&quot;</span>;</div>
-<div class="line"><span class="lineno">   92</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    checkpoint: &#39;checkpoints/best.pt&#39;\n&quot;</span>;</div>
-<div class="line"><span class="lineno">   93</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    resolved_training_config: &#39;config/resolved_training_config.yml&#39;\n&quot;</span>;</div>
-<div class="line"><span class="lineno">   94</span>  invalid &lt;&lt; <span class="stringliteral">&quot;  triton:\n&quot;</span>;</div>
-<div class="line"><span class="lineno">   95</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    enabled: false\n&quot;</span>;</div>
-<div class="line"><span class="lineno">   96</span>  invalid &lt;&lt; <span class="stringliteral">&quot;  inputs:\n&quot;</span>;</div>
-<div class="line"><span class="lineno">   97</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    - name: &#39;point_features&#39;\n&quot;</span>;</div>
-<div class="line"><span class="lineno">   98</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      dtype: &#39;float16&#39;\n&quot;</span>;</div>
-<div class="line"><span class="lineno">   99</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      shape: [&#39;batch&#39;, 100, 1]\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  100</span>  invalid &lt;&lt; <span class="stringliteral">&quot;  outputs:\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  101</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    - name: &#39;reg_logits&#39;\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  102</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      dtype: &#39;float16&#39;\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  103</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      shape: [&#39;batch&#39;, 10, 7]\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  104</span>  invalid &lt;&lt; <span class="stringliteral">&quot;frozen_contract:\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  105</span>  invalid &lt;&lt; <span class="stringliteral">&quot;  preprocessing:\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  106</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    max_num_points: 100\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  107</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    num_point_features: 1\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  108</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    point_cloud_range:\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  109</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      x: [-1.0, 1.0]\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  110</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      y: [-1.0, 1.0]\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  111</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      z: [-1.0, 1.0]\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  112</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    voxel_size:\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  113</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      x: 0.1\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  114</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      y: 0.1\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  115</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      z: 0.1\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  116</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    point_feature_normalization:\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  117</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      type: value_threshold\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  118</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      epsilon: 1e-6\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  119</span>  invalid &lt;&lt; <span class="stringliteral">&quot;  postprocessing:\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  120</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    grid_size:\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  121</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      x: 10\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  122</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      y: 10\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  123</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    num_classes: 1\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  124</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    class_names: [&#39;car&#39;]\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  125</span>  invalid &lt;&lt; <span class="stringliteral">&quot;  model:\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  126</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    stride: [2, 1, 2]\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  127</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    up_stride: [1, 1, 2]\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  128</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    first_up_stride: 1\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  129</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    pillar_map_size: [10, 10]\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  130</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    pillar_map_range: [[-1.0, 1.0], [-1.0, 1.0], [-1.0, 1.0]]\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  131</span>  invalid &lt;&lt; <span class="stringliteral">&quot;runtime_defaults:\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  132</span>  invalid &lt;&lt; <span class="stringliteral">&quot;  preprocessing:\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  133</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    point_feature:\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  134</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      value_threshold: 1.0\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  135</span>  invalid &lt;&lt; <span class="stringliteral">&quot;  postprocessing:\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  136</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    class_score_threshold: 0.0\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  137</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    nms:\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  138</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      score_threshold: 0.2\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  139</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      iou_threshold: 0.5\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  140</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      max_num_objects: 10\n&quot;</span>;</div>
-<div class="line"><span class="lineno">  141</span>  invalid.close();</div>
-<div class="line"><span class="lineno">  142</span> </div>
-<div class="line"><span class="lineno">  143</span>  <span class="keywordtype">bool</span> rejected_unknown_key = <span class="keyword">false</span>;</div>
-<div class="line"><span class="lineno">  144</span>  <span class="keywordflow">try</span> {</div>
-<div class="line"><span class="lineno">  145</span>    (void)<a class="code hl_function" href="namespacepcod__common.html#aebbc026e4d8755a3f147854eac935918">pcod_common::LoadModelManifest</a>(invalid_path);</div>
-<div class="line"><span class="lineno">  146</span>  } <span class="keywordflow">catch</span> (<span class="keyword">const</span> std::runtime_error&amp;) {</div>
-<div class="line"><span class="lineno">  147</span>    rejected_unknown_key = <span class="keyword">true</span>;</div>
-<div class="line"><span class="lineno">  148</span>  }</div>
-<div class="line"><span class="lineno">  149</span>  assert(rejected_unknown_key);</div>
-<div class="line"><span class="lineno">  150</span>  <span class="keywordflow">return</span> 0;</div>
-<div class="line"><span class="lineno">  151</span>}</div>
-<div class="ttc" id="anamespacepcod__common_html_a7810c570c1bf57bb8d0096291e0da165"><div class="ttname"><a href="namespacepcod__common.html#a7810c570c1bf57bb8d0096291e0da165">pcod_common::ValidateModelManifest</a></div><div class="ttdeci">void ValidateModelManifest(const ModelManifest &amp;manifest)</div><div class="ttdef"><b>Definition</b> <a href="model__manifest_8cpp_source.html#l00442">model_manifest.cpp:442</a></div></div>
-<div class="ttc" id="anamespacepcod__common_html_aebbc026e4d8755a3f147854eac935918"><div class="ttname"><a href="namespacepcod__common.html#aebbc026e4d8755a3f147854eac935918">pcod_common::LoadModelManifest</a></div><div class="ttdeci">ModelManifest LoadModelManifest(const std::string &amp;path)</div><div class="ttdef"><b>Definition</b> <a href="model__manifest_8cpp_source.html#l00235">model_manifest.cpp:235</a></div></div>
+<div class="line"><span class="lineno">   68</span>  out &lt;&lt; <span class="stringliteral">&quot;    score_mode: existence_quality_class\n&quot;</span>;</div>
+<div class="line"><span class="lineno">   69</span>  out &lt;&lt; <span class="stringliteral">&quot;    class_score_threshold: 0.0\n&quot;</span>;</div>
+<div class="line"><span class="lineno">   70</span>  out &lt;&lt; <span class="stringliteral">&quot;    nms:\n&quot;</span>;</div>
+<div class="line"><span class="lineno">   71</span>  out &lt;&lt; <span class="stringliteral">&quot;      score_threshold: 0.2\n&quot;</span>;</div>
+<div class="line"><span class="lineno">   72</span>  out &lt;&lt; <span class="stringliteral">&quot;      iou_threshold: 0.5\n&quot;</span>;</div>
+<div class="line"><span class="lineno">   73</span>  out &lt;&lt; <span class="stringliteral">&quot;      max_num_objects: 10\n&quot;</span>;</div>
+<div class="line"><span class="lineno">   74</span>  out.close();</div>
+<div class="line"><span class="lineno">   75</span> </div>
+<div class="line"><span class="lineno">   76</span>  <span class="keyword">auto</span> manifest = <a class="code hl_function" href="namespacepcod__common.html#aebbc026e4d8755a3f147854eac935918">pcod_common::LoadModelManifest</a>(path);</div>
+<div class="line"><span class="lineno">   77</span>  assert(manifest.runtime_defaults.postprocessing.score_mode == <span class="stringliteral">&quot;existence_quality_class&quot;</span>);</div>
+<div class="line"><span class="lineno">   78</span>  <a class="code hl_function" href="namespacepcod__common.html#a7810c570c1bf57bb8d0096291e0da165">pcod_common::ValidateModelManifest</a>(manifest);</div>
+<div class="line"><span class="lineno">   79</span>  assert(manifest.frozen_contract.preprocessing.max_num_points == 100);</div>
+<div class="line"><span class="lineno">   80</span>  assert(manifest.runtime_defaults.preprocessing.point_feature.value_threshold == 1.0f);</div>
+<div class="line"><span class="lineno">   81</span> </div>
+<div class="line"><span class="lineno">   82</span>  <span class="keyword">const</span> std::string invalid_path = <span class="stringliteral">&quot;./test_manifest_invalid.yml&quot;</span>;</div>
+<div class="line"><span class="lineno">   83</span>  std::ofstream invalid(invalid_path);</div>
+<div class="line"><span class="lineno">   84</span>  invalid &lt;&lt; <span class="stringliteral">&quot;schema_version: &#39;2.0&#39;\n&quot;</span>;</div>
+<div class="line"><span class="lineno">   85</span>  invalid &lt;&lt; <span class="stringliteral">&quot;artifact:\n&quot;</span>;</div>
+<div class="line"><span class="lineno">   86</span>  invalid &lt;&lt; <span class="stringliteral">&quot;  bundle_name: &#39;pbod_fp16_gpu_onnx_test&#39;\n&quot;</span>;</div>
+<div class="line"><span class="lineno">   87</span>  invalid &lt;&lt; <span class="stringliteral">&quot;  export_format: &#39;onnx_fp16_gpu&#39;\n&quot;</span>;</div>
+<div class="line"><span class="lineno">   88</span>  invalid &lt;&lt; <span class="stringliteral">&quot;  backend: &#39;onnx&#39;\n&quot;</span>;</div>
+<div class="line"><span class="lineno">   89</span>  invalid &lt;&lt; <span class="stringliteral">&quot;  precision: &#39;fp16&#39;\n&quot;</span>;</div>
+<div class="line"><span class="lineno">   90</span>  invalid &lt;&lt; <span class="stringliteral">&quot;  device: &#39;cuda&#39;\n&quot;</span>;</div>
+<div class="line"><span class="lineno">   91</span>  invalid &lt;&lt; <span class="stringliteral">&quot;  hardware_compatible: true\n&quot;</span>;</div>
+<div class="line"><span class="lineno">   92</span>  invalid &lt;&lt; <span class="stringliteral">&quot;  files:\n&quot;</span>;</div>
+<div class="line"><span class="lineno">   93</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    model: &#39;model.onnx&#39;\n&quot;</span>;</div>
+<div class="line"><span class="lineno">   94</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    checkpoint: &#39;checkpoints/best.pt&#39;\n&quot;</span>;</div>
+<div class="line"><span class="lineno">   95</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    resolved_training_config: &#39;config/resolved_training_config.yml&#39;\n&quot;</span>;</div>
+<div class="line"><span class="lineno">   96</span>  invalid &lt;&lt; <span class="stringliteral">&quot;  triton:\n&quot;</span>;</div>
+<div class="line"><span class="lineno">   97</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    enabled: false\n&quot;</span>;</div>
+<div class="line"><span class="lineno">   98</span>  invalid &lt;&lt; <span class="stringliteral">&quot;  inputs:\n&quot;</span>;</div>
+<div class="line"><span class="lineno">   99</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    - name: &#39;point_features&#39;\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  100</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      dtype: &#39;float16&#39;\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  101</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      shape: [&#39;batch&#39;, 100, 1]\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  102</span>  invalid &lt;&lt; <span class="stringliteral">&quot;  outputs:\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  103</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    - name: &#39;reg_logits&#39;\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  104</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      dtype: &#39;float16&#39;\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  105</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      shape: [&#39;batch&#39;, 10, 7]\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  106</span>  invalid &lt;&lt; <span class="stringliteral">&quot;frozen_contract:\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  107</span>  invalid &lt;&lt; <span class="stringliteral">&quot;  preprocessing:\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  108</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    max_num_points: 100\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  109</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    num_point_features: 1\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  110</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    point_cloud_range:\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  111</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      x: [-1.0, 1.0]\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  112</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      y: [-1.0, 1.0]\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  113</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      z: [-1.0, 1.0]\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  114</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    voxel_size:\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  115</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      x: 0.1\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  116</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      y: 0.1\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  117</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      z: 0.1\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  118</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    point_feature_normalization:\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  119</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      type: value_threshold\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  120</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      epsilon: 1e-6\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  121</span>  invalid &lt;&lt; <span class="stringliteral">&quot;  postprocessing:\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  122</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    grid_size:\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  123</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      x: 10\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  124</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      y: 10\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  125</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    num_classes: 1\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  126</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    class_names: [&#39;car&#39;]\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  127</span>  invalid &lt;&lt; <span class="stringliteral">&quot;  model:\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  128</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    stride: [2, 1, 2]\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  129</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    up_stride: [1, 1, 2]\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  130</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    first_up_stride: 1\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  131</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    pillar_map_size: [10, 10]\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  132</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    pillar_map_range: [[-1.0, 1.0], [-1.0, 1.0], [-1.0, 1.0]]\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  133</span>  invalid &lt;&lt; <span class="stringliteral">&quot;runtime_defaults:\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  134</span>  invalid &lt;&lt; <span class="stringliteral">&quot;  preprocessing:\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  135</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    point_feature:\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  136</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      value_threshold: 1.0\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  137</span>  invalid &lt;&lt; <span class="stringliteral">&quot;  postprocessing:\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  138</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    class_score_threshold: 0.0\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  139</span>  invalid &lt;&lt; <span class="stringliteral">&quot;    nms:\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  140</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      score_threshold: 0.2\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  141</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      iou_threshold: 0.5\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  142</span>  invalid &lt;&lt; <span class="stringliteral">&quot;      max_num_objects: 10\n&quot;</span>;</div>
+<div class="line"><span class="lineno">  143</span>  invalid.close();</div>
+<div class="line"><span class="lineno">  144</span> </div>
+<div class="line"><span class="lineno">  145</span>  <span class="keywordtype">bool</span> rejected_unknown_key = <span class="keyword">false</span>;</div>
+<div class="line"><span class="lineno">  146</span>  <span class="keywordflow">try</span> {</div>
+<div class="line"><span class="lineno">  147</span>    (void)<a class="code hl_function" href="namespacepcod__common.html#aebbc026e4d8755a3f147854eac935918">pcod_common::LoadModelManifest</a>(invalid_path);</div>
+<div class="line"><span class="lineno">  148</span>  } <span class="keywordflow">catch</span> (<span class="keyword">const</span> std::runtime_error&amp;) {</div>
+<div class="line"><span class="lineno">  149</span>    rejected_unknown_key = <span class="keyword">true</span>;</div>
+<div class="line"><span class="lineno">  150</span>  }</div>
+<div class="line"><span class="lineno">  151</span>  assert(rejected_unknown_key);</div>
+<div class="line"><span class="lineno">  152</span>  <span class="keywordflow">return</span> 0;</div>
+<div class="line"><span class="lineno">  153</span>}</div>
+<div class="ttc" id="anamespacepcod__common_html_a7810c570c1bf57bb8d0096291e0da165"><div class="ttname"><a href="namespacepcod__common.html#a7810c570c1bf57bb8d0096291e0da165">pcod_common::ValidateModelManifest</a></div><div class="ttdeci">void ValidateModelManifest(const ModelManifest &amp;manifest)</div><div class="ttdef"><b>Definition</b> <a href="model__manifest_8cpp_source.html#l00446">model_manifest.cpp:446</a></div></div>
+<div class="ttc" id="anamespacepcod__common_html_aebbc026e4d8755a3f147854eac935918"><div class="ttname"><a href="namespacepcod__common.html#aebbc026e4d8755a3f147854eac935918">pcod_common::LoadModelManifest</a></div><div class="ttdeci">ModelManifest LoadModelManifest(const std::string &amp;path)</div><div class="ttdef"><b>Definition</b> <a href="model__manifest_8cpp_source.html#l00236">model_manifest.cpp:236</a></div></div>
 </div><!-- fragment -->
 </div>
 </div>

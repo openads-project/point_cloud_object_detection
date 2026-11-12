@@ -52,6 +52,7 @@ var namespacepoint__cloud__object__detection =
     [ "readScalarAt", "namespacepoint__cloud__object__detection.html#aeec0bdc4ff7c5dd180d759af0e67e67b", null ],
     [ "sanitize_classifications", "namespacepoint__cloud__object__detection.html#a865091827af4edc35a43232a51ea8826", null ],
     [ "sanitizeTopicName", "namespacepoint__cloud__object__detection.html#a4d37d715c4c6ec79be0e63867e0ab85a", null ],
+    [ "setDetectionConfidence", "namespacepoint__cloud__object__detection.html#a87f14d90cad26eb12a2eacfd4a03e50e", null ],
     [ "setPointFloatField", "namespacepoint__cloud__object__detection.html#a69324fe39bca7d519f37897afbb76614", null ],
     [ "is_vector_v", "namespacepoint__cloud__object__detection.html#ad98fc5fb990bfd791790aa158d38d871", null ],
     [ "kAllowedPointFeatureFields", "namespacepoint__cloud__object__detection.html#aac96180fac3bf572c6a22a982303ad36", null ],

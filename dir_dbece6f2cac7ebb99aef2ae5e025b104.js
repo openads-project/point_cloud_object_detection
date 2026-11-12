@@ -5,6 +5,7 @@ var dir_dbece6f2cac7ebb99aef2ae5e025b104 =
     [ "test_manifest.cpp", "test__manifest_8cpp.html", "test__manifest_8cpp" ],
     [ "test_manifest_validation.cpp", "test__manifest__validation_8cpp.html", "test__manifest__validation_8cpp" ],
     [ "test_nms.cpp", "test__nms_8cpp.html", "test__nms_8cpp" ],
+    [ "test_nms_merging.cpp", "test__nms__merging_8cpp.html", "test__nms__merging_8cpp" ],
     [ "test_pbod_postprocess.cpp", "test__pbod__postprocess_8cpp.html", "test__pbod__postprocess_8cpp" ],
     [ "test_pbod_postprocess_validation.cpp", "test__pbod__postprocess__validation_8cpp.html", "test__pbod__postprocess__validation_8cpp" ],
     [ "test_pillar_grid.cpp", "test__pillar__grid_8cpp.html", "test__pillar__grid_8cpp" ],

@@ -28,7 +28,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">point_cloud_object_detection<span id="projectnumber">&#160;v3.1.1</span>
+   <div id="projectname">point_cloud_object_detection<span id="projectnumber">&#160;v4.0.0</span>
    </div>
   </td>
  </tr>
@@ -105,7 +105,10 @@ $(function(){initNavTree('nms_8cpp.html',''); initResizable(true); });
 <div class="contents">
 <div class="textblock"><code>#include &quot;<a class="el" href="nms_8hpp_source.html">pcod_common/nms.hpp</a>&quot;</code><br />
 <code>#include &lt;algorithm&gt;</code><br />
-<code>#include &quot;<a class="el" href="math_8hpp_source.html">pcod_common/math.hpp</a>&quot;</code><br />
+<code>#include &lt;array&gt;</code><br />
+<code>#include &lt;cmath&gt;</code><br />
+<code>#include &lt;limits&gt;</code><br />
+<code>#include &lt;stdexcept&gt;</code><br />
 </div>
 <p><a href="nms_8cpp_source.html">Go to the source code of this file.</a></p>
 <table class="memberdecls">
@@ -118,7 +121,280 @@ Namespaces</h2></td></tr>
 Functions</h2></td></tr>
 <tr class="memitem:a5be13ed700e3f92b1523d7dace40a4a5" id="r_a5be13ed700e3f92b1523d7dace40a4a5"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepcod__common.html#a5be13ed700e3f92b1523d7dace40a4a5">pcod_common::ApplyRotatedNms</a> (std::vector&lt; <a class="el" href="structpcod__common_1_1BoundingBox.html">BoundingBox</a> &gt; &amp;bboxes, const <a class="el" href="structpcod__common_1_1NmsConfig.html">NmsConfig</a> &amp;config)</td></tr>
 <tr class="separator:a5be13ed700e3f92b1523d7dace40a4a5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a262f6555bf2f5958b9b8adc5ac0672c0" id="r_a262f6555bf2f5958b9b8adc5ac0672c0"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepcod__common.html#a262f6555bf2f5958b9b8adc5ac0672c0">pcod_common::ApplyRotatedNms</a> (std::vector&lt; <a class="el" href="structpcod__common_1_1BoundingBox.html">BoundingBox</a> &gt; &amp;bboxes, const <a class="el" href="structpcod__common_1_1NmsConfig.html">NmsConfig</a> &amp;config, <a class="el" href="structpcod__common_1_1NmsStats.html">NmsStats</a> *stats)</td></tr>
+<tr class="separator:a262f6555bf2f5958b9b8adc5ac0672c0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<h2 class="groupheader">Variable Documentation</h2>
+<a id="ae517bffd82b9428b4f1d9500ea01c04f" name="ae517bffd82b9428b4f1d9500ea01c04f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae517bffd82b9428b4f1d9500ea01c04f">&#9670;&#160;</a></span>area</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">double area</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Footprint area. </p>
+
+<p class="definition">Definition at line <a class="el" href="nms_8cpp_source.html#l00025">25</a> of file <a class="el" href="nms_8cpp_source.html">nms.cpp</a>.</p>
+
+</div>
+</div>
+<a id="a24c109489bdfad4b0937c2d19d9c0e20" name="a24c109489bdfad4b0937c2d19d9c0e20"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a24c109489bdfad4b0937c2d19d9c0e20">&#9670;&#160;</a></span>bottom</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">double bottom</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Lower Z bound. </p>
+
+<p class="definition">Definition at line <a class="el" href="nms_8cpp_source.html#l00023">23</a> of file <a class="el" href="nms_8cpp_source.html">nms.cpp</a>.</p>
+
+</div>
+</div>
+<a id="a01c5559e7de4de3e06bf91aacf79557a" name="a01c5559e7de4de3e06bf91aacf79557a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a01c5559e7de4de3e06bf91aacf79557a">&#9670;&#160;</a></span>class_idx</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::size_t class_idx</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Original winning class. </p>
+
+<p class="definition">Definition at line <a class="el" href="nms_8cpp_source.html#l00229">229</a> of file <a class="el" href="nms_8cpp_source.html">nms.cpp</a>.</p>
+
+</div>
+</div>
+<a id="a7f3bccf5dbb832f3d5c9034e3821daa2" name="a7f3bccf5dbb832f3d5c9034e3821daa2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7f3bccf5dbb832f3d5c9034e3821daa2">&#9670;&#160;</a></span>geometry</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">PreparedBox geometry</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Cached geometry. </p>
+
+<p class="definition">Definition at line <a class="el" href="nms_8cpp_source.html#l00230">230</a> of file <a class="el" href="nms_8cpp_source.html">nms.cpp</a>.</p>
+
+</div>
+</div>
+<a id="a3101a574df4f0f2772ac0a42a96c8e45" name="a3101a574df4f0f2772ac0a42a96c8e45"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a3101a574df4f0f2772ac0a42a96c8e45">&#9670;&#160;</a></span>has_height</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool has_height</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Whether a positive height is available. </p>
+
+<p class="definition">Definition at line <a class="el" href="nms_8cpp_source.html#l00026">26</a> of file <a class="el" href="nms_8cpp_source.html">nms.cpp</a>.</p>
+
+</div>
+</div>
+<a id="ac28efa16fb8062e271f8b7a373cc1734" name="ac28efa16fb8062e271f8b7a373cc1734"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac28efa16fb8062e271f8b7a373cc1734">&#9670;&#160;</a></span>index</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::size_t index</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Original input index, also the deterministic tie breaker. </p>
+
+<p class="definition">Definition at line <a class="el" href="nms_8cpp_source.html#l00228">228</a> of file <a class="el" href="nms_8cpp_source.html">nms.cpp</a>.</p>
+
+</div>
+</div>
+<a id="a50e9052c27e10bb273e6db873e1863be" name="a50e9052c27e10bb273e6db873e1863be"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a50e9052c27e10bb273e6db873e1863be">&#9670;&#160;</a></span>iou</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">double iou = 0.0</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Ordinary intersection over union. </p>
+
+<p class="definition">Definition at line <a class="el" href="nms_8cpp_source.html#l00106">106</a> of file <a class="el" href="nms_8cpp_source.html">nms.cpp</a>.</p>
+
+</div>
+</div>
+<a id="a0ec9c616ddd0e2bf63bc89f2692d274b" name="a0ec9c616ddd0e2bf63bc89f2692d274b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0ec9c616ddd0e2bf63bc89f2692d274b">&#9670;&#160;</a></span>maximum</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">Point maximum</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Axis-aligned XY maximum. </p>
+
+<p class="definition">Definition at line <a class="el" href="nms_8cpp_source.html#l00022">22</a> of file <a class="el" href="nms_8cpp_source.html">nms.cpp</a>.</p>
+
+</div>
+</div>
+<a id="ad04e424d7e7b8ed1d45bea51cad304e6" name="ad04e424d7e7b8ed1d45bea51cad304e6"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad04e424d7e7b8ed1d45bea51cad304e6">&#9670;&#160;</a></span>merge</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool merge = false</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Whether the geometric-mean-volume score exceeds its threshold. </p>
+
+<p class="definition">Definition at line <a class="el" href="nms_8cpp_source.html#l00107">107</a> of file <a class="el" href="nms_8cpp_source.html">nms.cpp</a>.</p>
+
+</div>
+</div>
+<a id="ac5ca90d1b28886aee6e1411cd7155e93" name="ac5ca90d1b28886aee6e1411cd7155e93"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac5ca90d1b28886aee6e1411cd7155e93">&#9670;&#160;</a></span>minimum</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">Point minimum</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Axis-aligned XY minimum. </p>
+
+<p class="definition">Definition at line <a class="el" href="nms_8cpp_source.html#l00021">21</a> of file <a class="el" href="nms_8cpp_source.html">nms.cpp</a>.</p>
+
+</div>
+</div>
+<a id="a759ffdbf20fa67bffc90142ef0a02a92" name="a759ffdbf20fa67bffc90142ef0a02a92"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a759ffdbf20fa67bffc90142ef0a02a92">&#9670;&#160;</a></span>probabilities</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::vector&lt;ClassificationEntry&gt; probabilities</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Class-indexed weighted probability sums. </p>
+
+<p class="definition">Definition at line <a class="el" href="nms_8cpp_source.html#l00174">174</a> of file <a class="el" href="nms_8cpp_source.html">nms.cpp</a>.</p>
+
+</div>
+</div>
+<a id="a8c5cd9b525ee73a24b1d9d8e34982d1c" name="a8c5cd9b525ee73a24b1d9d8e34982d1c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8c5cd9b525ee73a24b1d9d8e34982d1c">&#9670;&#160;</a></span>score</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">float score</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Ranking and mixture score. </p>
+
+<p class="definition">Definition at line <a class="el" href="nms_8cpp_source.html#l00227">227</a> of file <a class="el" href="nms_8cpp_source.html">nms.cpp</a>.</p>
+
+</div>
+</div>
+<a id="a4467598fbba812fe1339ab4e83806573" name="a4467598fbba812fe1339ab4e83806573"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4467598fbba812fe1339ab4e83806573">&#9670;&#160;</a></span>top</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">double top</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Upper Z bound. </p>
+
+<p class="definition">Definition at line <a class="el" href="nms_8cpp_source.html#l00024">24</a> of file <a class="el" href="nms_8cpp_source.html">nms.cpp</a>.</p>
+
+</div>
+</div>
+<a id="a0e7a9049f082d855a0d1a6a3041a4b63" name="a0e7a9049f082d855a0d1a6a3041a4b63"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0e7a9049f082d855a0d1a6a3041a4b63">&#9670;&#160;</a></span>vertices</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::array&lt;Point, 4&gt; vertices</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Counterclockwise footprint corners. </p>
+
+<p class="definition">Definition at line <a class="el" href="nms_8cpp_source.html#l00020">20</a> of file <a class="el" href="nms_8cpp_source.html">nms.cpp</a>.</p>
+
+</div>
+</div>
+<a id="a99108733d00274978a4979dc072bd513" name="a99108733d00274978a4979dc072bd513"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a99108733d00274978a4979dc072bd513">&#9670;&#160;</a></span>weight</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">double weight = 0.0</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Total detection-score weight. </p>
+
+<p class="definition">Definition at line <a class="el" href="nms_8cpp_source.html#l00175">175</a> of file <a class="el" href="nms_8cpp_source.html">nms.cpp</a>.</p>
+
+</div>
+</div>
 </div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->

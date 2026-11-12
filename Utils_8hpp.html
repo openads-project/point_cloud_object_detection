@@ -28,7 +28,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">point_cloud_object_detection<span id="projectnumber">&#160;v3.1.1</span>
+   <div id="projectname">point_cloud_object_detection<span id="projectnumber">&#160;v4.0.0</span>
    </div>
   </td>
  </tr>
@@ -106,9 +106,11 @@ $(function(){initNavTree('Utils_8hpp.html',''); initResizable(true); });
 <div class="textblock"><code>#include &lt;algorithm&gt;</code><br />
 <code>#include &lt;cassert&gt;</code><br />
 <code>#include &lt;cmath&gt;</code><br />
+<code>#include &lt;perception_msgs/msg/object.hpp&gt;</code><br />
 <code>#include &lt;perception_msgs/msg/object_classification.hpp&gt;</code><br />
 <code>#include &lt;string&gt;</code><br />
 <code>#include &lt;vector&gt;</code><br />
+<code>#include &quot;<a class="el" href="bounding__box_8hpp_source.html">pcod_common/bounding_box.hpp</a>&quot;</code><br />
 </div>
 <p><a href="Utils_8hpp_source.html">Go to the source code of this file.</a></p>
 <table class="memberdecls">
@@ -119,6 +121,9 @@ Namespaces</h2></td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
 Functions</h2></td></tr>
+<tr class="memitem:a87f14d90cad26eb12a2eacfd4a03e50e" id="r_a87f14d90cad26eb12a2eacfd4a03e50e"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepoint__cloud__object__detection.html#a87f14d90cad26eb12a2eacfd4a03e50e">point_cloud_object_detection::setDetectionConfidence</a> (const <a class="el" href="structpcod__common_1_1BoundingBox.html">pcod_common::BoundingBox</a> &amp;box, perception_msgs::msg::Object &amp;object)</td></tr>
+<tr class="memdesc:a87f14d90cad26eb12a2eacfd4a03e50e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set object.existence_probability to box.detection_score.  <br /></td></tr>
+<tr class="separator:a87f14d90cad26eb12a2eacfd4a03e50e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4d37d715c4c6ec79be0e63867e0ab85a" id="r_a4d37d715c4c6ec79be0e63867e0ab85a"><td class="memItemLeft" align="right" valign="top">std::string&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepoint__cloud__object__detection.html#a4d37d715c4c6ec79be0e63867e0ab85a">point_cloud_object_detection::sanitizeTopicName</a> (const std::string &amp;class_name)</td></tr>
 <tr class="memdesc:a4d37d715c4c6ec79be0e63867e0ab85a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Convert an arbitrary class name into a topic-safe suffix.  <br /></td></tr>
 <tr class="separator:a4d37d715c4c6ec79be0e63867e0ab85a"><td class="memSeparator" colspan="2">&#160;</td></tr>

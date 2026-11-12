@@ -28,7 +28,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">point_cloud_object_detection<span id="projectnumber">&#160;v3.1.1</span>
+   <div id="projectname">point_cloud_object_detection<span id="projectnumber">&#160;v4.0.0</span>
    </div>
   </td>
  </tr>
@@ -114,6 +114,8 @@ $(function(){initNavTree('rotated__nms_8cpp.html',''); initResizable(true); });
 Functions</h2></td></tr>
 <tr class="memitem:a47d2cf6d8eb4014d9107b5921095c649" id="r_a47d2cf6d8eb4014d9107b5921095c649"><td class="memItemLeft" align="right" valign="top">torch::Tensor&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a47d2cf6d8eb4014d9107b5921095c649">rotated_nms_cuda</a> (torch::Tensor boxes, torch::Tensor scores, double iou_threshold, int64_t max_out)</td></tr>
 <tr class="separator:a47d2cf6d8eb4014d9107b5921095c649"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a884942b571d06c5e35066cd14ce7588a" id="r_a884942b571d06c5e35066cd14ce7588a"><td class="memItemLeft" align="right" valign="top">torch::Tensor&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a884942b571d06c5e35066cd14ce7588a">rotated_nms_cuda_batched</a> (torch::Tensor sorted_boxes, torch::Tensor group_offsets, double iou_threshold, int64_t max_out)</td></tr>
+<tr class="separator:a884942b571d06c5e35066cd14ce7588a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab91166c83ef7d1e5970040e8a5a4e16b" id="r_ab91166c83ef7d1e5970040e8a5a4e16b"><td class="memItemLeft" align="right" valign="top">torch::Tensor&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ab91166c83ef7d1e5970040e8a5a4e16b">oriented_iou_aligned_cuda</a> (torch::Tensor boxes_a, torch::Tensor boxes_b)</td></tr>
 <tr class="separator:ab91166c83ef7d1e5970040e8a5a4e16b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a865a49b685013f839834f750c819b1d3" id="r_a865a49b685013f839834f750c819b1d3"><td class="memItemLeft" align="right" valign="top">torch::Tensor&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a865a49b685013f839834f750c819b1d3">rotated_nms</a> (torch::Tensor boxes, torch::Tensor scores, double iou_threshold, int64_t max_out)</td></tr>
@@ -143,20 +145,20 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="rotated__nms_8cpp_source.html#l00174">174</a> of file <a class="el" href="rotated__nms_8cpp_source.html">rotated_nms.cpp</a>.</p>
-<div class="fragment"><div class="line"><span class="lineno">  174</span>                                                                           {</div>
-<div class="line"><span class="lineno">  175</span>  TORCH_CHECK(boxes_a.dim() == 2 &amp;&amp; boxes_a.size(1) == 7, <span class="stringliteral">&quot;boxes_a must be [N,7]&quot;</span>);</div>
-<div class="line"><span class="lineno">  176</span>  TORCH_CHECK(boxes_b.dim() == 2 &amp;&amp; boxes_b.size(1) == 7, <span class="stringliteral">&quot;boxes_b must be [N,7]&quot;</span>);</div>
-<div class="line"><span class="lineno">  177</span>  TORCH_CHECK(boxes_a.sizes() == boxes_b.sizes(), <span class="stringliteral">&quot;boxes_a and boxes_b must have the same shape&quot;</span>);</div>
-<div class="line"><span class="lineno">  178</span>  <span class="keyword">auto</span> boxes_a_c = boxes_a.contiguous().to(torch::kCPU);</div>
-<div class="line"><span class="lineno">  179</span>  <span class="keyword">auto</span> boxes_b_c = boxes_b.contiguous().to(torch::kCPU);</div>
-<div class="line"><span class="lineno">  180</span>  <span class="keyword">const</span> <span class="keyword">auto</span> N = boxes_a_c.size(0);</div>
-<div class="line"><span class="lineno">  181</span>  <span class="keyword">auto</span> out = torch::zeros({N}, boxes_a.options().device(torch::kCPU).dtype(torch::kFloat));</div>
-<div class="line"><span class="lineno">  182</span>  <span class="keywordflow">for</span> (int64_t i = 0; i &lt; N; ++i) {</div>
-<div class="line"><span class="lineno">  183</span>    out[i] = oriented_iou(boxes_a_c[i], boxes_b_c[i]);</div>
-<div class="line"><span class="lineno">  184</span>  }</div>
-<div class="line"><span class="lineno">  185</span>  <span class="keywordflow">return</span> out.to(boxes_a.device());</div>
-<div class="line"><span class="lineno">  186</span>}</div>
+<p class="definition">Definition at line <a class="el" href="rotated__nms_8cpp_source.html#l00191">191</a> of file <a class="el" href="rotated__nms_8cpp_source.html">rotated_nms.cpp</a>.</p>
+<div class="fragment"><div class="line"><span class="lineno">  191</span>                                                                           {</div>
+<div class="line"><span class="lineno">  192</span>  TORCH_CHECK(boxes_a.dim() == 2 &amp;&amp; boxes_a.size(1) == 7, <span class="stringliteral">&quot;boxes_a must be [N,7]&quot;</span>);</div>
+<div class="line"><span class="lineno">  193</span>  TORCH_CHECK(boxes_b.dim() == 2 &amp;&amp; boxes_b.size(1) == 7, <span class="stringliteral">&quot;boxes_b must be [N,7]&quot;</span>);</div>
+<div class="line"><span class="lineno">  194</span>  TORCH_CHECK(boxes_a.sizes() == boxes_b.sizes(), <span class="stringliteral">&quot;boxes_a and boxes_b must have the same shape&quot;</span>);</div>
+<div class="line"><span class="lineno">  195</span>  <span class="keyword">auto</span> boxes_a_c = boxes_a.contiguous().to(torch::kCPU);</div>
+<div class="line"><span class="lineno">  196</span>  <span class="keyword">auto</span> boxes_b_c = boxes_b.contiguous().to(torch::kCPU);</div>
+<div class="line"><span class="lineno">  197</span>  <span class="keyword">const</span> <span class="keyword">auto</span> N = boxes_a_c.size(0);</div>
+<div class="line"><span class="lineno">  198</span>  <span class="keyword">auto</span> out = torch::zeros({N}, boxes_a.options().device(torch::kCPU).dtype(torch::kFloat));</div>
+<div class="line"><span class="lineno">  199</span>  <span class="keywordflow">for</span> (int64_t i = 0; i &lt; N; ++i) {</div>
+<div class="line"><span class="lineno">  200</span>    out[i] = oriented_iou(boxes_a_c[i], boxes_b_c[i]);</div>
+<div class="line"><span class="lineno">  201</span>  }</div>
+<div class="line"><span class="lineno">  202</span>  <span class="keywordflow">return</span> out.to(boxes_a.device());</div>
+<div class="line"><span class="lineno">  203</span>}</div>
 </div><!-- fragment -->
 </div>
 </div>
@@ -200,16 +202,18 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="rotated__nms_8cpp_source.html#l00188">188</a> of file <a class="el" href="rotated__nms_8cpp_source.html">rotated_nms.cpp</a>.</p>
-<div class="fragment"><div class="line"><span class="lineno">  188</span>                                         {</div>
-<div class="line"><span class="lineno">  189</span>  m.def(<span class="stringliteral">&quot;rotated_nms&quot;</span>, &amp;<a class="code hl_function" href="#a865a49b685013f839834f750c819b1d3">rotated_nms</a>, <span class="stringliteral">&quot;Rotated NMS (CPU)&quot;</span>);</div>
-<div class="line"><span class="lineno">  190</span>  m.def(<span class="stringliteral">&quot;rotated_nms_cuda&quot;</span>, &amp;<a class="code hl_function" href="#a47d2cf6d8eb4014d9107b5921095c649">rotated_nms_cuda</a>, <span class="stringliteral">&quot;Rotated NMS (CUDA)&quot;</span>);</div>
-<div class="line"><span class="lineno">  191</span>  m.def(<span class="stringliteral">&quot;oriented_iou_aligned&quot;</span>, &amp;<a class="code hl_function" href="#a615787033737d97e61cff07860b14311">oriented_iou_aligned</a>, <span class="stringliteral">&quot;Aligned oriented IoU (CPU)&quot;</span>);</div>
-<div class="line"><span class="lineno">  192</span>  m.def(<span class="stringliteral">&quot;oriented_iou_aligned_cuda&quot;</span>, &amp;<a class="code hl_function" href="#ab91166c83ef7d1e5970040e8a5a4e16b">oriented_iou_aligned_cuda</a>, <span class="stringliteral">&quot;Aligned oriented IoU (CUDA)&quot;</span>);</div>
-<div class="line"><span class="lineno">  193</span>}</div>
+<p class="definition">Definition at line <a class="el" href="rotated__nms_8cpp_source.html#l00205">205</a> of file <a class="el" href="rotated__nms_8cpp_source.html">rotated_nms.cpp</a>.</p>
+<div class="fragment"><div class="line"><span class="lineno">  205</span>                                         {</div>
+<div class="line"><span class="lineno">  206</span>  m.def(<span class="stringliteral">&quot;rotated_nms&quot;</span>, &amp;<a class="code hl_function" href="#a865a49b685013f839834f750c819b1d3">rotated_nms</a>, <span class="stringliteral">&quot;Rotated NMS (CPU)&quot;</span>);</div>
+<div class="line"><span class="lineno">  207</span>  m.def(<span class="stringliteral">&quot;rotated_nms_cuda&quot;</span>, &amp;<a class="code hl_function" href="#a47d2cf6d8eb4014d9107b5921095c649">rotated_nms_cuda</a>, <span class="stringliteral">&quot;Rotated NMS (CUDA)&quot;</span>);</div>
+<div class="line"><span class="lineno">  208</span>  m.def(<span class="stringliteral">&quot;rotated_nms_cuda_batched&quot;</span>, &amp;<a class="code hl_function" href="#a884942b571d06c5e35066cd14ce7588a">rotated_nms_cuda_batched</a>, <span class="stringliteral">&quot;Batched rotated NMS (CUDA)&quot;</span>);</div>
+<div class="line"><span class="lineno">  209</span>  m.def(<span class="stringliteral">&quot;oriented_iou_aligned&quot;</span>, &amp;<a class="code hl_function" href="#a615787033737d97e61cff07860b14311">oriented_iou_aligned</a>, <span class="stringliteral">&quot;Aligned oriented IoU (CPU)&quot;</span>);</div>
+<div class="line"><span class="lineno">  210</span>  m.def(<span class="stringliteral">&quot;oriented_iou_aligned_cuda&quot;</span>, &amp;<a class="code hl_function" href="#ab91166c83ef7d1e5970040e8a5a4e16b">oriented_iou_aligned_cuda</a>, <span class="stringliteral">&quot;Aligned oriented IoU (CUDA)&quot;</span>);</div>
+<div class="line"><span class="lineno">  211</span>}</div>
 <div class="ttc" id="arotated__nms_8cpp_html_a47d2cf6d8eb4014d9107b5921095c649"><div class="ttname"><a href="#a47d2cf6d8eb4014d9107b5921095c649">rotated_nms_cuda</a></div><div class="ttdeci">torch::Tensor rotated_nms_cuda(torch::Tensor boxes, torch::Tensor scores, double iou_threshold, int64_t max_out)</div></div>
-<div class="ttc" id="arotated__nms_8cpp_html_a615787033737d97e61cff07860b14311"><div class="ttname"><a href="#a615787033737d97e61cff07860b14311">oriented_iou_aligned</a></div><div class="ttdeci">torch::Tensor oriented_iou_aligned(torch::Tensor boxes_a, torch::Tensor boxes_b)</div><div class="ttdef"><b>Definition</b> <a href="rotated__nms_8cpp_source.html#l00174">rotated_nms.cpp:174</a></div></div>
-<div class="ttc" id="arotated__nms_8cpp_html_a865a49b685013f839834f750c819b1d3"><div class="ttname"><a href="#a865a49b685013f839834f750c819b1d3">rotated_nms</a></div><div class="ttdeci">torch::Tensor rotated_nms(torch::Tensor boxes, torch::Tensor scores, double iou_threshold, int64_t max_out)</div><div class="ttdef"><b>Definition</b> <a href="rotated__nms_8cpp_source.html#l00141">rotated_nms.cpp:141</a></div></div>
+<div class="ttc" id="arotated__nms_8cpp_html_a615787033737d97e61cff07860b14311"><div class="ttname"><a href="#a615787033737d97e61cff07860b14311">oriented_iou_aligned</a></div><div class="ttdeci">torch::Tensor oriented_iou_aligned(torch::Tensor boxes_a, torch::Tensor boxes_b)</div><div class="ttdef"><b>Definition</b> <a href="rotated__nms_8cpp_source.html#l00191">rotated_nms.cpp:191</a></div></div>
+<div class="ttc" id="arotated__nms_8cpp_html_a865a49b685013f839834f750c819b1d3"><div class="ttname"><a href="#a865a49b685013f839834f750c819b1d3">rotated_nms</a></div><div class="ttdeci">torch::Tensor rotated_nms(torch::Tensor boxes, torch::Tensor scores, double iou_threshold, int64_t max_out)</div><div class="ttdef"><b>Definition</b> <a href="rotated__nms_8cpp_source.html#l00145">rotated_nms.cpp:145</a></div></div>
+<div class="ttc" id="arotated__nms_8cpp_html_a884942b571d06c5e35066cd14ce7588a"><div class="ttname"><a href="#a884942b571d06c5e35066cd14ce7588a">rotated_nms_cuda_batched</a></div><div class="ttdeci">torch::Tensor rotated_nms_cuda_batched(torch::Tensor sorted_boxes, torch::Tensor group_offsets, double iou_threshold, int64_t max_out)</div></div>
 <div class="ttc" id="arotated__nms_8cpp_html_ab91166c83ef7d1e5970040e8a5a4e16b"><div class="ttname"><a href="#ab91166c83ef7d1e5970040e8a5a4e16b">oriented_iou_aligned_cuda</a></div><div class="ttdeci">torch::Tensor oriented_iou_aligned_cuda(torch::Tensor boxes_a, torch::Tensor boxes_b)</div></div>
 </div><!-- fragment -->
 </div>
@@ -243,39 +247,53 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="rotated__nms_8cpp_source.html#l00141">141</a> of file <a class="el" href="rotated__nms_8cpp_source.html">rotated_nms.cpp</a>.</p>
-<div class="fragment"><div class="line"><span class="lineno">  141</span>                                                                                                      {</div>
-<div class="line"><span class="lineno">  142</span>  TORCH_CHECK(boxes.dim() == 2 &amp;&amp; boxes.size(1) == 7, <span class="stringliteral">&quot;boxes must be [N,7]&quot;</span>);</div>
-<div class="line"><span class="lineno">  143</span>  TORCH_CHECK(scores.dim() == 1 &amp;&amp; scores.size(0) == boxes.size(0), <span class="stringliteral">&quot;scores must be [N]&quot;</span>);</div>
-<div class="line"><span class="lineno">  144</span> </div>
-<div class="line"><span class="lineno">  145</span>  <span class="keyword">auto</span> boxes_cpu = boxes.contiguous().to(torch::kCPU);</div>
-<div class="line"><span class="lineno">  146</span>  <span class="keyword">auto</span> scores_cpu = scores.contiguous().to(torch::kCPU);</div>
-<div class="line"><span class="lineno">  147</span>  <span class="keyword">auto</span> order = std::get&lt;1&gt;(scores_cpu.sort(0, <span class="comment">/*descending=*/</span><span class="keyword">true</span>));</div>
+<p class="definition">Definition at line <a class="el" href="rotated__nms_8cpp_source.html#l00145">145</a> of file <a class="el" href="rotated__nms_8cpp_source.html">rotated_nms.cpp</a>.</p>
+<div class="fragment"><div class="line"><span class="lineno">  145</span>                                                                                                      {</div>
+<div class="line"><span class="lineno">  146</span>  TORCH_CHECK(boxes.dim() == 2 &amp;&amp; boxes.size(1) == 7, <span class="stringliteral">&quot;boxes must be [N,7]&quot;</span>);</div>
+<div class="line"><span class="lineno">  147</span>  TORCH_CHECK(scores.dim() == 1 &amp;&amp; scores.size(0) == boxes.size(0), <span class="stringliteral">&quot;scores must be [N]&quot;</span>);</div>
 <div class="line"><span class="lineno">  148</span> </div>
-<div class="line"><span class="lineno">  149</span>  std::vector&lt;int64_t&gt; keep;</div>
-<div class="line"><span class="lineno">  150</span>  keep.reserve(boxes_cpu.size(0));</div>
-<div class="line"><span class="lineno">  151</span> </div>
-<div class="line"><span class="lineno">  152</span>  <span class="keywordflow">for</span> (int64_t oi = 0; oi &lt; order.size(0); ++oi) {</div>
-<div class="line"><span class="lineno">  153</span>    int64_t idx = order[oi].item&lt;int64_t&gt;();</div>
-<div class="line"><span class="lineno">  154</span>    <span class="keywordtype">bool</span> suppress = <span class="keyword">false</span>;</div>
-<div class="line"><span class="lineno">  155</span>    <span class="keywordflow">for</span> (int64_t kept_idx : keep) {</div>
-<div class="line"><span class="lineno">  156</span>      <span class="keywordtype">float</span> iou = oriented_iou(boxes_cpu[idx], boxes_cpu[kept_idx]);</div>
-<div class="line"><span class="lineno">  157</span>      <span class="keywordflow">if</span> (iou &gt; <span class="keyword">static_cast&lt;</span><span class="keywordtype">float</span><span class="keyword">&gt;</span>(iou_threshold)) {</div>
-<div class="line"><span class="lineno">  158</span>        suppress = <span class="keyword">true</span>;</div>
-<div class="line"><span class="lineno">  159</span>        <span class="keywordflow">break</span>;</div>
-<div class="line"><span class="lineno">  160</span>      }</div>
-<div class="line"><span class="lineno">  161</span>    }</div>
-<div class="line"><span class="lineno">  162</span>    <span class="keywordflow">if</span> (!suppress) {</div>
-<div class="line"><span class="lineno">  163</span>      keep.push_back(idx);</div>
-<div class="line"><span class="lineno">  164</span>      <span class="keywordflow">if</span> (<span class="keyword">static_cast&lt;</span>int64_t<span class="keyword">&gt;</span>(keep.size()) &gt;= max_out) {</div>
-<div class="line"><span class="lineno">  165</span>        <span class="keywordflow">break</span>;</div>
-<div class="line"><span class="lineno">  166</span>      }</div>
-<div class="line"><span class="lineno">  167</span>    }</div>
-<div class="line"><span class="lineno">  168</span>  }</div>
-<div class="line"><span class="lineno">  169</span> </div>
-<div class="line"><span class="lineno">  170</span>  <span class="keyword">auto</span> options = torch::TensorOptions().dtype(torch::kLong).device(boxes.device());</div>
-<div class="line"><span class="lineno">  171</span>  <span class="keywordflow">return</span> torch::from_blob(keep.data(), {static_cast&lt;long&gt;(keep.size())}, options).clone();</div>
-<div class="line"><span class="lineno">  172</span>}</div>
+<div class="line"><span class="lineno">  149</span>  <span class="keyword">auto</span> boxes_cpu = boxes.contiguous().to(torch::kCPU);</div>
+<div class="line"><span class="lineno">  150</span>  <span class="keyword">auto</span> scores_cpu = scores.contiguous().to(torch::kCPU);</div>
+<div class="line"><span class="lineno">  151</span>  <span class="keyword">auto</span> order = std::get&lt;1&gt;(scores_cpu.sort(0, <span class="comment">/*descending=*/</span><span class="keyword">true</span>));</div>
+<div class="line"><span class="lineno">  152</span> </div>
+<div class="line"><span class="lineno">  153</span>  std::vector&lt;int64_t&gt; keep;</div>
+<div class="line"><span class="lineno">  154</span>  keep.reserve(boxes_cpu.size(0));</div>
+<div class="line"><span class="lineno">  155</span> </div>
+<div class="line"><span class="lineno">  156</span>  <span class="keywordflow">for</span> (int64_t oi = 0; oi &lt; order.size(0); ++oi) {</div>
+<div class="line"><span class="lineno">  157</span>    int64_t idx = order[oi].item&lt;int64_t&gt;();</div>
+<div class="line"><span class="lineno">  158</span>    <span class="keywordtype">bool</span> suppress = <span class="keyword">false</span>;</div>
+<div class="line"><span class="lineno">  159</span>    <span class="keywordflow">for</span> (int64_t kept_idx : keep) {</div>
+<div class="line"><span class="lineno">  160</span>      <span class="keywordtype">float</span> <a class="code hl_variable" href="nms_8cpp.html#a50e9052c27e10bb273e6db873e1863be">iou</a> = oriented_iou(boxes_cpu[idx], boxes_cpu[kept_idx]);</div>
+<div class="line"><span class="lineno">  161</span>      <span class="keyword">const</span> <span class="keyword">auto</span> a = boxes_cpu[idx];</div>
+<div class="line"><span class="lineno">  162</span>      <span class="keyword">const</span> <span class="keyword">auto</span> b = boxes_cpu[kept_idx];</div>
+<div class="line"><span class="lineno">  163</span>      <span class="keyword">const</span> <span class="keywordtype">float</span> ha = a[5].item&lt;<span class="keywordtype">float</span>&gt;();</div>
+<div class="line"><span class="lineno">  164</span>      <span class="keyword">const</span> <span class="keywordtype">float</span> hb = b[5].item&lt;<span class="keywordtype">float</span>&gt;();</div>
+<div class="line"><span class="lineno">  165</span>      <span class="keywordflow">if</span> (ha &gt; 0 &amp;&amp; hb &gt; 0) {</div>
+<div class="line"><span class="lineno">  166</span>        <span class="keyword">const</span> <span class="keywordtype">float</span> aa = a[3].item&lt;<span class="keywordtype">float</span>&gt;() * a[4].item&lt;float&gt;();</div>
+<div class="line"><span class="lineno">  167</span>        <span class="keyword">const</span> <span class="keywordtype">float</span> ab = b[3].item&lt;<span class="keywordtype">float</span>&gt;() * b[4].item&lt;float&gt;();</div>
+<div class="line"><span class="lineno">  168</span>        <span class="keyword">const</span> <span class="keywordtype">float</span> za = a[2].item&lt;<span class="keywordtype">float</span>&gt;();</div>
+<div class="line"><span class="lineno">  169</span>        <span class="keyword">const</span> <span class="keywordtype">float</span> zb = b[2].item&lt;<span class="keywordtype">float</span>&gt;();</div>
+<div class="line"><span class="lineno">  170</span>        <span class="keyword">const</span> <span class="keywordtype">float</span> inter_h = std::max(0.0f, std::min(za + ha / 2, zb + hb / 2) - std::max(za - ha / 2, zb - hb / 2));</div>
+<div class="line"><span class="lineno">  171</span>        <span class="keyword">const</span> <span class="keywordtype">float</span> inter = <a class="code hl_variable" href="nms_8cpp.html#a50e9052c27e10bb273e6db873e1863be">iou</a> * (aa + ab) / (1 + <a class="code hl_variable" href="nms_8cpp.html#a50e9052c27e10bb273e6db873e1863be">iou</a>) * inter_h;</div>
+<div class="line"><span class="lineno">  172</span>        <a class="code hl_variable" href="nms_8cpp.html#a50e9052c27e10bb273e6db873e1863be">iou</a> = inter / std::max(aa * ha + ab * hb - inter, 1e-7f);</div>
+<div class="line"><span class="lineno">  173</span>      }</div>
+<div class="line"><span class="lineno">  174</span>      <span class="keywordflow">if</span> (<a class="code hl_variable" href="nms_8cpp.html#a50e9052c27e10bb273e6db873e1863be">iou</a> &gt; <span class="keyword">static_cast&lt;</span><span class="keywordtype">float</span><span class="keyword">&gt;</span>(iou_threshold)) {</div>
+<div class="line"><span class="lineno">  175</span>        suppress = <span class="keyword">true</span>;</div>
+<div class="line"><span class="lineno">  176</span>        <span class="keywordflow">break</span>;</div>
+<div class="line"><span class="lineno">  177</span>      }</div>
+<div class="line"><span class="lineno">  178</span>    }</div>
+<div class="line"><span class="lineno">  179</span>    <span class="keywordflow">if</span> (!suppress) {</div>
+<div class="line"><span class="lineno">  180</span>      keep.push_back(idx);</div>
+<div class="line"><span class="lineno">  181</span>      <span class="keywordflow">if</span> (<span class="keyword">static_cast&lt;</span>int64_t<span class="keyword">&gt;</span>(keep.size()) &gt;= max_out) {</div>
+<div class="line"><span class="lineno">  182</span>        <span class="keywordflow">break</span>;</div>
+<div class="line"><span class="lineno">  183</span>      }</div>
+<div class="line"><span class="lineno">  184</span>    }</div>
+<div class="line"><span class="lineno">  185</span>  }</div>
+<div class="line"><span class="lineno">  186</span> </div>
+<div class="line"><span class="lineno">  187</span>  <span class="keyword">auto</span> options = torch::TensorOptions().dtype(torch::kLong).device(boxes.device());</div>
+<div class="line"><span class="lineno">  188</span>  <span class="keywordflow">return</span> torch::from_blob(keep.data(), {static_cast&lt;long&gt;(keep.size())}, options).clone();</div>
+<div class="line"><span class="lineno">  189</span>}</div>
+<div class="ttc" id="anms_8cpp_html_a50e9052c27e10bb273e6db873e1863be"><div class="ttname"><a href="nms_8cpp.html#a50e9052c27e10bb273e6db873e1863be">iou</a></div><div class="ttdeci">double iou</div><div class="ttdoc">Ordinary intersection over union.</div><div class="ttdef"><b>Definition</b> <a href="nms_8cpp_source.html#l00106">nms.cpp:106</a></div></div>
 </div><!-- fragment -->
 </div>
 </div>
@@ -294,6 +312,37 @@ Functions</h2></td></tr>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">torch::Tensor</td>          <td class="paramname"><span class="paramname"><em>scores</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">double</td>          <td class="paramname"><span class="paramname"><em>iou_threshold</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int64_t</td>          <td class="paramname"><span class="paramname"><em>max_out</em></span>&#160;)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a884942b571d06c5e35066cd14ce7588a" name="a884942b571d06c5e35066cd14ce7588a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a884942b571d06c5e35066cd14ce7588a">&#9670;&#160;</a></span>rotated_nms_cuda_batched()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">torch::Tensor rotated_nms_cuda_batched </td>
+          <td>(</td>
+          <td class="paramtype">torch::Tensor</td>          <td class="paramname"><span class="paramname"><em>sorted_boxes</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">torch::Tensor</td>          <td class="paramname"><span class="paramname"><em>group_offsets</em></span>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>

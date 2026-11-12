@@ -5,6 +5,7 @@ var structpcod__common_1_1BoundingBox =
     [ "rectangle_vertices", "structpcod__common_1_1BoundingBox.html#a1106ddad21e6a7ccfebdbb12a2cdb0de", null ],
     [ "center", "structpcod__common_1_1BoundingBox.html#a40fb35cd5e468e87118706866c2ed57c", null ],
     [ "classification", "structpcod__common_1_1BoundingBox.html#a9d8e86e02e44f9e3b6abef832f346c0c", null ],
+    [ "detection_score", "structpcod__common_1_1BoundingBox.html#ae15d691d73ac32479152639c1f2107f2", null ],
     [ "existence_probability", "structpcod__common_1_1BoundingBox.html#acce789a31e40fb2f3acb49c6464159ba", null ],
     [ "has_velocity", "structpcod__common_1_1BoundingBox.html#a1b203deafc2425a4af37c0a4f0c48d4f", null ],
     [ "height", "structpcod__common_1_1BoundingBox.html#a47d914a74ab61c66af639fb83897923c", null ],

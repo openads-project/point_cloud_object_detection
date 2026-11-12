@@ -11,6 +11,7 @@ var namespacepcod__common =
     [ "Line", "structpcod__common_1_1Line.html", "structpcod__common_1_1Line" ],
     [ "ModelManifest", "structpcod__common_1_1ModelManifest.html", "structpcod__common_1_1ModelManifest" ],
     [ "NmsConfig", "structpcod__common_1_1NmsConfig.html", "structpcod__common_1_1NmsConfig" ],
+    [ "NmsStats", "structpcod__common_1_1NmsStats.html", "structpcod__common_1_1NmsStats" ],
     [ "PbodOutputsView", "structpcod__common_1_1PbodOutputsView.html", "structpcod__common_1_1PbodOutputsView" ],
     [ "PbodPostprocessConfig", "structpcod__common_1_1PbodPostprocessConfig.html", "structpcod__common_1_1PbodPostprocessConfig" ],
     [ "PillarGrid", "structpcod__common_1_1PillarGrid.html", "structpcod__common_1_1PillarGrid" ],
@@ -22,6 +23,11 @@ var namespacepcod__common =
     [ "PointPreprocessConfig", "structpcod__common_1_1PointPreprocessConfig.html", "structpcod__common_1_1PointPreprocessConfig" ],
     [ "PointPreprocessor", "classpcod__common_1_1PointPreprocessor.html", "classpcod__common_1_1PointPreprocessor" ],
     [ "RuntimeDefaults", "structpcod__common_1_1RuntimeDefaults.html", "structpcod__common_1_1RuntimeDefaults" ],
+    [ "PbodScoreMode", "namespacepcod__common.html#a8448613cb98d14578ca2a59eaf6d0995", [
+      [ "Existence", "namespacepcod__common.html#a8448613cb98d14578ca2a59eaf6d0995a7f1b3a3cd866a23e17542c63254d2c10", null ],
+      [ "ExistenceQuality", "namespacepcod__common.html#a8448613cb98d14578ca2a59eaf6d0995a5f00b2e9ca4e0cfa7aa7eb03f9813e73", null ],
+      [ "ExistenceQualityClass", "namespacepcod__common.html#a8448613cb98d14578ca2a59eaf6d0995a78ef4c061a248d3cfb1bf9bbfeb06b77", null ]
+    ] ],
     [ "PointFeatureNormalizationType", "namespacepcod__common.html#ac0ae2525db431feee3b51d35d58b909c", [
       [ "kNone", "namespacepcod__common.html#ac0ae2525db431feee3b51d35d58b909ca35c3ace1970663a16e5c65baa5941b13", null ],
       [ "kValueThreshold", "namespacepcod__common.html#ac0ae2525db431feee3b51d35d58b909ca99378298d33e5218ae11a12d70dc5c40", null ],
@@ -29,11 +35,13 @@ var namespacepcod__common =
       [ "kZScore", "namespacepcod__common.html#ac0ae2525db431feee3b51d35d58b909cabf070d52e11b400b9ce1585dc46b6777", null ]
     ] ],
     [ "ApplyRotatedNms", "namespacepcod__common.html#a5be13ed700e3f92b1523d7dace40a4a5", null ],
+    [ "ApplyRotatedNms", "namespacepcod__common.html#a262f6555bf2f5958b9b8adc5ac0672c0", null ],
     [ "BuildPillarGrid", "namespacepcod__common.html#a0496b27055638702b95267573bd63904", null ],
     [ "clamp", "namespacepcod__common.html#a642c484f9bf5d62971afa45ecf2cb671", null ],
     [ "DecodePbod", "namespacepcod__common.html#a2017afcd1a450964778f0b746f5181b9", null ],
     [ "HasCudaPillarPreprocessSupport", "namespacepcod__common.html#a545c3a9cc3f7223fb9a7a6d310bc4fe1", null ],
     [ "LoadModelManifest", "namespacepcod__common.html#aebbc026e4d8755a3f147854eac935918", null ],
+    [ "ParsePbodScoreMode", "namespacepcod__common.html#a1631590e3d066557c785128ddadb2de9", null ],
     [ "ParsePointFeatureNormalizationType", "namespacepcod__common.html#a42c3415fc2782a0d14f51a43a9c0b184", null ],
     [ "scale_score", "namespacepcod__common.html#a6ad2ca73c71991dbced15f692d6f29c3", null ],
     [ "ValidateModelManifest", "namespacepcod__common.html#a7810c570c1bf57bb8d0096291e0da165", null ],

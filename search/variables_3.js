@@ -31,10 +31,11 @@ var searchData=
   ['detection_5farea_5fz_5fmax_28',['detection_area_z_max',['../structpoint__cloud__object__detection_1_1Params.html#abe9329ed45b477aabe701e7a17bfdfcf',1,'point_cloud_object_detection::Params']]],
   ['detection_5farea_5fz_5fmin_29',['detection_area_z_min',['../structpoint__cloud__object__detection_1_1Params.html#a2e3bbae218524b84d1ffbe96d740d0fb',1,'point_cloud_object_detection::Params']]],
   ['detection_5fmodel_5f_30',['detection_model_',['../classpoint__cloud__object__detection_1_1PointCloudObjectDetection.html#aad13dd7b51494adbba91d48ad5e96f99',1,'point_cloud_object_detection::PointCloudObjectDetection']]],
-  ['device_31',['device',['../structpcod__common_1_1ArtifactConfig.html#a80507be1d26f86f81a07878f6870fc30',1,'pcod_common::ArtifactConfig']]],
-  ['dtype_32',['dtype',['../structpcod__common_1_1ArtifactConfig_1_1Tensor.html#a1982793166da14cc3d7b6aff98e0055a',1,'pcod_common::ArtifactConfig::Tensor']]],
-  ['dynamic_33',['dynamic',['../structpoint__cloud__object__detection_1_1AuxiliaryGridMapRequest.html#af80082a8e7a83609f6042880286068d6',1,'point_cloud_object_detection::AuxiliaryGridMapRequest']]],
-  ['dynamic_5fgrid_5fmap_5f_34',['dynamic_grid_map_',['../classpoint__cloud__object__detection_1_1Model.html#a20ec838fc676c507155c4cf81357d091',1,'point_cloud_object_detection::Model']]],
-  ['dynamic_5fgrid_5fmap_5fgain_35',['dynamic_grid_map_gain',['../structpoint__cloud__object__detection_1_1Params.html#a0b167b2d21b76b1c73bce960671323b6',1,'point_cloud_object_detection::Params']]],
-  ['dynamic_5fgrid_5fpub_5f_36',['dynamic_grid_pub_',['../classpoint__cloud__object__detection_1_1PointCloudObjectDetection.html#a4e43ce6a6c068c7a750589cc41c15be3',1,'point_cloud_object_detection::PointCloudObjectDetection']]]
+  ['detection_5fscore_31',['detection_score',['../structpcod__common_1_1BoundingBox.html#ae15d691d73ac32479152639c1f2107f2',1,'pcod_common::BoundingBox']]],
+  ['device_32',['device',['../structpcod__common_1_1ArtifactConfig.html#a80507be1d26f86f81a07878f6870fc30',1,'pcod_common::ArtifactConfig']]],
+  ['dtype_33',['dtype',['../structpcod__common_1_1ArtifactConfig_1_1Tensor.html#a1982793166da14cc3d7b6aff98e0055a',1,'pcod_common::ArtifactConfig::Tensor']]],
+  ['dynamic_34',['dynamic',['../structpoint__cloud__object__detection_1_1AuxiliaryGridMapRequest.html#af80082a8e7a83609f6042880286068d6',1,'point_cloud_object_detection::AuxiliaryGridMapRequest']]],
+  ['dynamic_5fgrid_5fmap_5f_35',['dynamic_grid_map_',['../classpoint__cloud__object__detection_1_1Model.html#a20ec838fc676c507155c4cf81357d091',1,'point_cloud_object_detection::Model']]],
+  ['dynamic_5fgrid_5fmap_5fgain_36',['dynamic_grid_map_gain',['../structpoint__cloud__object__detection_1_1Params.html#a0b167b2d21b76b1c73bce960671323b6',1,'point_cloud_object_detection::Params']]],
+  ['dynamic_5fgrid_5fpub_5f_37',['dynamic_grid_pub_',['../classpoint__cloud__object__detection_1_1PointCloudObjectDetection.html#a4e43ce6a6c068c7a750589cc41c15be3',1,'point_cloud_object_detection::PointCloudObjectDetection']]]
 ];

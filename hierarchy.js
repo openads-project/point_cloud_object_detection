@@ -22,6 +22,7 @@ var hierarchy =
     [ "point_cloud_object_detection::ModelConfig", "structpoint__cloud__object__detection_1_1ModelConfig.html", null ],
     [ "pcod_common::ModelManifest", "structpcod__common_1_1ModelManifest.html", null ],
     [ "pcod_common::NmsConfig", "structpcod__common_1_1NmsConfig.html", null ],
+    [ "pcod_common::NmsStats", "structpcod__common_1_1NmsStats.html", null ],
     [ "rclcpp::Node", null, [
       [ "point_cloud_object_detection::PointCloudObjectDetection", "classpoint__cloud__object__detection_1_1PointCloudObjectDetection.html", null ]
     ] ],

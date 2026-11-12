@@ -28,7 +28,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">point_cloud_object_detection<span id="projectnumber">&#160;v3.1.1</span>
+   <div id="projectname">point_cloud_object_detection<span id="projectnumber">&#160;v4.0.0</span>
    </div>
   </td>
  </tr>
@@ -118,12 +118,12 @@ $(function(){initNavTree('math_8hpp_source.html',''); initResizable(true); });
 <div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span> </div>
 <div class="line"><a id="l00022" name="l00022"></a><span class="lineno">   22</span><span class="keyword">template</span> &lt;<span class="keyword">typename</span> T&gt;</div>
 <div class="foldopen" id="foldopen00023" data-start="{" data-end="}">
-<div class="line"><a id="l00023" name="l00023"></a><span class="lineno"><a class="line" href="namespacepcod__common.html#a6ad2ca73c71991dbced15f692d6f29c3">   23</a></span>T <a class="code hl_function" href="namespacepcod__common.html#a6ad2ca73c71991dbced15f692d6f29c3">scale_score</a>(T score, T old_thresh, T new_thresh) {</div>
+<div class="line"><a id="l00023" name="l00023"></a><span class="lineno"><a class="line" href="namespacepcod__common.html#a6ad2ca73c71991dbced15f692d6f29c3">   23</a></span>T <a class="code hl_function" href="namespacepcod__common.html#a6ad2ca73c71991dbced15f692d6f29c3">scale_score</a>(T <a class="code hl_variable" href="nms_8cpp.html#a8c5cd9b525ee73a24b1d9d8e34982d1c">score</a>, T old_thresh, T new_thresh) {</div>
 <div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span>  <span class="keyword">const</span> T one = <span class="keyword">static_cast&lt;</span>T<span class="keyword">&gt;</span>(1);</div>
-<div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span>  <span class="keywordflow">if</span> (score &lt;= old_thresh) {</div>
-<div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span>    <span class="keywordflow">return</span> score * new_thresh / old_thresh;</div>
+<div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span>  <span class="keywordflow">if</span> (<a class="code hl_variable" href="nms_8cpp.html#a8c5cd9b525ee73a24b1d9d8e34982d1c">score</a> &lt;= old_thresh) {</div>
+<div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span>    <span class="keywordflow">return</span> <a class="code hl_variable" href="nms_8cpp.html#a8c5cd9b525ee73a24b1d9d8e34982d1c">score</a> * new_thresh / old_thresh;</div>
 <div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span>  }</div>
-<div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span>  <span class="keywordflow">return</span> one - (one - score) * (one - new_thresh) / (one - old_thresh);</div>
+<div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span>  <span class="keywordflow">return</span> one - (one - <a class="code hl_variable" href="nms_8cpp.html#a8c5cd9b525ee73a24b1d9d8e34982d1c">score</a>) * (one - new_thresh) / (one - old_thresh);</div>
 <div class="line"><a id="l00029" name="l00029"></a><span class="lineno">   29</span>}</div>
 </div>
 <div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span> </div>
@@ -135,10 +135,11 @@ $(function(){initNavTree('math_8hpp_source.html',''); initResizable(true); });
 </div>
 <div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span> </div>
 <div class="line"><a id="l00037" name="l00037"></a><span class="lineno">   37</span>}  <span class="comment">// namespace pcod_common</span></div>
-<div class="ttc" id="anamespacepcod__common_html"><div class="ttname"><a href="namespacepcod__common.html">pcod_common</a></div><div class="ttdef"><b>Definition</b> <a href="bounding__box_8hpp_source.html#l00009">bounding_box.hpp:9</a></div></div>
+<div class="ttc" id="anamespacepcod__common_html"><div class="ttname"><a href="namespacepcod__common.html">pcod_common</a></div><div class="ttdef"><b>Definition</b> <a href="bounding__box_8hpp_source.html#l00010">bounding_box.hpp:10</a></div></div>
 <div class="ttc" id="anamespacepcod__common_html_a642c484f9bf5d62971afa45ecf2cb671"><div class="ttname"><a href="namespacepcod__common.html#a642c484f9bf5d62971afa45ecf2cb671">pcod_common::clamp</a></div><div class="ttdeci">constexpr const T &amp; clamp(const T &amp;value, const T &amp;low, const T &amp;high)</div><div class="ttdef"><b>Definition</b> <a href="#l00012">math.hpp:12</a></div></div>
 <div class="ttc" id="anamespacepcod__common_html_a6ad2ca73c71991dbced15f692d6f29c3"><div class="ttname"><a href="namespacepcod__common.html#a6ad2ca73c71991dbced15f692d6f29c3">pcod_common::scale_score</a></div><div class="ttdeci">T scale_score(T score, T old_thresh, T new_thresh)</div><div class="ttdef"><b>Definition</b> <a href="#l00023">math.hpp:23</a></div></div>
 <div class="ttc" id="anamespacepcod__common_html_acbdfa5eb1948632c4107ca899e93ae5b"><div class="ttname"><a href="namespacepcod__common.html#acbdfa5eb1948632c4107ca899e93ae5b">pcod_common::wrap_to_range</a></div><div class="ttdeci">float wrap_to_range(float val, float min_val, float max_val)</div><div class="ttdef"><b>Definition</b> <a href="#l00032">math.hpp:32</a></div></div>
+<div class="ttc" id="anms_8cpp_html_a8c5cd9b525ee73a24b1d9d8e34982d1c"><div class="ttname"><a href="nms_8cpp.html#a8c5cd9b525ee73a24b1d9d8e34982d1c">score</a></div><div class="ttdeci">float score</div><div class="ttdoc">Ranking and mixture score.</div><div class="ttdef"><b>Definition</b> <a href="nms_8cpp_source.html#l00227">nms.cpp:227</a></div></div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->

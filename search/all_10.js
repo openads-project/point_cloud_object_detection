@@ -16,10 +16,11 @@ var searchData=
   ['rotated_5fnms_13',['rotated_nms',['../rotated__nms_8cpp.html#a865a49b685013f839834f750c819b1d3',1,'rotated_nms.cpp']]],
   ['rotated_5fnms_2ecpp_14',['rotated_nms.cpp',['../rotated__nms_8cpp.html',1,'']]],
   ['rotated_5fnms_5fcuda_15',['rotated_nms_cuda',['../rotated__nms_8cpp.html#a47d2cf6d8eb4014d9107b5921095c649',1,'rotated_nms.cpp']]],
-  ['rqt_20tt_16',['Interacting Through &lt;tt&gt;rqt&lt;/tt&gt;',['../index.html#autotoc_md2',1,'']]],
-  ['run_17',['run',['../classpcod__common_1_1PillarPreprocessCudaContext.html#aec8dc1602dc37f4704878ffd817f9195',1,'pcod_common::PillarPreprocessCudaContext']]],
-  ['run_20tests_18',['Run Tests',['../index.html#autotoc_md6',1,'']]],
-  ['runtime_5fdefaults_19',['runtime_defaults',['../structpcod__common_1_1ModelManifest.html#a37359db22e03d2e5fe11c05dbfc7194e',1,'pcod_common::ModelManifest']]],
-  ['runtimedefaults_20',['RuntimeDefaults',['../structpcod__common_1_1RuntimeDefaults.html',1,'pcod_common']]],
-  ['runtodevice_21',['runToDevice',['../classpcod__common_1_1PillarPreprocessCudaContext.html#add1fc6b2b168552e57128666e2ef21ad',1,'pcod_common::PillarPreprocessCudaContext']]]
+  ['rotated_5fnms_5fcuda_5fbatched_16',['rotated_nms_cuda_batched',['../rotated__nms_8cpp.html#a884942b571d06c5e35066cd14ce7588a',1,'rotated_nms.cpp']]],
+  ['rqt_20tt_17',['Interacting Through &lt;tt&gt;rqt&lt;/tt&gt;',['../index.html#autotoc_md2',1,'']]],
+  ['run_18',['run',['../classpcod__common_1_1PillarPreprocessCudaContext.html#aec8dc1602dc37f4704878ffd817f9195',1,'pcod_common::PillarPreprocessCudaContext']]],
+  ['run_20tests_19',['Run Tests',['../index.html#autotoc_md6',1,'']]],
+  ['runtime_5fdefaults_20',['runtime_defaults',['../structpcod__common_1_1ModelManifest.html#a37359db22e03d2e5fe11c05dbfc7194e',1,'pcod_common::ModelManifest']]],
+  ['runtimedefaults_21',['RuntimeDefaults',['../structpcod__common_1_1RuntimeDefaults.html',1,'pcod_common']]],
+  ['runtodevice_22',['runToDevice',['../classpcod__common_1_1PillarPreprocessCudaContext.html#add1fc6b2b168552e57128666e2ef21ad',1,'pcod_common::PillarPreprocessCudaContext']]]
 ];

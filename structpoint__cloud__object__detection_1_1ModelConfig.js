@@ -13,6 +13,7 @@ var structpoint__cloud__object__detection_1_1ModelConfig =
     [ "max_num_points", "structpoint__cloud__object__detection_1_1ModelConfig.html#a364cecdfd8f241c74fcc8d78038ef8c1", null ],
     [ "nms_iou_threshold", "structpoint__cloud__object__detection_1_1ModelConfig.html#a7ee64bb9b708d661ef012a5a45902259", null ],
     [ "nms_max_num_objects", "structpoint__cloud__object__detection_1_1ModelConfig.html#a943dcf29e5f9ef5392e24dbdfbf5a98a", null ],
+    [ "nms_score_mode", "structpoint__cloud__object__detection_1_1ModelConfig.html#a60e439980a1a97f97ff79d6ede0e5470", null ],
     [ "nms_score_threshold", "structpoint__cloud__object__detection_1_1ModelConfig.html#a9acca5a0668416bf332aeb901acbf2f3", null ],
     [ "no_detection_zone_remove_points", "structpoint__cloud__object__detection_1_1ModelConfig.html#aae563ea2bcc22aa60a21e643ebb964fb", null ],
     [ "no_detection_zone_x_max", "structpoint__cloud__object__detection_1_1ModelConfig.html#afcd594d58399330cd681ca49ca69a16e", null ],
