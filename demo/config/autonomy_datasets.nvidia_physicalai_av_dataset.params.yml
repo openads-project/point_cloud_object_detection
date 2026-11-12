@@ -1,13 +1,9 @@
 /**/*:
   ros__parameters:
+
     dataset: nvidia_physicalai_av_dataset
-    dataset_split: all
-    # Available country filters:
-    # Austria, Belgium, Bulgaria, Croatia, Czechia, Denmark, Estonia,
-    # Finland, France, Germany, Greece, Hungary, Italy, Latvia, Lithuania,
-    # Luxembourg, Netherlands, Poland, Portugal, Romania, Slovakia, Slovenia,
-    # Spain, Sweden, United States
-    nvidia_filter_countries: Germany
+    dataset_split: val  # all, train, val, test
+    nvidia_filter_countries: Germany  # United States,Germany,France,Italy,Sweden,Spain,Portugal,Greece,Austria,Finland,Croatia,Netherlands,Denmark,Slovenia,Estonia,Slovakia,Belgium,Czechia,Lithuania,Poland,Romania,Luxembourg,Latvia,Hungary,Bulgaria
 
     publish_ego_data: false
     publish_camera_images: false
