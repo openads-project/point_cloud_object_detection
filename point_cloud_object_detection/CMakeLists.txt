@@ -205,12 +205,12 @@ if(BUILD_TESTING)
   ament_target_dependencies(test_point_cloud2_utils sensor_msgs)
   ament_add_test(test_point_cloud2_utils COMMAND $<TARGET_FILE:test_point_cloud2_utils> GENERATE_RESULT_FOR_RETURN_CODE_ZERO)
 
+  # pcod-common runs its own lint checks.
+  set(AMENT_LINT_AUTO_FILE_EXCLUDE pcod-common)
   find_package(ament_lint_auto REQUIRED)
   set(ament_cmake_clang_format_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../.vscode/format/.clang-format)
   set(ament_cmake_clang_tidy_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../.vscode/lint/.clang-tidy)
   set(ament_cmake_flake8_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../.vscode/lint/ament_flake8.ini)
-  # pcod-common runs its own lint checks.
-  set(AMENT_LINT_AUTO_FILE_EXCLUDE pcod-common)
   ament_lint_auto_find_test_dependencies()
 endif()
 
