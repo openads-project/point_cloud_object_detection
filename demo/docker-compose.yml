@@ -138,6 +138,7 @@ services:
     volumes:
       - ${DATASET_DIR:-./data/datasets}:/datasets
       - ./config/autonomy_datasets.${DATASET}.params.yml:/params.yml:ro
+    image: ghcr.io/thinking-cars/autonomy_datasets:latest_fix-deps_ci  # TODO: remove once released
 
   pcd-publisher:
     profiles: [pcd]
