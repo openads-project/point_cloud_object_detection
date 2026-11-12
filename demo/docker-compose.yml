@@ -1,13 +1,6 @@
-x-ros-common-env: &ros_common_env
-  RMW_IMPLEMENTATION: rmw_fastrtps_cpp
-
-x-gpu-reservation: &gpu_reservation
-  resources:
-    reservations:
-      devices:
-        - driver: nvidia
-          count: -1
-          capabilities: [gpu]
+include:
+  - oci://ghcr.io/openads-project/point_cloud_object_detection/compose:v3.1.1
+  - oci://ghcr.io/thinking-cars/autonomy_datasets/compose:v1.7.0
 
 x-model-mount: &model_mount
   type: image
@@ -18,85 +11,41 @@ x-model-mount: &model_mount
     subpath: models
 
 services:
+
+  ## DETECTION ##
+
   triton-server:
-    image: nvcr.io/nvidia/tritonserver:26.05-py3
-    deploy:
-      <<: *gpu_reservation
+    extends:
+      file: ./docker-compose.template.yml
+      service: triton-server
     ipc: shareable
-    shm_size: "1gb"
-    environment:
-      <<: *ros_common_env
-      CUDA_VISIBLE_DEVICES: "0"
+    shm_size: 1gb
     volumes:
       - *model_mount
-    command: >
-      tritonserver
-      --model-repository=/models
-      --grpc-port=8001
-      --http-port=8000
-      --metrics-port=8002
-      --allow-client-shm=true
-      --log-verbose=0
-    healthcheck:
-      test: ["CMD", "bash", "-c", "echo > /dev/tcp/127.0.0.1/8001"]
-      interval: 2s
-      timeout: 5s
-      retries: 15
-      start_period: 120s
 
-  point-cloud-object-detection-driving: &point_cloud_object_detection
-    profiles: [driving]
-    image: ghcr.io/openads-project/point_cloud_object_detection:v3.1.1-slim
+  point-cloud-object-detection:
+    extends:
+      file: ./docker-compose.template.yml
+      service: ros2-gpu-service
     depends_on:
       triton-server:
         condition: service_healthy
     ipc: "service:triton-server"
     environment:
-      <<: *ros_common_env
-      CUDA_VISIBLE_DEVICES: "0"
-    deploy:
-      <<: *gpu_reservation
+      NAME: demo
+      PARAMS: /params.yml
+      POINT_CLOUD_TOPIC: /lidar_01/point_cloud
     volumes:
-      - ./config/point_cloud_object_detection.driving.params.yml:/params.yml:ro
-      - *model_mount
-    command: >
-      bash -lc "
-      ros2 launch point_cloud_object_detection point_cloud_object_detection.launch.py
-      params:=/params.yml
-      name:=point_cloud_object_detection
-      point_cloud_topic:=/lidar_01/point_cloud
-      object_list_topic:=/demo/objects
-      no_detection_zone_topic:=/demo/no_detection_zone
-      no_detection_zone_points_topic:=/demo/no_detection_zone_points
-      detection_area_topic:=/demo/detection_area
-      model_bounds_topic:=/demo/model_bounds
-      density_grid_map_topic:=/demo/density_grid_map
-      dynamic_grid_map_topic:=/demo/dynamic_grid_map
-      combined_grid_map_topic:=/demo/combined_grid_map
-      static_grid_map_topic:=/demo/static_grid_map
-      log_level:=info
-      use_sim_time:=false
-      "
-
-  point-cloud-object-detection-pcd:
-    <<: *point_cloud_object_detection
-    profiles: [pcd]
-    volumes:
-      - ./config/point_cloud_object_detection.pcd.params.yml:/params.yml:ro
+      - ./config/point_cloud_object_detection.${DATASET}.params.yml:/params.yml:ro
       - *model_mount
 
-  point-cloud-object-detection-nvidia:
-    <<: *point_cloud_object_detection
-    profiles: [nvidia]
-    volumes:
-      - ./config/point_cloud_object_detection.nvidia.params.yml:/params.yml:ro
-      - *model_mount
+  ## VISUALIZATION ##
 
   visualization-sync:
+    extends:
+      file: ./docker-compose.template.yml
+      service: ros2-service
     image: ghcr.io/openads-project/monitoring:v1.0.0
-    environment:
-      <<: *ros_common_env
-      PYTHONDONTWRITEBYTECODE: "1"
     volumes:
       - ./services/visualization-sync/synchronize_detections.py:/opt/demo/synchronize_detections.py:ro
     command: >
@@ -105,7 +54,7 @@ services:
       -p cache_size:=32
       -r point_cloud:=/lidar_01/point_cloud
       -r auxiliary_point_cloud:=/demo/no_detection_zone_points
-      -r object_list:=/demo/objects
+      -r object_list:=/demo/object_list
       -r ground_truth_object_list:=/object_list/lidar_01
       -r density_grid_map:=/demo/density_grid_map
       -r dynamic_grid_map:=/demo/dynamic_grid_map
@@ -121,13 +70,13 @@ services:
       -r synchronized_static_grid_map:=/demo/synchronized_static_grid_map
 
   grid-map-image-republisher:
+    extends:
+      file: ./docker-compose.template.yml
+      service: ros2-service
     image: ghcr.io/openads-project/monitoring:v1.0.0
     depends_on:
       visualization-sync:
         condition: service_started
-    environment:
-      <<: *ros_common_env
-      PYTHONDONTWRITEBYTECODE: "1"
     volumes:
       - ./services/grid-map-image-republisher/republish_grid_maps_as_images.py:/opt/demo/republish_grid_maps_as_images.py:ro
     command: >
@@ -141,184 +90,68 @@ services:
       -r dynamic_grid_map_image:=/demo/synchronized_dynamic_grid_map_image
       -r combined_grid_map_image:=/demo/synchronized_combined_grid_map_image
       -r static_grid_map_image:=/demo/synchronized_static_grid_map_image
+
   ros-parameter-gui:
+    extends:
+      file: ./docker-compose.template.yml
+      service: ros2-x11-service
     image: ghcr.io/openads-project/monitoring:v1.0.0
-    environment:
-      <<: *ros_common_env
-      DISPLAY: ${DISPLAY}
-      QT_X11_NO_MITSHM: "1"
-    volumes:
-      - /tmp/.X11-unix:/tmp/.X11-unix:rw
     command: bash -lc "rqt --standalone rqt_reconfigure --ros-args -r __node:=ros_parameter_gui"
 
-  autonomy-datasets-driving:
-    profiles: [driving]
-    image: ghcr.io/thinking-cars/autonomy_datasets:v1.3.0
-    command: >
-      python3 /opt/demo/prepare_and_run.py
-      bash -c "
-      ros2 launch autonomy_datasets autonomy_datasets.launch.py
-      rviz:=no
-      continue:=false
-      target_frame_rate:=1.0
-      wait_for_ack:=false
-      dataset:=driving
-      config:=/config/autonomy_datasets.params.yml
-      "
-    environment:
-      RMW_IMPLEMENTATION: rmw_fastrtps_cpp
-      DISPLAY: ${DISPLAY}
-      NVIDIA_VISIBLE_DEVICES: all
-      NVIDIA_DRIVER_CAPABILITIES: all
-      HOME: /tmp
-      PYTHONDONTWRITEBYTECODE: "1"
+  rviz:
+    extends:
+      file: ./docker-compose.template.yml
+      service: ros2-x11-service
+    image: ghcr.io/openads-project/monitoring:v1.0.0
+    depends_on:
+      point-cloud-object-detection:
+        condition: service_started
+      visualization-sync:
+        condition: service_started
+      grid-map-image-republisher:
+        condition: service_started
     volumes:
-      - /tmp/.X11-unix:/tmp/.X11-unix
-      - ./data:/demo-data
-      - ./data/datasets:/datasets
-      - ./services/autonomy-datasets/prepare_and_run.py:/opt/demo/prepare_and_run.py:ro
-      - ./config/autonomy_datasets.driving.params.yml:/config/autonomy_datasets.params.yml:ro
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+      - ./rviz/config.${DATASET}.rviz:/config.rviz
+    command: >
+      bash -lc "
+        if [ "${DATASET}" = pcd ]; then
+            rviz2 -d /config.rviz --ros-args -r __node:=rviz -p use_sim_time:=false;
+        else
+            rviz2 -d /config.rviz --ros-args -r __node:=rviz -p use_sim_time:=true;
+        fi
+      "
 
-  autonomy-datasets-nvidia:
-    profiles: [nvidia]
-    image: ghcr.io/thinking-cars/autonomy_datasets:v1.3.0
-    command: >
-      python3 /opt/demo/prepare_and_run.py
-      bash -c "
-      hf auth login --token $${HF_TOKEN} &&
-      ros2 launch autonomy_datasets autonomy_datasets.launch.py
-      rviz:=no
-      continue:=true
-      target_frame_rate:=1.0
-      wait_for_ack:=false
-      overwrite_rosbag:=$${OVERWRITE_ROSBAG}
-      dataset:=nvidia_physicalai_av_dataset
-      config:=/config/autonomy_datasets.params.yml
-      "
+  ## TEST DATA ##
+
+  autonomy-datasets:
+    profiles: [driving, nvidia_physicalai_av_dataset]
+    extends:
+      file: ./docker-compose.template.yml
+      service: ros2-service
     environment:
-      RMW_IMPLEMENTATION: rmw_fastrtps_cpp
-      DISPLAY: ${DISPLAY}
-      NVIDIA_VISIBLE_DEVICES: all
-      NVIDIA_DRIVER_CAPABILITIES: all
+      CONFIG: /params.yml
+      CONTINUE: false
+      DATASET: ${DATASET}
+      RVIZ: no
+      TARGET_FRAME_RATE: "1.0"
       HF_TOKEN: ${HF_TOKEN:-}
-      OVERWRITE_ROSBAG: ${OVERWRITE_ROSBAG:-false}
-      HOME: /tmp
-      HF_HOME: /datasets/.cache/huggingface
-      XDG_CACHE_HOME: /datasets/.cache
-      PYTHONDONTWRITEBYTECODE: "1"
     volumes:
-      - /tmp/.X11-unix:/tmp/.X11-unix
-      - ./data:/demo-data
-      - ./data/datasets:/datasets
-      - ./services/autonomy-datasets/prepare_and_run.py:/opt/demo/prepare_and_run.py:ro
-      - ./config/autonomy_datasets.nvidia.params.yml:/config/autonomy_datasets.params.yml:ro
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+      - ${DATASET_DIR:-./data/datasets}:/datasets
+      - ./config/autonomy_datasets.${DATASET}.params.yml:/params.yml:ro
+    image: ghcr.io/thinking-cars/autonomy_datasets:latest_fix-deps_ci  # TODO: remove once released
 
   pcd-publisher:
     profiles: [pcd]
+    extends:
+      file: ./docker-compose.template.yml
+      service: ros2-service
     image: ghcr.io/openads-project/point_cloud_object_detection/pcd-publisher:v1.0.0-slim
     depends_on:
-      point-cloud-object-detection-pcd:
+      point-cloud-object-detection:
         condition: service_started
     environment:
-      <<: *ros_common_env
       PCD_DIR: /pcds
       PCD_GLOB: "*.pcd"
       PCD_TOPIC: /lidar_01/point_cloud
       PCD_FRAME_ID: base_link
       PCD_PUBLISH_RATE_HZ: ${PCD_PUBLISH_RATE_HZ:-5.0}
-
-  rviz-driving:
-    profiles: [driving]
-    image: ghcr.io/openads-project/monitoring:v1.0.0
-    depends_on:
-      point-cloud-object-detection-driving:
-        condition: service_started
-      visualization-sync:
-        condition: service_started
-      grid-map-image-republisher:
-        condition: service_started
-    environment:
-      <<: *ros_common_env
-      DISPLAY: ${DISPLAY}
-      QT_X11_NO_MITSHM: "1"
-      NVIDIA_VISIBLE_DEVICES: all
-      NVIDIA_DRIVER_CAPABILITIES: all
-      PYTHONDONTWRITEBYTECODE: "1"
-    deploy:
-      <<: *gpu_reservation
-    volumes:
-      - /tmp/.X11-unix:/tmp/.X11-unix:rw
-      - ./rviz/config.driving.rviz:/root/.rviz2/config.rviz
-      - ./rviz/reset_rviz_on_clock_jump.py:/opt/demo/reset_rviz_on_clock_jump.py:ro
-    command: >
-      bash -lc "
-      python3 /opt/demo/reset_rviz_on_clock_jump.py --
-      rviz2 -d /root/.rviz2/config.rviz --ros-args -r __node:=rviz -p use_sim_time:=true
-      "
-
-  rviz-nvidia:
-    profiles: [nvidia]
-    image: ghcr.io/openads-project/monitoring:v1.0.0
-    depends_on:
-      point-cloud-object-detection-nvidia:
-        condition: service_started
-      visualization-sync:
-        condition: service_started
-      grid-map-image-republisher:
-        condition: service_started
-    environment:
-      <<: *ros_common_env
-      DISPLAY: ${DISPLAY}
-      QT_X11_NO_MITSHM: "1"
-      NVIDIA_VISIBLE_DEVICES: all
-      NVIDIA_DRIVER_CAPABILITIES: all
-      PYTHONDONTWRITEBYTECODE: "1"
-    deploy:
-      <<: *gpu_reservation
-    volumes:
-      - /tmp/.X11-unix:/tmp/.X11-unix:rw
-      - ./rviz/config.nvidia.rviz:/root/.rviz2/config.rviz
-      - ./rviz/reset_rviz_on_clock_jump.py:/opt/demo/reset_rviz_on_clock_jump.py:ro
-    command: >
-      bash -lc "
-      python3 /opt/demo/reset_rviz_on_clock_jump.py --
-      rviz2 -d /root/.rviz2/config.rviz --ros-args -r __node:=rviz -p use_sim_time:=true
-      "
-
-  rviz-pcd:
-    profiles: [pcd]
-    image: ghcr.io/openads-project/monitoring:v1.0.0
-    depends_on:
-      point-cloud-object-detection-pcd:
-        condition: service_started
-      visualization-sync:
-        condition: service_started
-    environment:
-      <<: *ros_common_env
-      DISPLAY: ${DISPLAY}
-      QT_X11_NO_MITSHM: "1"
-      NVIDIA_VISIBLE_DEVICES: all
-      NVIDIA_DRIVER_CAPABILITIES: all
-    deploy:
-      <<: *gpu_reservation
-    volumes:
-      - /tmp/.X11-unix:/tmp/.X11-unix:rw
-      - ./rviz/config.pcd.rviz:/root/.rviz2/config.rviz
-    command: >
-      bash -lc "
-      rviz2 -d /root/.rviz2/config.rviz --ros-args -r __node:=rviz -p use_sim_time:=false
-      "

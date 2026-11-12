@@ -44,24 +44,18 @@ The [demo](demo) provides an example setup for the `point_cloud_object_detection
    xhost +local:
    ```
 
-2. Run the demo with either the `pcd` or `driving` profile.
+2. Choose the data to run the demo on by setting `DATASET` in [`demo/.env`](demo/.env).
 
-   - Use the `pcd` profile to immediately replay and process the ten PCD files provided by the PCD publisher image. This is by far the fastest way to see example output of the detection node.
+   ```dotenv
+   DATASET=pcd
+   ```
 
-        ```bash
-        cd demo
-        docker compose --profile pcd up -d
-        ```
+   - `pcd` replays and processes the ten PCD files provided by the PCD publisher image. This is by far the fastest way to see example output of the detection node.
 
-   - Alternatively, use the `driving` profile to download, convert, replay, and process the [DrivIng dataset](https://doi.org/10.7910/DVN/VBZKDY).
-
-        ```bash
-        cd demo
-        docker compose --profile driving up -d
-        ```
+   - `driving` uses [autonomy_datasets](https://github.com/thinking-cars/autonomy_datasets) to download, convert, replay, and process the [DrivIng dataset](https://doi.org/10.7910/DVN/VBZKDY).
 
         ⚠️ Depending on your bandwidth, it may take **several hours** to start the first run due to the initial download and conversion of the selected sequence. Check the current progress with  
-        `docker compose --profile driving logs -f autonomy-datasets-driving`
+        `docker compose logs -f autonomy-datasets`
 
         ⚠️ Make sure to comply with the [DrivIng dataset’s license](https://creativecommons.org/licenses/by-nc-nd/4.0/).
 
@@ -69,24 +63,32 @@ The [demo](demo) provides an example setup for the `point_cloud_object_detection
 
         ℹ️ Since a subset of the [DrivIng dataset](https://doi.org/10.7910/DVN/VBZKDY) was used in the training of the [demo model](demo/assets/models/README.md), interpret its apparent performance in the demo with care. Apply the model to your own data to estimate the model performance.
 
-        
-
-3. Stop the demo once you're done:
-
-    - For the `pcd` profile:
-        ```bash
-        cd demo
-        docker compose --profile pcd down
-        ```
-
-    - For the `driving` profile:
+   - `nvidia_physicalai_av_dataset` uses [autonomy_datasets](https://github.com/thinking-cars/autonomy_datasets) to download, convert, replay, and process the [NVIDIA PhysicalAI Autonomous Vehicles dataset](https://huggingface.co/datasets/nvidia/PhysicalAI-Autonomous-Vehicles). This dataset requires a Hugging Face access token, which must be exported in the shell you start the demo from:
 
         ```bash
-        cd demo
-        docker compose --profile driving down
+        export HF_TOKEN=your_token_here
         ```
 
-4. Disable the connection to the X server after you're done with the demo:
+        ℹ️ See [Additional dataset demos](demo/README.md) for how to get a token and accept the dataset terms.
+
+3. Start the demo.
+
+   ```bash
+   cd demo
+   docker compose up -d
+   ```
+
+   ℹ️ `demo/.env` selects the matching Docker Compose profile, so no `--profile` option is needed.
+
+   ℹ️ For the datasets, `demo/.env` can also enable an evaluation of the detector that shows true positives, false positives and false negatives in RViz and writes a JSON report. See [Evaluating the detector](demo/README.md#evaluating-the-detector).
+
+4. Stop the demo once you're done. Do this before changing `DATASET`, so that all services of the current run are stopped.
+
+   ```bash
+   docker compose down
+   ```
+
+5. Disable the connection to the X server after you're done with the demo:
 
    ```bash
    xhost -local:
@@ -95,6 +97,31 @@ The [demo](demo) provides an example setup for the `point_cloud_object_detection
 #### Interacting Through `rqt`
 
 The `ros-parameter-gui` service starts `rqt` with the `rqt_reconfigure` plugin. You may use it to inspect and adjust the parameters of the `point_cloud_object_detection` node while the demo is active. Click **Refresh** in rqt after startup if not all nodes are listed.
+
+### 📊 Results
+
+The metrics are computed by the `object_detection_3d` evaluation (version 1.0.0) of [autonomy_evaluation](https://github.com/thinking-cars/autonomy_evaluation/blob/main/docs/IMPLEMENTATION.md). The detector does not estimate velocities, so the velocity error is not computed and is left out of the detection score. AP is averaged over center-distance thresholds of 0.5, 1, 2 and 4 m. Classes without true positives count with an error of 1 in the mean errors, and classes without labels are not evaluated.
+
+| Dataset | Split | Scenes | Samples | Score ↑ | mAP ↑ | mATE (m) ↓ | mASE ↓ | mAOE (rad) ↓ |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| [DrivIng](https://doi.org/10.7910/DVN/VBZKDY) | night | 99 | 19,559 | 0.271 | 0.232 | 0.564 | 0.430 | 1.112 |
+
+<details>
+<summary>Per-class results on DrivIng (night)</summary>
+
+| Class | Labels | Detections | AP ↑ | ATE (m) ↓ | ASE ↓ | AOE (rad) ↓ |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| car | 114,815 | 71,658 | 0.551 | 0.161 | 0.175 | 0.283 |
+| motorcycle | 1,568 | 986 | 0.523 | 0.198 | 0.104 | 2.735 |
+| pedestrian | 9,160 | 9,044 | 0.321 | 0.145 | 0.289 | 1.774 |
+| bicycle | 3,886 | 1,589 | 0.205 | 0.170 | 0.327 | 1.600 |
+| bus | 331 | 176 | 0.179 | 1.057 | 0.275 | 0.171 |
+| utility | 3,107 | 1,043 | 0.076 | 0.780 | 0.267 | 0.332 |
+| micro | 268 | 0 | 0.000 | – | – | – |
+| animal | 145 | 5 | 0.000 | – | – | – |
+| vru | 0 | 5 | – | – | – | – |
+
+</details>
 
 ## 💻 Development
 

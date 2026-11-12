@@ -38,9 +38,12 @@ jobs:
         run: |
           # Keep the slimming probe aligned with the model image used by the demo.
           MODEL_IMAGE="$(
-            docker compose -f demo/docker-compose.yml config --format json |
-              jq -er '."x-model-mount".source'
+            sed -nE 's/^[[:space:]]*source:[[:space:]]*\$\{MODEL_IMAGE:-([^}]+)\}.*$/\1/p' demo/docker-compose.yml
           )"
+          if [[ -z "${MODEL_IMAGE}" ]]; then
+            echo "::error file=demo/docker-compose.yml::Could not find the default MODEL_IMAGE"
+            exit 1
+          fi
           docker pull --platform linux/amd64 "${MODEL_IMAGE}"
           container_id="$(docker create --platform linux/amd64 "${MODEL_IMAGE}" /bin/true)"
           trap 'docker rm "${container_id}" >/dev/null' EXIT

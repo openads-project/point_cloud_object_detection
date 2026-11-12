@@ -1,0 +1,38 @@
+# Optional overlay that evaluates the detector against the labels of the dataset
+
+services:
+
+  autonomy-datasets:
+    environment:
+      # The evaluation requests the samples one by one, so that the detector processes all of them
+      START_PAUSED: "true"
+      TARGET_FRAME_RATE: "0.0"
+
+  autonomy-evaluation:
+    profiles: [driving, nvidia_physicalai_av_dataset]
+    extends:
+      file: ./docker-compose.template.yml
+      service: ros2-x11-service
+    image: ghcr.io/thinking-cars/autonomy_evaluation:v2.0.0
+    depends_on:
+      autonomy-datasets:
+        condition: service_started
+      point-cloud-object-detection:
+        condition: service_started
+    volumes:
+      - ./rviz/config.evaluation.rviz:/docker-ros/ws/install/autonomy_evaluation/share/autonomy_evaluation/config/conf.rviz:ro
+      - ./data/results:/results
+    command:
+      - /bin/bash
+      - -ic
+      - |
+        # Samples published before the detector is ready would be lost
+        until ros2 topic info /demo/object_list --no-daemon | grep -q "Publisher count: [1-9]"; do sleep 1; done
+        ros2 launch autonomy_evaluation autonomy_evaluation.launch.py \
+          evaluation:=object_detection_3d \
+          prediction:=/demo/object_list \
+          label:=/object_list/lidar_01 \
+          request_samples:=/autonomy_datasets/request_samples \
+          visualize:=true \
+          evaluation_timeout:=10.0 \
+          results_path:=/results/object_detection_3d.${DATASET}.json
