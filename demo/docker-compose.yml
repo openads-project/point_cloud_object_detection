@@ -135,7 +135,6 @@ services:
       RVIZ: no
       TARGET_FRAME_RATE: "1.0"
       HF_TOKEN: ${HF_TOKEN:-}
-      HF_HOME: /datasets/.cache/huggingface
     volumes:
       - ${DATASET_DIR:-./data/datasets}:/datasets
       - ./config/autonomy_datasets.${DATASET}.params.yml:/params.yml:ro
