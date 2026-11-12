@@ -13,6 +13,10 @@ The node can publish up to four grid maps as `nav_msgs/msg/OccupancyGrid` messag
 
 Here, *dynamic objects* mean *objects capable of moving*, whether or not they are currently in motion. The dynamic grid output is intended to correspond to the model’s object detections but is trained separately.
 
+Each published object carries the score selected by `postprocessing.nms.score_mode` in
+`existence_probability` and normalized class probabilities in `state.classifications`.
+Filtering and NMS use the same score.
+
 ## Nodes
 
 ### `point_cloud_object_detection`
@@ -69,8 +73,11 @@ flowchart LR
 | `output.sensor_id` | `int` | `0` | Sensor ID for object list |
 | `output.variances` | `float[]` | `[] {
     std::vector<double> values(12, perception_msgs::object_access::CONTINUOUS_STATE_COVARIANCE_UNKNOWN)` | Array with variances. Entries correspond to ISCACTR model defined in perception interfaces |
+| `postprocessing.merging.enabled` | `bool` | `false` | Merge high-overlap boxes independently of class before ordinary NMS. Retain the strongest geometry and average full class probabilities using detection scores. |
+| `postprocessing.merging.score_threshold` | `float` | `0.5` | Merge score threshold: rotated 3D intersection volume / sqrt(volume_a * volume_b). Independent of NMS; positive heights required. Changes do not reload the model. |
 | `postprocessing.nms.iou_threshold` | `float` | - | NMS IoU threshold. Defaults to runtime_defaults.postprocessing.nms.iou_threshold from the model manifest. |
 | `postprocessing.nms.max_num_objects` | `int` | - | Maximum number of objects after NMS. Defaults to runtime_defaults.postprocessing.nms.max_num_objects from the model manifest. |
+| `postprocessing.nms.score_mode` | `string` | `"existence_quality"` | Confidence published in existence_probability and used for NMS filtering and ranking: existence (presence only), existence_quality (presence times localization quality), or existence_quality_class (presence times localization quality times highest softmax class probability). Defaults to runtime_defaults.postprocessing.score_mode in the model manifest. Runtime changes reinitialize the model; score thresholds may need retuning. |
 | `input.point_feature_field` | `string` | `"intensity"` | Single-feature source: 'intensity' or 'reflectivity' |
 | `preprocessing.point_feature.value_threshold` | `float` | `0.0F` | Point-feature value threshold. Defaults to runtime_defaults.preprocessing.point_feature.value_threshold from the model manifest. |
 | `preprocessing.detection_area.z_min` | `float` | `0.0` | Effective preprocessing lower z-bound used for point filtering and tensor construction. Runtime override; defaults to the model manifest z range. Values outside the manifest z range are accepted with a warning. |

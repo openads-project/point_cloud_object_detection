@@ -55,7 +55,7 @@ void PBODModel::validateInterface(const triton_cpp::TritonInterface& triton_inte
     }
   }
 
-  for (const char* output_name : {kOutputNameFocal, kOutputNameReg, kOutputNameClass, kOutputNameSize}) {
+  for (const char* output_name : {kOutputNameFocal, kOutputNameObjectness, kOutputNameReg, kOutputNameClass, kOutputNameSize}) {
     try {
       (void)triton_interface.getOutputShape(output_name);
     } catch (const std::invalid_argument& e) {
@@ -159,6 +159,7 @@ PBODModel::PBODModel(triton_cpp::TritonInterface& triton_interface, const ModelC
                                                 {model_config_.pillar_map_range[1][0], model_config_.pillar_map_range[1][1]},
                                                 {model_config_.pillar_map_range[2][0], model_config_.pillar_map_range[2][1]}}},
                                               model_config_.first_up_stride, stride);
+  postprocess_config_.score_mode = model_config_.nms_score_mode;
   postprocess_config_.class_names = model_config_.predicted_class_names;
   postprocess_config_.score_thresholds.reserve(model_config_.nms_score_threshold.size());
   for (double value : model_config_.nms_score_threshold) {
@@ -635,6 +636,7 @@ std::vector<BoundingBox> PBODModel::modelOutputToBoxes() {
   auto class_logits = triton_interface_.getOutputTensor<float>(kOutputNameClass, num_pillars, num_classes);
   auto size_posterior = triton_interface_.getOutputTensor<float>(kOutputNameSize, num_pillars, kSizeValuesPerClass * num_classes);
   auto focal_logits = triton_interface_.getOutputTensor<float>(kOutputNameFocal, num_pillars);
+  auto objectness_logits = triton_interface_.getOutputTensor<float>(kOutputNameObjectness, num_pillars);
   auto reg_logits =
       triton_interface_.getOutputTensor<float>(kOutputNameReg, num_pillars, kRegressionValuesPerClass * num_classes);
   const AuxiliaryGridMapRequest& auxiliary_grid_map_request = getAuxiliaryGridMapRequest();
@@ -691,6 +693,7 @@ std::vector<BoundingBox> PBODModel::modelOutputToBoxes() {
 
   pcod_common::PbodOutputsView view;
   view.focal_logits = focal_logits.data();
+  view.objectness_logits = objectness_logits.data();
   view.size_posterior = size_posterior.data();
   view.class_logits = class_logits.data();
   view.reg_logits = reg_logits.data();

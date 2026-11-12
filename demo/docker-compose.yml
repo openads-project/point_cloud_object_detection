@@ -11,7 +11,7 @@ x-gpu-reservation: &gpu_reservation
 
 x-model-mount: &model_mount
   type: image
-  source: ${MODEL_IMAGE:-ghcr.io/openads-project/point_cloud_object_detection/model:v1.0.0}
+  source: ${MODEL_IMAGE:-ghcr.io/openads-project/point_cloud_object_detection/model:v1.1.0-onnx-int8}
   target: /models
   read_only: true
   image:
@@ -19,7 +19,7 @@ x-model-mount: &model_mount
 
 services:
   triton-server:
-    image: nvcr.io/nvidia/tritonserver:26.05-py3
+    image: nvcr.io/nvidia/tritonserver:26.07-py3
     deploy:
       <<: *gpu_reservation
     ipc: shareable
@@ -29,6 +29,7 @@ services:
       CUDA_VISIBLE_DEVICES: "0"
     volumes:
       - *model_mount
+      - triton-engine-cache:/trt-engine-cache
     command: >
       tritonserver
       --model-repository=/models
@@ -42,11 +43,11 @@ services:
       interval: 2s
       timeout: 5s
       retries: 15
-      start_period: 120s
+      start_period: 600s
 
   point-cloud-object-detection-driving: &point_cloud_object_detection
     profiles: [driving]
-    image: ghcr.io/openads-project/point_cloud_object_detection:v3.1.1-slim
+    image: ghcr.io/openads-project/point_cloud_object_detection:v4.0.0-slim
     depends_on:
       triton-server:
         condition: service_healthy
@@ -93,7 +94,7 @@ services:
       - *model_mount
 
   visualization-sync:
-    image: ghcr.io/openads-project/monitoring:v1.0.0
+    image: ghcr.io/openads-project/monitoring:v26.10.20
     environment:
       <<: *ros_common_env
       PYTHONDONTWRITEBYTECODE: "1"
@@ -121,7 +122,7 @@ services:
       -r synchronized_static_grid_map:=/demo/synchronized_static_grid_map
 
   grid-map-image-republisher:
-    image: ghcr.io/openads-project/monitoring:v1.0.0
+    image: ghcr.io/openads-project/monitoring:v26.10.20
     depends_on:
       visualization-sync:
         condition: service_started
@@ -142,7 +143,7 @@ services:
       -r combined_grid_map_image:=/demo/synchronized_combined_grid_map_image
       -r static_grid_map_image:=/demo/synchronized_static_grid_map_image
   ros-parameter-gui:
-    image: ghcr.io/openads-project/monitoring:v1.0.0
+    image: ghcr.io/openads-project/monitoring:v26.10.20
     environment:
       <<: *ros_common_env
       DISPLAY: ${DISPLAY}
@@ -243,7 +244,7 @@ services:
 
   rviz-driving:
     profiles: [driving]
-    image: ghcr.io/openads-project/monitoring:v1.0.0
+    image: ghcr.io/openads-project/monitoring:v26.10.20
     depends_on:
       point-cloud-object-detection-driving:
         condition: service_started
@@ -272,7 +273,7 @@ services:
 
   rviz-nvidia:
     profiles: [nvidia]
-    image: ghcr.io/openads-project/monitoring:v1.0.0
+    image: ghcr.io/openads-project/monitoring:v26.10.20
     depends_on:
       point-cloud-object-detection-nvidia:
         condition: service_started
@@ -301,7 +302,7 @@ services:
 
   rviz-pcd:
     profiles: [pcd]
-    image: ghcr.io/openads-project/monitoring:v1.0.0
+    image: ghcr.io/openads-project/monitoring:v26.10.20
     depends_on:
       point-cloud-object-detection-pcd:
         condition: service_started
@@ -322,3 +323,6 @@ services:
       bash -lc "
       rviz2 -d /root/.rviz2/config.rviz --ros-args -r __node:=rviz -p use_sim_time:=false
       "
+
+volumes:
+  triton-engine-cache:

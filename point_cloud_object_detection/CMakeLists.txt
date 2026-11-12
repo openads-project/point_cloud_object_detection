@@ -104,7 +104,9 @@ set(PCOD_COMMON_BUILD_TESTS OFF CACHE BOOL "Disable pcod-common tests in this wo
 set(PCOD_COMMON_ENABLE_CUDA ${ENABLE_CUDA} CACHE BOOL "Enable optional CUDA components for pcod-common" FORCE)
 add_subdirectory(pcod-common)
 if(TARGET pcod_common)
-  set_target_properties(pcod_common PROPERTIES POSITION_INDEPENDENT_CODE ON)
+  # The submodule has its own CI and style configuration. Keep its sources and
+  # NVCC command lines out of the ROS package's clang-tidy compilation database.
+  set_target_properties(pcod_common PROPERTIES POSITION_INDEPENDENT_CODE ON EXPORT_COMPILE_COMMANDS OFF)
   if(PCOD_CUDA_FAST_MATH)
     target_compile_options(pcod_common PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--use_fast_math>)
   endif()
@@ -181,6 +183,18 @@ if(BUILD_TESTING)
   target_include_directories(test_pbod_feature_utils PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
   ament_add_test(test_pbod_feature_utils COMMAND $<TARGET_FILE:test_pbod_feature_utils> GENERATE_RESULT_FOR_RETURN_CODE_ZERO)
 
+  add_executable(test_classification_merging tests/test_classification_merging.cpp src/Utils.cpp)
+  target_include_directories(test_classification_merging PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  target_link_libraries(test_classification_merging pcod_common)
+  ament_target_dependencies(test_classification_merging perception_msgs)
+  ament_add_test(test_classification_merging COMMAND $<TARGET_FILE:test_classification_merging> GENERATE_RESULT_FOR_RETURN_CODE_ZERO)
+
+  add_executable(test_detection_confidence tests/test_detection_confidence.cpp src/Utils.cpp)
+  target_include_directories(test_detection_confidence PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  target_link_libraries(test_detection_confidence pcod_common)
+  ament_target_dependencies(test_detection_confidence perception_msgs perception_msgs_utils tf2_perception_msgs)
+  ament_add_test(test_detection_confidence COMMAND $<TARGET_FILE:test_detection_confidence> GENERATE_RESULT_FOR_RETURN_CODE_ZERO)
+
   add_executable(test_point_utils tests/test_point_utils.cpp)
   target_include_directories(test_point_utils PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
   ament_target_dependencies(test_point_utils pcl_ros)
@@ -191,13 +205,13 @@ if(BUILD_TESTING)
   ament_target_dependencies(test_point_cloud2_utils sensor_msgs)
   ament_add_test(test_point_cloud2_utils COMMAND $<TARGET_FILE:test_point_cloud2_utils> GENERATE_RESULT_FOR_RETURN_CODE_ZERO)
 
+  # pcod-common runs its own lint checks.
+  set(AMENT_LINT_AUTO_FILE_EXCLUDE pcod-common)
   find_package(ament_lint_auto REQUIRED)
   set(ament_cmake_clang_format_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../.vscode/format/.clang-format)
   set(ament_cmake_clang_tidy_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../.vscode/lint/.clang-tidy)
   set(ament_cmake_flake8_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../.vscode/lint/ament_flake8.ini)
   ament_lint_auto_find_test_dependencies()
-  # TODO: Remove once the ROS lint environment recognizes tomllib as Python stdlib.
-  set(AMENT_LINT_AUTO_FILE_EXCLUDE pcod-common/scripts/check_versions.py)
 endif()
 
 ament_package()

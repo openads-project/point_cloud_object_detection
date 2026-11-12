@@ -36,6 +36,7 @@ class PBODModel : public Model {
   static constexpr const char* kInputNamePillarIndices = "pillar_indices";
 
   static constexpr const char* kOutputNameFocal = "focal_logits";
+  static constexpr const char* kOutputNameObjectness = "objectness_logits";
   static constexpr const char* kOutputNameReg = "reg_logits";
   static constexpr const char* kOutputNameClass = "class_logits";
   static constexpr const char* kOutputNameSize = "size_posterior";
