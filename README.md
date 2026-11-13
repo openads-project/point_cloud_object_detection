@@ -78,8 +78,6 @@ The [demo](demo) provides an example setup for the `point_cloud_object_detection
    docker compose up -d
    ```
 
-   ℹ️ `demo/.env` selects the matching Docker Compose profile, so no `--profile` option is needed.
-
    ℹ️ For the datasets, `demo/.env` can also enable an evaluation of the detector that shows true positives, false positives and false negatives in RViz and writes a JSON report. See [Evaluating the detector](demo/README.md#evaluating-the-detector).
 
 4. Stop the demo once you're done. Do this before changing `DATASET`, so that all services of the current run are stopped.
@@ -105,6 +103,7 @@ The metrics are computed by the `object_detection_3d` evaluation (version 1.0.0)
 | Dataset | Split | Scenes | Samples | Score ↑ | mAP ↑ | mATE (m) ↓ | mASE ↓ | mAOE (rad) ↓ |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | [DrivIng](https://doi.org/10.7910/DVN/VBZKDY) | night | 99 | 19,559 | 0.271 | 0.232 | 0.564 | 0.430 | 1.112 |
+| [NVIDIA PhysicalAI AV](https://huggingface.co/datasets/nvidia/PhysicalAI-Autonomous-Vehicles) | val (Germany) | 8 | 1,577 | 0.604 | 0.621 | 0.246 | 0.142 | 0.884 |
 
 <details>
 <summary>Per-class results on DrivIng (night)</summary>
@@ -120,6 +119,23 @@ The metrics are computed by the `object_detection_3d` evaluation (version 1.0.0)
 | micro | 268 | 0 | 0.000 | – | – | – |
 | animal | 145 | 5 | 0.000 | – | – | – |
 | vru | 0 | 5 | – | – | – | – |
+
+</details>
+
+<details>
+<summary>Per-class results on NVIDIA PhysicalAI AV (val, Germany)</summary>
+
+For this dataset, the evaluation groups pedestrian with vru and bicycle with motorcycle into one class each.
+
+| Class | Labels | Detections | AP ↑ | ATE (m) ↓ | ASE ↓ | AOE (rad) ↓ |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| car | 19,969 | 18,766 | 0.907 | 0.120 | 0.100 | 0.141 |
+| bus | 342 | 352 | 0.619 | 0.532 | 0.116 | 0.591 |
+| pedestrian / vru | 10,091 | 8,389 | 0.561 | 0.088 | 0.162 | 1.348 |
+| utility | 1,330 | 988 | 0.522 | 0.345 | 0.145 | 0.729 |
+| bicycle / motorcycle | 2,997 | 2,048 | 0.496 | 0.148 | 0.185 | 1.609 |
+| animal | 0 | 18 | – | – | – | – |
+| micro | 0 | 1 | – | – | – | – |
 
 </details>
 
